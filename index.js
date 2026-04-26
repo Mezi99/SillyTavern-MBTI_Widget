@@ -72,9 +72,13 @@ Respond with JSON only, no explanation.`;
 
     function getLastUserMessage() {
         const context = SillyTavern.getContext();
+        console.log('[MBTI] getLastUserMessage - chat exists:', !!context.chat);
+        console.log('[MBTI] getLastUserMessage - messages:', context.chat?.messages);
         if (!context.chat) return null;
         const messages = context.chat.messages || [];
+        console.log('[MBTI] getLastUserMessage - messages count:', messages.length);
         for (let i = messages.length - 1; i >= 0; i--) {
+            console.log('[MBTI] getLastUserMessage - msg:', messages[i]);
             if (messages[i].is_user) {
                 return messages[i].msg;
             }
