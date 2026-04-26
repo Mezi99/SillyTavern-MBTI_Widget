@@ -84,12 +84,16 @@ Respond with JSON only, no explanation.`;
 
     async function queryRating(userMessage, context) {
         const fullPrompt = `Recent context:\n${context}\n\nCharacter's action: "${userMessage}"`;
+        console.log('[MBTI] queryRating - fullPrompt:', fullPrompt);
+        console.log('[MBTI] queryRating - RATING_PROMPT:', RATING_PROMPT);
         try {
             const ctx = SillyTavern.getContext();
+            console.log('[MBTI] queryRating - ctx.generateRaw exists:', typeof ctx.generateRaw);
             const response = await ctx.generateRaw({
                 prompt: fullPrompt,
                 systemPrompt: RATING_PROMPT,
             });
+            console.log('[MBTI] queryRating - raw response:', response);
             return parseRatingResponse(response);
         } catch (error) {
             console.error('MBTI Widget: Rating query failed', error);
@@ -505,6 +509,10 @@ Respond with JSON only, no explanation.`;
         event_types = ctx.event_types;
         extension_settings = ctx.extension_settings || ctx.extensionSettings;
         saveSettingsDebounced = ctx.saveSettingsDebounced;
+        
+        console.log('[MBTI] Context keys:', Object.keys(ctx).slice(0, 20));
+        console.log('[MBTI] extension_settings:', extension_settings);
+        console.log('[MBTI] mbti_widget:', extension_settings?.mbti_widget);
 
         // Register settings with SillyTavern extension panel (EchoText pattern)
         try {
@@ -518,27 +526,44 @@ Respond with JSON only, no explanation.`;
         }
 
         eventSource.on(event_types.CHAT_LOADED, () => {
+            console.log('[MBTI] CHAT_LOADED event fired');
             loadFromChatMetadata();
             if (panelCreated) updatePanel();
         });
 
         eventSource.on(event_types.MESSAGE_RECEIVED, async (data) => {
-            if (!extension_settings.mbti_widget?.enabled || isProcessing) return;
+            console.log('[MBTI] MESSAGE_RECEIVED event fired, data:', data);
+            console.log('[MBTI] extension_settings:', extension_settings);
+            console.log('[MBTI] enabled?:', extension_settings?.mbti_widget?.enabled);
+            console.log('[MBTI] isProcessing?:', isProcessing);
+            
+            if (!extension_settings.mbti_widget?.enabled || isProcessing) {
+                console.log('[MBTI] Skipping - not enabled or processing');
+                return;
+            }
 
             const lastUserMessage = getLastUserMessage();
+            console.log('[MBTI] lastUserMessage:', lastUserMessage);
             if (!lastUserMessage) return;
 
             const contextMsgCount = extension_settings.mbti_widget?.contextMessages || 5;
+            console.log('[MBTI] contextMsgCount:', contextMsgCount);
             const context = getMessageContext(contextMsgCount);
+            console.log('[MBTI] context length:', context?.length);
             if (!context) return;
 
             isProcessing = true;
             try {
+                console.log('[MBTI] Calling queryRating...');
                 const ratings = await queryRating(lastUserMessage, context);
+                console.log('[MBTI] Ratings returned:', ratings);
                 if (ratings.length > 0) {
                     ratings.forEach(tag => applyTag(tag));
                     saveToChatMetadata();
                     updatePanel();
+                    console.log('[MBTI] Panel updated with ratings:', ratings);
+                } else {
+                    console.log('[MBTI] No ratings returned!');
                 }
             } catch (error) {
                 console.error('MBTI Widget: Rating error', error);
