@@ -15,45 +15,19 @@
                 <span style="font-weight: bold;"><i class="fa-solid fa-power-off"></i> Enable MBTI Widget</span>
             </label>
 
-
-            <!-- Accordion Settings Panel -->
-            <div class="et-accordion-settings">
-
-                <!-- General Section -->
-                <div class="et-accordion-section open" data-section="general">
-                    <div class="et-accordion-header">
-                        <span><i class="fa-solid fa-toggle-on"></i> General</span>
-                        <i class="fa-solid fa-chevron-down et-accordion-arrow"></i>
-                    </div>
-                    <div class="et-accordion-content">
-                        <div class="et-field">
-                            <label class="et-toggle-row" for="mbti_enabled">
-                                <input type="checkbox" id="mbti_enabled" class="checkbox">
-                                <span class="et-label-text"><i class="fa-solid fa-power-off"></i> Enable MBTI Widget</span>
-                            </label>
-                            <div class="et-hint">Show the MBTI Widget floating panel and analyze chat messages.</div>
-                        </div>
-
-                        <div class="et-field">
-                            <label class="et-toggle-row" for="mbti_auto_open">
-                                <input type="checkbox" id="mbti_auto_open" class="checkbox">
-                                <span class="et-label-text"><i class="fa-solid fa-door-open"></i> Auto-Open on Load</span>
-                            </label>
-                            <div class="et-hint">Automatically open the MBTI panel when SillyTavern loads.</div>
-                        </div>
-
-                        <div class="et-field">
-                            <label class="et-field-label"><i class="fa-solid fa-comments"></i> Context Messages</label>
-                            <div class="et-range-wrapper">
-                                <input type="range" id="mbti_context_messages" min="1" max="10" value="5" class="et-range">
-                                <span id="mbti_context_messages_value" class="et-range-value">5</span>
-                            </div>
-                            <div class="et-hint">Number of recent messages included for context when analyzing.</div>
-                        </div>
-                    </div>
+            <!-- Settings Panel -->
+            <div class="et-field" style="margin-top: 15px;">
+                <label class="et-field-label"><i class="fa-solid fa-comments"></i> Context Messages</label>
+                <div class="et-range-wrapper">
+                    <input type="range" id="mbti_context_messages" min="1" max="10" value="5" class="et-range">
+                    <span id="mbti_context_messages_value" class="et-range-value">5</span>
                 </div>
+                <div class="et-hint">Number of recent messages included for context when analyzing.</div>
+            </div>
 
-                <!-- About Section -->
+            <!-- About Section -->
+            <div class="et-accordion-settings" style="margin-top: 15px;">
+
                 <div class="et-accordion-section" data-section="about">
                     <div class="et-accordion-header">
                         <span><i class="fa-solid fa-circle-info"></i> About</span>
