@@ -415,7 +415,7 @@ Respond with JSON only, no explanation.`;
         };
     }
 
-    function init() {
+    async function init() {
         // Get BASE_URL like EchoText does
         const scripts = document.querySelectorAll('script[src*="index.js"]');
         let BASE_URL = '';
