@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Raleway:wght@300;400;600;700&display=swap');
+/* MBTI Widget Styles - scoped to prevent conflicts with SillyTavern UI */
 
 /* Only apply these CSS variables within our widget scope */
-#mbti-widget-panel, #mbti-widget-settings {
+#mbti-widget-fab, #mbti-widget-panel {
     --mbti-theme-color: #d4af37;
     --mbti-glass-blur: 20px;
     --mbti-glass-opacity: 0.1;
@@ -19,13 +19,7 @@
     --theme-blue: #3b82f6;
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-.mbti-fab {
+#mbti-widget-fab {
     position: fixed;
     bottom: 20px;
     right: 20px;
@@ -44,12 +38,12 @@
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.mbti-fab:hover {
+#mbti-widget-fab:hover {
     transform: scale(1.1);
     box-shadow: 0 6px 25px rgba(212, 175, 55, 0.5);
 }
 
-.mbti-panel {
+#mbti-widget-panel {
     position: fixed;
     bottom: 20px;
     right: 90px;
@@ -64,7 +58,8 @@
     overflow: hidden;
 }
 
-.profile-shell {
+/* Profile Shell (inner content) */
+#mbti-widget-panel .profile-shell {
     background: rgba(2, 4, 10, 0.4);
     border: 1px solid var(--border-faint);
     border-radius: 8px;
@@ -74,14 +69,14 @@
     position: relative;
 }
 
-.profile-header {
+#mbti-widget-panel .profile-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 4px;
 }
 
-.mbti-code {
+#mbti-widget-panel .mbti-code {
     font-family: 'Cinzel', serif;
     font-size: 11px;
     letter-spacing: 4px;
@@ -90,11 +85,11 @@
     transition: color 0.5s ease;
 }
 
-.mbti-code.is-known {
+#mbti-widget-panel .mbti-code.is-known {
     color: rgba(212, 175, 55, 0.6);
 }
 
-.magnify-btn {
+#mbti-widget-panel .magnify-btn {
     background: transparent;
     border: none;
     cursor: pointer;
@@ -106,11 +101,11 @@
     transition: opacity 0.2s;
 }
 
-.magnify-btn:hover {
+#mbti-widget-panel .magnify-btn:hover {
     opacity: 1;
 }
 
-.magnify-icon {
+#mbti-widget-panel .magnify-icon {
     width: 14px;
     height: 14px;
     background-color: var(--theme-gold);
@@ -124,7 +119,7 @@
     mask-position: center;
 }
 
-.profile-eyebrow {
+#mbti-widget-panel .profile-eyebrow {
     font-family: 'Cinzel', serif;
     font-size: 9px;
     letter-spacing: 5px;
@@ -134,7 +129,7 @@
     margin-bottom: 5px;
 }
 
-.archetype-name {
+#mbti-widget-panel .archetype-name {
     font-family: 'Cinzel', serif;
     font-size: 15px;
     font-weight: 700;
@@ -145,7 +140,7 @@
     transition: all 0.6s ease;
 }
 
-.archetype-desc {
+#mbti-widget-panel .archetype-desc {
     font-family: 'Playfair Display', serif;
     font-size: 11px;
     font-style: italic;
@@ -158,14 +153,16 @@
     padding: 0 4px;
 }
 
-.octagon-wrapper {
+/* Octagon Radar */
+#mbti-widget-panel .octagon-wrapper {
     position: relative;
     width: 100%;
     max-width: 220px;
     margin: 0 auto 14px;
 }
 
-.axis-bars-grid {
+/* Axis Bars Grid */
+#mbti-widget-panel .axis-bars-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
@@ -173,14 +170,14 @@
     padding: 0 4px;
 }
 
-.axis-bar-item {
+#mbti-widget-panel .axis-bar-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 5px;
 }
 
-.axis-track {
+#mbti-widget-panel .axis-track {
     position: relative;
     height: 3px;
     background: rgba(212, 197, 169, 0.1);
@@ -188,7 +185,7 @@
     width: 100%;
 }
 
-.axis-center-mark {
+#mbti-widget-panel .axis-center-mark {
     position: absolute;
     left: 50%;
     top: -2px;
@@ -199,7 +196,7 @@
     z-index: 2;
 }
 
-.axis-fill-left {
+#mbti-widget-panel .axis-fill-left {
     position: absolute;
     right: 50%;
     top: 0;
@@ -209,7 +206,7 @@
     z-index: 1;
 }
 
-.axis-fill-right {
+#mbti-widget-panel .axis-fill-right {
     position: absolute;
     left: 50%;
     top: 0;
@@ -219,7 +216,8 @@
     z-index: 1;
 }
 
-.arch-overlay {
+/* Archetype Modal Overlay */
+#mbti-widget-panel .arch-overlay {
     position: fixed;
     inset: 0;
     z-index: 200;
@@ -235,12 +233,12 @@
     padding: 20px;
 }
 
-.arch-overlay.is-open {
+#mbti-widget-panel .arch-overlay.is-open {
     opacity: 1;
     pointer-events: auto;
 }
 
-.arch-modal {
+#mbti-widget-panel .arch-modal {
     width: 100%;
     max-width: 580px;
     max-height: 92vh;
@@ -254,11 +252,11 @@
     background: #02040a;
 }
 
-.arch-overlay.is-open .arch-modal {
+#mbti-widget-panel .arch-overlay.is-open .arch-modal {
     transform: scale(1);
 }
 
-.arch-illustration {
+#mbti-widget-panel .arch-illustration {
     width: 100%;
     height: 200px;
     position: relative;
@@ -270,14 +268,14 @@
     justify-content: center;
 }
 
-.arch-illustration svg {
+#mbti-widget-panel .arch-illustration svg {
     width: 100%;
     height: 100%;
     position: absolute;
     inset: 0;
 }
 
-.arch-illustration-overlay {
+#mbti-widget-panel .arch-illustration-overlay {
     position: absolute;
     bottom: 0;
     left: 0;
@@ -287,7 +285,7 @@
     z-index: 2;
 }
 
-.arch-close {
+#mbti-widget-panel .arch-close {
     position: absolute;
     top: 14px;
     right: 16px;
@@ -303,25 +301,25 @@
     transition: color 0.2s;
 }
 
-.arch-close:hover {
+#mbti-widget-panel .arch-close:hover {
     color: #ef4444;
 }
 
-.arch-body {
+#mbti-widget-panel .arch-body {
     padding: 24px 28px 28px;
     overflow-y: auto;
     flex: 1 1 auto;
 }
 
-.arch-body::-webkit-scrollbar {
+#mbti-widget-panel .arch-body::-webkit-scrollbar {
     width: 3px;
 }
 
-.arch-body::-webkit-scrollbar-thumb {
+#mbti-widget-panel .arch-body::-webkit-scrollbar-thumb {
     background: rgba(212, 175, 55, 0.2);
 }
 
-.arch-mbti-badge {
+#mbti-widget-panel .arch-mbti-badge {
     font-family: 'Cinzel', serif;
     font-size: 10px;
     letter-spacing: 4px;
@@ -330,7 +328,7 @@
     margin-bottom: 6px;
 }
 
-.arch-title {
+#mbti-widget-panel .arch-title {
     font-family: 'Cinzel', serif;
     font-size: 24px;
     font-weight: 700;
@@ -340,7 +338,7 @@
     transition: color 0.5s;
 }
 
-.arch-tagline {
+#mbti-widget-panel .arch-tagline {
     font-family: 'Playfair Display', serif;
     font-size: 14px;
     font-style: italic;
@@ -351,14 +349,14 @@
     border-bottom: 1px solid var(--border-faint);
 }
 
-.arch-traits {
+#mbti-widget-panel .arch-traits {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 20px;
 }
 
-.arch-trait {
+#mbti-widget-panel .arch-trait {
     font-family: 'Cinzel', serif;
     font-size: 10px;
     letter-spacing: 2px;
@@ -368,7 +366,7 @@
     border: 1px solid;
 }
 
-.arch-section-label {
+#mbti-widget-panel .arch-section-label {
     font-family: 'Cinzel', serif;
     font-size: 10px;
     letter-spacing: 3px;
@@ -378,23 +376,23 @@
     margin-top: 20px;
 }
 
-.arch-section-label:first-of-type {
+#mbti-widget-panel .arch-section-label:first-of-type {
     margin-top: 0;
 }
 
-.arch-body p {
+#mbti-widget-panel .arch-body p {
     font-size: 14px;
     line-height: 1.7;
     color: rgba(212, 197, 169, 0.8);
 }
 
-.arch-bullets {
+#mbti-widget-panel .arch-bullets {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.arch-bullet {
+#mbti-widget-panel .arch-bullet {
     display: flex;
     gap: 10px;
     align-items: flex-start;
@@ -403,7 +401,7 @@
     color: rgba(212, 197, 169, 0.75);
 }
 
-.arch-bullet::before {
+#mbti-widget-panel .arch-bullet::before {
     content: '◈';
     color: var(--theme-gold);
     font-size: 10px;
@@ -412,21 +410,21 @@
     opacity: 0.6;
 }
 
-.arch-two-col {
+#mbti-widget-panel .arch-two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
     margin-top: 4px;
 }
 
-.arch-col {
+#mbti-widget-panel .arch-col {
     background: rgba(212, 197, 169, 0.04);
     border: 1px solid var(--border-faint);
     border-radius: 3px;
     padding: 12px 14px;
 }
 
-.arch-col-label {
+#mbti-widget-panel .arch-col-label {
     font-family: 'Cinzel', serif;
     font-size: 9px;
     letter-spacing: 3px;
@@ -434,28 +432,28 @@
     margin-bottom: 6px;
 }
 
-.arch-col-label.is-asset {
+#mbti-widget-panel .arch-col-label.is-asset {
     color: var(--theme-active);
 }
 
-.arch-col-label.is-risk {
+#mbti-widget-panel .arch-col-label.is-risk {
     color: #ef4444;
 }
 
-.arch-col p {
+#mbti-widget-panel .arch-col p {
     font-size: 12px;
     line-height: 1.6;
     color: rgba(212, 197, 169, 0.7);
 }
 
-.arch-famous {
+#mbti-widget-panel .arch-famous {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 4px;
 }
 
-.arch-famous-name {
+#mbti-widget-panel .arch-famous-name {
     font-family: 'Cinzel', serif;
     font-size: 11px;
     letter-spacing: 1px;
@@ -465,19 +463,8 @@
     border-radius: 2px;
 }
 
-.arch-divider {
+#mbti-widget-panel .arch-divider {
     height: 1px;
     background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.2), transparent);
     margin: 20px 0;
-}
-
-#mbti-widget-panel .profile-shell {
-    background: transparent;
-    border: none;
-    padding: 12px;
-    width: auto;
-}
-
-#mbti-widget-panel .arch-overlay {
-    position: fixed;
 }

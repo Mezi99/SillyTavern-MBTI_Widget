@@ -416,23 +416,34 @@ Respond with JSON only, no explanation.`;
     }
 
     function init() {
+        // Get BASE_URL like EchoText does
+        const scripts = document.querySelectorAll('script[src*="index.js"]');
+        let BASE_URL = '';
+        for (const script of scripts) {
+            if (script.src.includes('MBTI_Widget')) {
+                BASE_URL = script.src.split('/').slice(0, -1).join('/');
+                break;
+            }
+        }
+        if (!BASE_URL) {
+            BASE_URL = '/scripts/extensions/third-party/SillyTavern-MBTI_Widget';
+        }
+
         const ctx = SillyTavern.getContext();
         eventSource = ctx.eventSource;
         event_types = ctx.event_types;
         extension_settings = ctx.extension_settings || ctx.extensionSettings;
         saveSettingsDebounced = ctx.saveSettingsDebounced;
 
-        // Register settings with SillyTavern extension panel
-        if (typeof $ !== 'undefined' && ctx.renderExtensionTemplateAsync) {
-            try {
-                ctx.renderExtensionTemplateAsync('SillyTavern-MBTI_Widget', 'settings')
-                    .then(html => {
-                        $('#extensions_settings2').append(html);
-                    })
-                    .catch(e => console.error('MBTI Widget: Settings template error', e));
-            } catch (e) {
-                console.error('MBTI Widget: Settings registration error', e);
+        // Register settings with SillyTavern extension panel (EchoText pattern)
+        try {
+            const resp = await fetch(`${BASE_URL}/settings.html`);
+            if (resp.ok) {
+                const html = await resp.text();
+                jQuery('#extensions_settings').append(html);
             }
+        } catch (err) {
+            console.error('MBTI Widget: Failed to load settings:', err);
         }
 
         eventSource.on(event_types.CHAT_LOADED, () => {

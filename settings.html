@@ -1,221 +1,76 @@
-<div id="mbti-widget-settings" class="mbti-settings-container">
-    <div class="mbti-settings-header">
-        <h3>MBTI Widget</h3>
-        <p>Build an evolving MBTI personality profile as you chat.</p>
-    </div>
-
-    <div class="mbti-accordion" data-section="general">
-        <div class="mbti-accordion-header">
-            <span>General</span>
-            <span class="mbti-accordion-icon">+</span>
+<div class="et-settings-drawer">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>MBTI Widget</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
-        <div class="mbti-accordion-content">
-            <div class="mbti-setting-item">
-                <label for="mbti-enabled">Enable MBTI Widget</label>
-                <input type="checkbox" id="mbti-enabled" setting="enabled">
+        <div class="inline-drawer-content">
+
+            <div class="et-drawer-description">
+                Build an evolving MBTI personality profile as you chat.
             </div>
 
-            <div class="mbti-setting-item">
-                <label for="mbti-context-messages">Context messages for analysis</label>
-                <div class="mbti-range-container">
-                    <input type="range" id="mbti-context-messages" setting="contextMessages" min="1" max="10" value="5">
-                    <span class="mbti-value-display">5</span>
+            <label class="et-drawer-toggle-row" for="mbti_enabled_quick">
+                <input id="mbti_enabled_quick" type="checkbox" class="checkbox">
+                <span style="font-weight: bold;"><i class="fa-solid fa-power-off"></i> Enable MBTI Widget</span>
+            </label>
+
+
+            <!-- Accordion Settings Panel -->
+            <div class="et-accordion-settings">
+
+                <!-- General Section -->
+                <div class="et-accordion-section open" data-section="general">
+                    <div class="et-accordion-header">
+                        <span><i class="fa-solid fa-toggle-on"></i> General</span>
+                        <i class="fa-solid fa-chevron-down et-accordion-arrow"></i>
+                    </div>
+                    <div class="et-accordion-content">
+                        <div class="et-field">
+                            <label class="et-toggle-row" for="mbti_enabled">
+                                <input type="checkbox" id="mbti_enabled" class="checkbox">
+                                <span class="et-label-text"><i class="fa-solid fa-power-off"></i> Enable MBTI Widget</span>
+                            </label>
+                            <div class="et-hint">Show the MBTI Widget floating panel and analyze chat messages.</div>
+                        </div>
+
+                        <div class="et-field">
+                            <label class="et-toggle-row" for="mbti_auto_open">
+                                <input type="checkbox" id="mbti_auto_open" class="checkbox">
+                                <span class="et-label-text"><i class="fa-solid fa-door-open"></i> Auto-Open on Load</span>
+                            </label>
+                            <div class="et-hint">Automatically open the MBTI panel when SillyTavern loads.</div>
+                        </div>
+
+                        <div class="et-field">
+                            <label class="et-field-label"><i class="fa-solid fa-comments"></i> Context Messages</label>
+                            <div class="et-range-wrapper">
+                                <input type="range" id="mbti_context_messages" min="1" max="10" value="5" class="et-range">
+                                <span id="mbti_context_messages_value" class="et-range-value">5</span>
+                            </div>
+                            <div class="et-hint">Number of recent messages included for context when analyzing.</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="mbti-setting-desc">Number of recent messages included for context when analyzing your actions.</div>
-            </div>
 
-            <div class="mbti-setting-item">
-                <label for="mbti-auto-open">Auto-open panel on load</label>
-                <input type="checkbox" id="mbti-auto-open" setting="autoOpenOnLoad">
-            </div>
-        </div>
-    </div>
+                <!-- About Section -->
+                <div class="et-accordion-section" data-section="about">
+                    <div class="et-accordion-header">
+                        <span><i class="fa-solid fa-circle-info"></i> About</span>
+                        <i class="fa-solid fa-chevron-down et-accordion-arrow"></i>
+                    </div>
+                    <div class="et-accordion-content">
+                        <div class="et-field">
+                            <div class="et-hint">
+                                <p><strong>MBTI Widget v0.1.0</strong></p>
+                                <p>Analyzes your chat messages to build an evolving MBTI personality profile.</p>
+                                <p>The AI silently evaluates your actions on 4 axes (8 tags) as you chat.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    <div class="mbti-accordion" data-section="about">
-        <div class="mbti-accordion-header">
-            <span>About</span>
-            <span class="mbti-accordion-icon">+</span>
-        </div>
-        <div class="mbti-accordion-content">
-            <div class="mbti-about-info">
-                <p><strong>MBTI Widget v0.1.0</strong></p>
-                <p>Analyzes your chat messages to build an evolving MBTI personality profile displayed in a visual radar chart.</p>
-                <p class="mbti-about-note">The AI silently evaluates your actions on 4 axes (8 tags) as you chat, building your personality profile over time.</p>
-                <p class="mbti-github-link"><a href="https://github.com/Mezi99/SillyTavern-MBTI_Widget" target="_blank">View on GitHub</a></p>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    .mbti-settings-container {
-        padding: 10px;
-    }
-
-    .mbti-settings-header {
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid rgba(212, 197, 169, 0.1);
-    }
-
-    .mbti-settings-header h3 {
-        font-family: 'Cinzel', serif;
-        font-size: 16px;
-        letter-spacing: 2px;
-        color: rgba(212, 175, 55, 0.8);
-        margin-bottom: 8px;
-    }
-
-    .mbti-settings-header p {
-        font-size: 12px;
-        color: rgba(212, 197, 169, 0.6);
-    }
-
-    .mbti-accordion {
-        margin-bottom: 8px;
-        border: 1px solid rgba(212, 197, 169, 0.1);
-        border-radius: 4px;
-        overflow: hidden;
-    }
-
-    .mbti-accordion-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 15px;
-        background: rgba(212, 197, 169, 0.03);
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 600;
-        color: rgba(212, 197, 169, 0.8);
-        transition: background 0.2s;
-    }
-
-    .mbti-accordion-header:hover {
-        background: rgba(212, 197, 169, 0.06);
-    }
-
-    .mbti-accordion-icon {
-        font-size: 16px;
-        color: rgba(212, 197, 169, 0.5);
-        transition: transform 0.3s;
-    }
-
-    .mbti-accordion.active .mbti-accordion-icon {
-        transform: rotate(45deg);
-    }
-
-    .mbti-accordion-content {
-        display: none;
-        padding: 15px;
-        border-top: 1px solid rgba(212, 197, 169, 0.1);
-    }
-
-    .mbti-accordion.active .mbti-accordion-content {
-        display: block;
-    }
-
-    .mbti-setting-item {
-        margin-bottom: 15px;
-    }
-
-    .mbti-setting-item:last-child {
-        margin-bottom: 0;
-    }
-
-    .mbti-setting-item label {
-        display: block;
-        font-size: 12px;
-        color: rgba(212, 197, 169, 0.8);
-        margin-bottom: 6px;
-    }
-
-    .mbti-setting-item input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        accent-color: rgba(212, 175, 55, 0.8);
-        cursor: pointer;
-    }
-
-    .mbti-range-container {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .mbti-range-container input[type="range"] {
-        flex: 1;
-        height: 4px;
-        accent-color: rgba(212, 175, 55, 0.8);
-        cursor: pointer;
-    }
-
-    .mbti-value-display {
-        font-size: 12px;
-        color: rgba(212, 175, 55, 0.8);
-        min-width: 20px;
-        text-align: center;
-    }
-
-    .mbti-setting-desc {
-        font-size: 10px;
-        color: rgba(212, 197, 169, 0.4);
-        margin-top: 5px;
-    }
-
-    .mbti-about-info {
-        font-size: 12px;
-        color: rgba(212, 197, 169, 0.7);
-        line-height: 1.6;
-    }
-
-    .mbti-about-info p {
-        margin-bottom: 10px;
-    }
-
-    .mbti-about-note {
-        font-style: italic;
-        color: rgba(212, 197, 169, 0.5);
-    }
-
-    .mbti-github-link {
-        margin-top: 15px;
-    }
-
-    .mbti-github-link a {
-        color: rgba(212, 175, 55, 0.7);
-        text-decoration: none;
-    }
-
-    .mbti-github-link a:hover {
-        color: rgba(212, 175, 55, 1);
-        text-decoration: underline;
-    }
-</style>
-
-<script>
-    // Run immediately when script loads (may be after DOM ready)
-    function initAccordion() {
-        document.querySelectorAll('#mbti-widget-settings .mbti-accordion-header').forEach(header => {
-            header.addEventListener('click', function() {
-                const accordion = this.closest('.mbti-accordion');
-                accordion.classList.toggle('active');
-            });
-        });
-        
-        // Update range slider display
-        document.querySelectorAll('#mbti-widget-settings input[type="range"]').forEach(slider => {
-            slider.addEventListener('input', function() {
-                const display = this.parentElement.querySelector('.mbti-value-display');
-                if (display) display.textContent = this.value;
-            });
-        });
-    }
-    
-    // Try to init immediately, or wait for DOM
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAccordion);
-    } else {
-        setTimeout(initAccordion, 0);
-    }
-</script>
