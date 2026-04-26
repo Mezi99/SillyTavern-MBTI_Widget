@@ -351,4 +351,85 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 
 ## Version History
 
+- **1.0.0** - Per-chat persistence, structured prompt system, trail history with reasoning
 - **0.1.0** - Initial release with LLM-based MBTI tag analysis
+
+---
+
+## Storage Implementation
+
+### Chat Metadata
+
+The extension uses `context.chatMetadata` (SillyTavern's per-chat metadata object) for persistence:
+
+```javascript
+function saveToChatMetadata() {
+    const context = SillyTavern.getContext();
+    const metadata = context.chatMetadata;
+    if (!metadata) return;
+    metadata.mbti_scores = scores;
+    metadata.mbti_trail = trail;
+}
+```
+
+This data is stored in the chat file (`.jsonl`) under `chat_metadata`:
+```json
+{
+  "chat_metadata": {
+    "mbti_scores": { "ie": 2, "tf": -1, "sn": 3, "jp": 0 },
+    "mbti_trail": [
+      { "scores": { "ie": 1, "tf": 0, "sn": 2, "jp": 0 }, "reasoning": "..." }
+    ]
+  }
+}
+```
+
+---
+
+## Prompt System
+
+### Structured Prompt Format
+
+The LLM receives a structured prompt with conversation history:
+
+```javascript
+const prompt = `Analyze this conversation for MBTI personality profiling.
+Respond with a JSON object containing "tags" and "reasoning".
+
+## Recent Chat History
+{last N messages}
+
+## Last User Message
+{user's message}
+
+## Last AI Response
+{character's response}
+
+Tags: shadow, flame, reason, heart, clue, pattern, anchor, drift`;
+```
+
+The LLM returns:
+```json
+{
+  "tags": ["shadow", "reason"],
+  "reasoning": "User's message showed reflective thinking..."
+}
+```
+
+---
+
+## Trail System
+
+The `trail` array stores the history of MBTI score changes, including the LLM's reasoning:
+
+```javascript
+trail = [
+    {
+        scores: { ie: 1, tf: 0, sn: 2, jp: 0 },
+        reasoning: "User's question showed analytical thinking..."
+    },
+    // ... more entries
+];
+```
+
+Each entry is added after each message exchange, capturing how the personality profile evolves over time.
