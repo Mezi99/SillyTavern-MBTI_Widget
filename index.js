@@ -539,9 +539,8 @@ Respond with JSON only, no explanation.`;
         context.eventSource.on(context.event_types.MESSAGE_RECEIVED, async (data) => {
             console.log('[MBTI] MESSAGE_RECEIVED event fired, data:', data);
             
-            // Use fresh context access like EchoText
-            const ctx = SillyTavern.getContext();
-            const settings = ctx.extension_settings?.mbti_widget;
+            // Use module-level extension_settings (assigned at init)
+            const settings = extension_settings?.mbti_widget;
             console.log('[MBTI] Fresh settings:', settings);
             console.log('[MBTI] enabled?:', settings?.enabled);
             console.log('[MBTI] isProcessing?:', isProcessing);
