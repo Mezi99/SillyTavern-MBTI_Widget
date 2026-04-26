@@ -562,23 +562,17 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         `;
         document.body.appendChild(fullArchOverlay);
 
-        document.getElementById('magnify-btn').addEventListener('click', openFullArchModal);
+        fullArchOverlay.addEventListener('click', function(e) {
+            if (e.target === this) window.MBTI_Widget.closeFullArchModal();
+        });
+        document.getElementById('mbti-full-arch-close').addEventListener('click', function() {
+            window.MBTI_Widget.closeFullArchModal();
+        });
+
         document.getElementById('arch-overlay').addEventListener('click', function(e) {
             if (e.target === this) window.MBTI_Widget.closeArchModal();
         });
-
-        const fullArchOverlay = document.getElementById('mbti-full-arch-overlay');
-        if (fullArchOverlay) {
-            fullArchOverlay.addEventListener('click', function(e) {
-                if (e.target === this) window.MBTI_Widget.closeFullArchModal();
-            });
-        }
-        const fullArchCloseBtn = document.getElementById('mbti-full-arch-close-btn');
-        if (fullArchCloseBtn) {
-            fullArchCloseBtn.addEventListener('click', function() {
-                window.MBTI_Widget.closeFullArchModal();
-            });
-        }
+        document.getElementById('magnify-btn').addEventListener('click', openFullArchModal);
 
         // Make panel draggable via header
         const header = panel.querySelector('.profile-header');
