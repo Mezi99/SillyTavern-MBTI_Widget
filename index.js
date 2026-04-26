@@ -373,6 +373,40 @@ Respond with JSON only, no explanation.`;
             if (e.target === this) window.MBTI_Widget.closeArchModal();
         });
 
+        // Make panel draggable via header
+        const header = panel.querySelector('.profile-header');
+        let isDraggingPanel = false;
+        let panelStartX, panelStartY, panelInitialX, panelInitialY;
+
+        header.addEventListener('mousedown', (e) => {
+            isDraggingPanel = true;
+            panelStartX = e.clientX;
+            panelStartY = e.clientY;
+            const rect = panel.getBoundingClientRect();
+            panelInitialX = rect.left;
+            panelInitialY = rect.top;
+            panel.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDraggingPanel) return;
+            const dx = e.clientX - panelStartX;
+            const dy = e.clientY - panelStartY;
+            panel.style.left = (panelInitialX + dx) + 'px';
+            panel.style.top = (panelInitialY + dy) + 'px';
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDraggingPanel) {
+                isDraggingPanel = false;
+                panel.style.cursor = '';
+            }
+        });
+
+        header.style.cursor = 'grab';
+
         updatePanel();
         panelCreated = true;
     }
@@ -385,11 +419,48 @@ Respond with JSON only, no explanation.`;
         fab.id = 'mbti-widget-fab';
         fab.className = 'mbti-fab';
         fab.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>';
+        
+        // Click to toggle panel
         fab.addEventListener('click', () => {
             isPanelOpen = !isPanelOpen;
             const panel = document.getElementById('mbti-widget-panel');
-            if (panel) panel.style.display = isPanelOpen ? 'block' : 'none';
+            if (panel) {
+                panel.style.display = isPanelOpen ? 'block' : 'none';
+            }
         });
+        
+        // Make draggable
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+        
+        fab.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = fab.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+            fab.style.cursor = 'grabbing';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            fab.style.left = (initialX + dx) + 'px';
+            fab.style.top = (initialY + dy) + 'px';
+            fab.style.right = 'auto';
+            fab.style.bottom = 'auto';
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                fab.style.cursor = 'grab';
+            }
+        });
+        
+        fab.style.cursor = 'grab';
         document.body.appendChild(fab);
     }
 
@@ -479,16 +550,81 @@ Respond with JSON only, no explanation.`;
         extension_settings.mbti_widget = extension_settings.mbti_widget || {
             enabled: true,
             contextMessages: 5,
-            showAvatar: true,
             autoOpenOnLoad: false,
         };
 
         createFab();
         createPanel();
+
+        // Initialize toggle states from settings
+        jQuery('#mbti_enabled').prop('checked', extension_settings.mbti_widget.enabled);
+        jQuery('#mbti_context_messages').val(extension_settings.mbti_widget.contextMessages);
+        jQuery('#mbti_context_messages_value').text(extension_settings.mbti_widget.contextMessages);
+
+        // Sync quick toggle if present
+        if (jQuery('#mbti_enabled_quick').length) {
+            jQuery('#mbti_enabled_quick').prop('checked', extension_settings.mbti_widget.enabled);
+        }
+
+        // Set initial visibility based on enabled state
+        if (extension_settings.mbti_widget.enabled) {
+            showWidget();
+        } else {
+            hideWidget();
+        }
+
+        // Event handlers for settings
+        jQuery('#mbti_enabled').on('change', function() {
+            const enabled = jQuery(this).is(':checked');
+            extension_settings.mbti_widget.enabled = enabled;
+            saveSettingsDebounced();
+            if (enabled) {
+                showWidget();
+            } else {
+                hideWidget();
+            }
+            // Sync quick toggle
+            if (jQuery('#mbti_enabled_quick').length) {
+                jQuery('#mbti_enabled_quick').prop('checked', enabled);
+            }
+        });
+
+        jQuery('#mbti_enabled_quick').on('change', function() {
+            const enabled = jQuery(this).is(':checked');
+            extension_settings.mbti_widget.enabled = enabled;
+            saveSettingsDebounced();
+            if (enabled) {
+                showWidget();
+            } else {
+                hideWidget();
+            }
+            // Sync main toggle
+            jQuery('#mbti_enabled').prop('checked', enabled);
+        });
+
+        jQuery('#mbti_context_messages').on('input', function() {
+            const val = parseInt(jQuery(this).val());
+            extension_settings.mbti_widget.contextMessages = val;
+            jQuery('#mbti_context_messages_value').text(val);
+            saveSettingsDebounced();
+        });
+
         loadFromChatMetadata();
         updatePanel();
 
         console.log('MBTI Widget loaded');
+    }
+
+    function showWidget() {
+        jQuery('#mbti-widget-fab').show();
+        jQuery('#mbti-widget-panel').show();
+        isPanelOpen = true;
+    }
+
+    function hideWidget() {
+        jQuery('#mbti-widget-fab').hide();
+        jQuery('#mbti-widget-panel').hide();
+        isPanelOpen = false;
     }
 
     if (window.SillyTavern) {

@@ -10,13 +10,14 @@
                 Build an evolving MBTI personality profile as you chat.
             </div>
 
-            <label class="et-drawer-toggle-row" for="mbti_enabled_quick">
-                <input id="mbti_enabled_quick" type="checkbox" class="checkbox">
-                <span style="font-weight: bold;"><i class="fa-solid fa-power-off"></i> Enable MBTI Widget</span>
-            </label>
+            <div class="et-field">
+                <label class="et-toggle-row" for="mbti_enabled">
+                    <input type="checkbox" id="mbti_enabled" class="checkbox">
+                    <span class="et-label-text">Enable MBTI Widget</span>
+                </label>
+            </div>
 
-            <!-- Settings Panel -->
-            <div class="et-field" style="margin-top: 15px;">
+            <div class="et-field">
                 <label class="et-field-label"><i class="fa-solid fa-comments"></i> Context Messages</label>
                 <div class="et-range-wrapper">
                     <input type="range" id="mbti_context_messages" min="1" max="10" value="5" class="et-range">
@@ -25,26 +26,6 @@
                 <div class="et-hint">Number of recent messages included for context when analyzing.</div>
             </div>
 
-            <!-- About Section -->
-            <div class="et-accordion-settings" style="margin-top: 15px;">
-
-                <div class="et-accordion-section" data-section="about">
-                    <div class="et-accordion-header">
-                        <span><i class="fa-solid fa-circle-info"></i> About</span>
-                        <i class="fa-solid fa-chevron-down et-accordion-arrow"></i>
-                    </div>
-                    <div class="et-accordion-content">
-                        <div class="et-field">
-                            <div class="et-hint">
-                                <p><strong>MBTI Widget v0.1.0</strong></p>
-                                <p>Analyzes your chat messages to build an evolving MBTI personality profile.</p>
-                                <p>The AI silently evaluates your actions on 4 axes (8 tags) as you chat.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
         </div>
     </div>
 </div>
