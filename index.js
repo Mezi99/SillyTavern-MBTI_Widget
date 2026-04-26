@@ -65,22 +65,18 @@ Respond with JSON only, no explanation.`;
     function getMessageContext(count) {
         const context = SillyTavern.getContext();
         if (!context.chat) return '';
-        const messages = context.chat.messages || [];
-        const recent = messages.slice(-count);
-        return recent.map(m => `${m.name}: ${m.msg}`).join('\n');
+        const chat = context.chat;  // chat IS the array (not chat.messages)
+        const recent = chat.slice(-count);
+        return recent.map(m => `${m.name}: ${m.mes}`).join('\n');  // .mes, not .msg
     }
 
     function getLastUserMessage() {
         const context = SillyTavern.getContext();
-        console.log('[MBTI] getLastUserMessage - chat exists:', !!context.chat);
-        console.log('[MBTI] getLastUserMessage - messages:', context.chat?.messages);
         if (!context.chat) return null;
-        const messages = context.chat.messages || [];
-        console.log('[MBTI] getLastUserMessage - messages count:', messages.length);
-        for (let i = messages.length - 1; i >= 0; i--) {
-            console.log('[MBTI] getLastUserMessage - msg:', messages[i]);
-            if (messages[i].is_user) {
-                return messages[i].msg;
+        const chat = context.chat;  // chat IS the array (not chat.messages)
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (chat[i].is_user) {
+                return chat[i].mes;  // .mes, not .msg
             }
         }
         return null;
