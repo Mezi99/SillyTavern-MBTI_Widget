@@ -170,17 +170,18 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
 
     function saveToChatMetadata() {
         const context = SillyTavern.getContext();
-        if (!context.chat) return;
-        if (!context.chat.metadata) context.chat.metadata = {};
-        context.chat.metadata.mbti_scores = scores;
-        context.chat.metadata.mbti_trail = trail;
+        const metadata = context.chatMetadata;
+        if (!metadata) return;
+        metadata.mbti_scores = scores;
+        metadata.mbti_trail = trail;
     }
 
     function loadFromChatMetadata() {
         const context = SillyTavern.getContext();
-        if (context.chat?.metadata?.mbti_scores) {
-            scores = context.chat.metadata.mbti_scores;
-            trail = context.chat.metadata.mbti_trail || [];
+        const metadata = context.chatMetadata;
+        if (metadata?.mbti_scores) {
+            scores = metadata.mbti_scores;
+            trail = metadata.mbti_trail || [];
         } else {
             scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
             trail = [];
