@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Raleway:wght@300;400;600;700&display=swap');
 
-:root {
+/* Only apply these CSS variables within our widget scope */
+#mbti-widget-panel, #mbti-widget-settings {
     --mbti-theme-color: #d4af37;
     --mbti-glass-blur: 20px;
     --mbti-glass-opacity: 0.1;

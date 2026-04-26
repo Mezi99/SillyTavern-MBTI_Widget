@@ -63,7 +63,7 @@ Analyze the character's last message considering the recent conversation context
 Respond with JSON only, no explanation.`;
 
     function getMessageContext(count) {
-        const context = getContext();
+        const context = SillyTavern.getContext();
         if (!context.chat) return '';
         const messages = context.chat.messages || [];
         const recent = messages.slice(-count);
@@ -71,7 +71,7 @@ Respond with JSON only, no explanation.`;
     }
 
     function getLastUserMessage() {
-        const context = getContext();
+        const context = SillyTavern.getContext();
         if (!context.chat) return null;
         const messages = context.chat.messages || [];
         for (let i = messages.length - 1; i >= 0; i--) {
@@ -85,7 +85,8 @@ Respond with JSON only, no explanation.`;
     async function queryRating(userMessage, context) {
         const fullPrompt = `Recent context:\n${context}\n\nCharacter's action: "${userMessage}"`;
         try {
-            const response = await generateRaw({
+            const ctx = SillyTavern.getContext();
+            const response = await ctx.generateRaw({
                 prompt: fullPrompt,
                 systemPrompt: RATING_PROMPT,
             });
@@ -122,7 +123,7 @@ Respond with JSON only, no explanation.`;
     }
 
     function saveToChatMetadata() {
-        const context = getContext();
+        const context = SillyTavern.getContext();
         if (!context.chat) return;
         if (!context.chat.metadata) context.chat.metadata = {};
         context.chat.metadata.mbti_scores = scores;
@@ -130,7 +131,7 @@ Respond with JSON only, no explanation.`;
     }
 
     function loadFromChatMetadata() {
-        const context = getContext();
+        const context = SillyTavern.getContext();
         if (context.chat?.metadata?.mbti_scores) {
             scores = context.chat.metadata.mbti_scores;
             trail = context.chat.metadata.mbti_trail || [];
@@ -418,10 +419,21 @@ Respond with JSON only, no explanation.`;
         const ctx = SillyTavern.getContext();
         eventSource = ctx.eventSource;
         event_types = ctx.event_types;
-        generateRaw = ctx.generateRaw;
-        getContext = ctx.getContext;
         extension_settings = ctx.extension_settings || ctx.extensionSettings;
         saveSettingsDebounced = ctx.saveSettingsDebounced;
+
+        // Register settings with SillyTavern extension panel
+        if (typeof $ !== 'undefined' && ctx.renderExtensionTemplateAsync) {
+            try {
+                ctx.renderExtensionTemplateAsync('SillyTavern-MBTI_Widget', 'settings')
+                    .then(html => {
+                        $('#extensions_settings2').append(html);
+                    })
+                    .catch(e => console.error('MBTI Widget: Settings template error', e));
+            } catch (e) {
+                console.error('MBTI Widget: Settings registration error', e);
+            }
+        }
 
         eventSource.on(event_types.CHAT_LOADED, () => {
             loadFromChatMetadata();
