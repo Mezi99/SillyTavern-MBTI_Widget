@@ -505,8 +505,6 @@ Respond with JSON only, no explanation.`;
         }
 
         const ctx = SillyTavern.getContext();
-        eventSource = ctx.eventSource;
-        event_types = ctx.event_types;
         extension_settings = ctx.extension_settings || ctx.extensionSettings;
         saveSettingsDebounced = ctx.saveSettingsDebounced;
         
