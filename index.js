@@ -446,15 +446,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
 
         const illKey = arch.illustration || 'unknown';
-        const illustrationEl = document.getElementById('full-arch-illustration');
+        const illustrationEl = document.getElementById('mbti-full-arch-illustration');
         if (illustrationEl) {
             const illustrations = getIllustrations();
             illustrationEl.innerHTML = (illustrations[illKey] || illustrations['unknown']) +
                 '<div class="full-arch-illustration-overlay"></div>' +
-                '<button class="full-arch-close" id="full-arch-close-btn">×</button>';
+                '<button class="full-arch-close" id="mbti-full-arch-close-btn">×</button>';
         }
 
-        const bodyEl = document.getElementById('full-arch-body');
+        const bodyEl = document.getElementById('mbti-full-arch-body');
         if (bodyEl) {
             const traitHTML = arch.traits.map(t =>
                 `<span class="full-arch-trait" style="color:${t.color};border-color:${t.color}40;background:${t.color}10">${t.label}</span>`
@@ -470,7 +470,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             bodyEl.innerHTML = `${mbtiLine}<div class="full-arch-title" style="color:${arch.color}">${arch.name}</div><div class="full-arch-tagline">${arch.tagline}</div>${traitHTML ? `<div class="full-arch-traits">${traitHTML}</div>` : ''}${investigationSection}`;
         }
 
-        const overlay = document.getElementById('full-arch-overlay');
+        const overlay = document.getElementById('mbti-full-arch-overlay');
         if (overlay) overlay.classList.add('is-open');
     }
 
@@ -480,7 +480,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             if (overlay) overlay.classList.remove('is-open');
         },
         closeFullArchModal: function() {
-            const overlay = document.getElementById('full-arch-overlay');
+            const overlay = document.getElementById('mbti-full-arch-overlay');
             if (overlay) overlay.classList.remove('is-open');
         }
     };
@@ -544,31 +544,36 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                     <div class="arch-body" id="arch-body"></div>
                 </div>
             </div>
-            <div class="full-arch-overlay" id="full-arch-overlay">
-                <div class="full-arch-modal" id="full-arch-modal">
-                    <div class="full-arch-illustration" id="full-arch-illustration">
-                        <div class="full-arch-illustration-overlay"></div>
-                        <button class="full-arch-close" id="full-arch-close">×</button>
-                    </div>
-                    <div class="full-arch-body" id="full-arch-body"></div>
-                </div>
-            </div>
         `;
 
         document.body.appendChild(panel);
+
+        const fullArchOverlay = document.createElement('div');
+        fullArchOverlay.id = 'mbti-full-arch-overlay';
+        fullArchOverlay.className = 'full-arch-overlay';
+        fullArchOverlay.innerHTML = `
+            <div class="full-arch-modal" id="mbti-full-arch-modal">
+                <div class="full-arch-illustration" id="mbti-full-arch-illustration">
+                    <div class="full-arch-illustration-overlay"></div>
+                    <button class="full-arch-close" id="mbti-full-arch-close">×</button>
+                </div>
+                <div class="full-arch-body" id="mbti-full-arch-body"></div>
+            </div>
+        `;
+        document.body.appendChild(fullArchOverlay);
 
         document.getElementById('magnify-btn').addEventListener('click', openFullArchModal);
         document.getElementById('arch-overlay').addEventListener('click', function(e) {
             if (e.target === this) window.MBTI_Widget.closeArchModal();
         });
 
-        const fullArchOverlay = document.getElementById('full-arch-overlay');
+        const fullArchOverlay = document.getElementById('mbti-full-arch-overlay');
         if (fullArchOverlay) {
             fullArchOverlay.addEventListener('click', function(e) {
                 if (e.target === this) window.MBTI_Widget.closeFullArchModal();
             });
         }
-        const fullArchCloseBtn = document.getElementById('full-arch-close-btn');
+        const fullArchCloseBtn = document.getElementById('mbti-full-arch-close-btn');
         if (fullArchCloseBtn) {
             fullArchCloseBtn.addEventListener('click', function() {
                 window.MBTI_Widget.closeFullArchModal();
