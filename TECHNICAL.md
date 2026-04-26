@@ -8,6 +8,8 @@ MBTI Widget is a SillyTavern extension that analyzes user chat messages to build
 
 ## Architecture
 
+### Architecture
+
 ### File Structure
 
 ```
@@ -236,8 +238,6 @@ Converts `{ie, tf, sn, jp}` scores to SVG polygon coordinates.
 
 ## Event Handling
 
-### How Events Work (EchoText Pattern)
-
 The extension uses direct context access via `SillyTavern.getContext()`:
 
 ```javascript
@@ -317,7 +317,7 @@ Fixed SVG vertices for the radar chart (8 points forming an octagon).
 const messages = context.chat.messages || [];
 ```
 
-**Correct (EchoText pattern):**
+**Correct:**
 ```javascript
 const chat = context.chat;  // chat IS the array
 ```
@@ -346,14 +346,6 @@ const settings = ctx.extension_settings?.mbti_widget;  // UNDEFINED
 // DO use module-level variable
 const settings = extension_settings?.mbti_widget;  // HAS VALUE
 ```
-
----
-
-## References
-
-- **EchoText** - Reference extension: `D:\OpenCodeProjects\SillyTavern-EchoText`
-- **st-context-emotion.js** - EchoText's MESSAGE_RECEIVED handler pattern
-- **SillyTavern Context** - Use `SillyTavern.getContext()` for direct access
 
 ---
 

@@ -491,7 +491,7 @@ Respond with JSON only, no explanation.`;
     }
 
     async function init() {
-        // Get BASE_URL like EchoText does
+        
         const scripts = document.querySelectorAll('script[src*="index.js"]');
         let BASE_URL = '';
         for (const script of scripts) {
@@ -512,7 +512,7 @@ Respond with JSON only, no explanation.`;
         console.log('[MBTI] extension_settings:', extension_settings);
         console.log('[MBTI] mbti_widget:', extension_settings?.mbti_widget);
 
-        // Register settings with SillyTavern extension panel (EchoText pattern)
+        // Register settings with extension panel
         try {
             const resp = await fetch(`${BASE_URL}/settings.html`);
             if (resp.ok) {
@@ -523,7 +523,7 @@ Respond with JSON only, no explanation.`;
             console.error('MBTI Widget: Failed to load settings:', err);
         }
 
-        // Use direct context access like EchoText
+        // Register event handlers
         const context = SillyTavern.getContext();
         
         // Debug: check what events are available
@@ -539,7 +539,7 @@ Respond with JSON only, no explanation.`;
         context.eventSource.on(context.event_types.MESSAGE_RECEIVED, async (data) => {
             console.log('[MBTI] MESSAGE_RECEIVED event fired, data:', data);
             
-            // Use module-level extension_settings (assigned at init)
+            // Use module-level settings
             const settings = extension_settings?.mbti_widget;
             console.log('[MBTI] Fresh settings:', settings);
             console.log('[MBTI] enabled?:', settings?.enabled);
