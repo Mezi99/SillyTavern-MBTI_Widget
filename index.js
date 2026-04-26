@@ -45,22 +45,18 @@
         ESFP: { mbti: 'ESFP', name: 'THE STORM', tagline: 'You feel everything fully.', color: '#f97316', traits: [{ label: 'Extroverted', color: '#f97316' }, { label: 'Concrete', color: '#34d399' }, { label: 'Empathic', color: '#f472b6' }, { label: 'Flexible', color: '#94a3b8' }], illustration: 'storm', bullets: ["You're fully present.", "You bring life to any room."], asset: "Authentic energy", risk: "Overwhelm", famous: ['Every final girl'] }
     };
 
-    const RATING_PROMPT = `You are analyzing a character's recent action for MBTI personality profiling.
-Evaluate the character's behavior along 4 axes (8 tags total). Respond with ONLY a JSON object:
-{"tags": ["tag1", "tag2", ...]} - choose 1-3 tags that best describe the character's recent action.
+    const RATING_PROMPT = `Analyze the user's last message. For each of the 4 pairs below, choose exactly ONE tag — the one that better describes this specific action. If the action is genuinely neutral on an axis, omit both tags from that pair.
 
-Tags and their meanings:
-- shadow: Introverted, reflective, guarded response
-- flame: Extroverted, energetic, bold response
-- reason: Logical, analytical, detached decision-making
-- heart: Emotional, empathetic, values-driven decision-making
-- clue: Concrete, practical, focus on real-world facts
-- pattern: Intuitive, theoretical, focus on possibilities
-- anchor: Structured, planned, decisive approach
-- drift: Flexible, spontaneous, adaptable approach
+Pair 1 - Social energy: shadow (withdrew, avoided, observed from distance) vs flame (engaged, confronted, inserted themselves)
+Pair 2 - Decision method: reason (used logic, evidence, analysis) vs heart (used emotion, empathy, gut feeling)
+Pair 3 - Information focus: clue (focused on concrete physical details) vs pattern (made a connection, inference, or intuitive leap)
+Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs drift (kept options open, adapted, stayed flexible)
 
-Analyze the character's last message considering the recent conversation context.
-Respond with JSON only, no explanation.`;
+Respond strictly ONLY with valid JSON:
+{
+ "tags": ["tag1", "tag2"],  // Minimum 1 tag, maximum 4 (one per pair).
+"reasoning": "Brief 1-2 sentence explanation"
+}`;
 
     function getMessageContext(count) {
         const context = SillyTavern.getContext();
@@ -70,47 +66,93 @@ Respond with JSON only, no explanation.`;
         return recent.map(m => `${m.name}: ${m.mes}`).join('\n');  // .mes, not .msg
     }
 
-    function getLastUserMessage() {
+function getLastUserMessage() {
         const context = SillyTavern.getContext();
-        if (!context.chat) return null;
-        const chat = context.chat;  // chat IS the array (not chat.messages)
-        for (let i = chat.length - 1; i >= 0; i--) {
-            if (chat[i].is_user) {
-                return chat[i].mes;  // .mes, not .msg
+        if (!context.chat) return { userMessage: null, aiResponse: null };
+        const chat = context.chat;
+        const len = chat.length;
+        if (len === 0) return { userMessage: null, aiResponse: null };
+        
+        // Find last user message and last AI response (most recent messages at end)
+        let userMessage = null;
+        let aiResponse = null;
+        
+        for (let i = len - 1; i >= 0; i--) {
+            if (!userMessage && chat[i].is_user) {
+                userMessage = chat[i].mes;
+            } else if (!aiResponse && !chat[i].is_user) {
+                aiResponse = chat[i].mes;
             }
+            if (userMessage && aiResponse) break;
         }
-        return null;
+        
+        return { userMessage, aiResponse };
+    }
+    
+    function getMessageContext(count) {
+        const context = SillyTavern.getContext();
+        if (!context.chat) return '';
+        const chat = context.chat;
+        const recent = chat.slice(-count);
+        return recent.map(m => `${m.name}: ${m.mes}`).join('\n');
     }
 
-    async function queryRating(userMessage, context) {
-        const fullPrompt = `Recent context:\n${context}\n\nCharacter's action: "${userMessage}"`;
-        console.log('[MBTI] queryRating - fullPrompt:', fullPrompt);
+    function getLastUserMessage_text() {
+        const { userMessage } = getLastUserMessage();
+        return userMessage;
+    }
+
+    async function queryRating(lastUserMessage, lastAiResponse, chatHistory) {
+        const promptData = {
+            chat_history: chatHistory,
+            last_user_message: lastUserMessage,
+            last_ai_response: lastAiResponse
+        };
+        
+        console.log('[MBTI] queryRating - promptData:', JSON.stringify(promptData, null, 2));
         console.log('[MBTI] queryRating - RATING_PROMPT:', RATING_PROMPT);
+        
         try {
             const ctx = SillyTavern.getContext();
             console.log('[MBTI] queryRating - ctx.generateRaw exists:', typeof ctx.generateRaw);
             const response = await ctx.generateRaw({
-                prompt: fullPrompt,
+                prompt: JSON.stringify(promptData, null, 2),
                 systemPrompt: RATING_PROMPT,
             });
             console.log('[MBTI] queryRating - raw response:', response);
             return parseRatingResponse(response);
         } catch (error) {
             console.error('MBTI Widget: Rating query failed', error);
-            return [];
+            return { tags: [], reasoning: '' };
         }
     }
 
     function parseRatingResponse(response) {
         const knownTags = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'anchor', 'drift'];
+        
+        // Strict JSON parsing only
         try {
             const parsed = JSON.parse(response);
-            if (Array.isArray(parsed.tags)) {
-                return parsed.tags.filter(t => knownTags.includes(t.toLowerCase()));
+            if (parsed.tags && Array.isArray(parsed.tags)) {
+                const tags = parsed.tags
+                    .map(t => t.toLowerCase().trim())
+                    .filter(t => knownTags.includes(t));
+                
+                const reasoning = (parsed.reasoning || '').toString().trim();
+                
+                // Validate: 1-4 tags required
+                if (tags.length >= 1 && tags.length <= 4) {
+                    console.log('[MBTI] parseRatingResponse - tags:', tags);
+                    console.log('[MBTI] parseRatingResponse - reasoning:', reasoning);
+                    return { tags, reasoning };
+                }
             }
-        } catch { }
-        const lowerResponse = response.toLowerCase();
-        return knownTags.filter(tag => lowerResponse.includes(tag));
+        } catch (e) {
+            console.error('MBTI Widget: Invalid JSON response', e);
+        }
+        
+console.error('MBTI Widget: Failed to parse valid JSON response');
+        return { tags: [], reasoning: '' };
     }
 
     function applyTag(tag) {
@@ -550,28 +592,37 @@ Respond with JSON only, no explanation.`;
                 return;
             }
 
-            const lastUserMessage = getLastUserMessage();
-            console.log('[MBTI] lastUserMessage:', lastUserMessage);
-            if (!lastUserMessage) return;
+            // Get last user message and AI response
+            const { userMessage, aiResponse } = getLastUserMessage();
+            console.log('[MBTI] userMessage:', userMessage);
+            console.log('[MBTI] aiResponse:', aiResponse);
+            if (!userMessage) return;
 
+            // Get chat history for context
             const contextMsgCount = settings?.contextMessages || 5;
             console.log('[MBTI] contextMsgCount:', contextMsgCount);
-            const msgContext = getMessageContext(contextMsgCount);
-            console.log('[MBTI] context length:', msgContext?.length);
-            if (!msgContext) return;
+            const chatHistory = getMessageContext(contextMsgCount);
+            console.log('[MBTI] chatHistory length:', chatHistory?.length);
+            if (!chatHistory) return;
 
             isProcessing = true;
             try {
                 console.log('[MBTI] Calling queryRating...');
-                const ratings = await queryRating(lastUserMessage, msgContext);
-                console.log('[MBTI] Ratings returned:', ratings);
-                if (ratings.length > 0) {
-                    ratings.forEach(tag => applyTag(tag));
+                const result = await queryRating(userMessage, aiResponse, chatHistory);
+                console.log('[MBTI] queryRating result:', result);
+                
+                if (result.tags && result.tags.length > 0) {
+                    result.tags.forEach(tag => applyTag(tag));
+                    trail.push({
+                        scores: JSON.parse(JSON.stringify(scores)),
+                        reasoning: result.reasoning || ''
+                    });
+                    if (trail.length > 5) trail.shift();
                     saveToChatMetadata();
                     updatePanel();
-                    console.log('[MBTI] Panel updated with ratings:', ratings);
+                    console.log('[MBTI] Panel updated with tags:', result.tags);
                 } else {
-                    console.log('[MBTI] No ratings returned!');
+                    console.log('[MBTI] No tags returned!');
                 }
             } catch (error) {
                 console.error('MBTI Widget: Rating error', error);
