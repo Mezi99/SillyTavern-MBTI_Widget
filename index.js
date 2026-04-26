@@ -3,7 +3,7 @@
 
     const MODULE_NAME = 'MBTI_Widget';
 
-    let eventSource, event_types, generateRaw, getContext, extension_settings, saveSettingsDebounced;
+    let extension_settings, saveSettingsDebounced;
 
     let scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
     let trail = [];
@@ -525,19 +525,30 @@ Respond with JSON only, no explanation.`;
             console.error('MBTI Widget: Failed to load settings:', err);
         }
 
-        eventSource.on(event_types.CHAT_LOADED, () => {
+        // Use direct context access like EchoText
+        const context = SillyTavern.getContext();
+        
+        // Debug: check what events are available
+        console.log('[MBTI] event_types:', context.event_types);
+        console.log('[MBTI] MESSAGE_RECEIVED:', context.event_types?.MESSAGE_RECEIVED);
+        
+        context.eventSource.on(context.event_types.CHAT_LOADED, () => {
             console.log('[MBTI] CHAT_LOADED event fired');
             loadFromChatMetadata();
             if (panelCreated) updatePanel();
         });
 
-        eventSource.on(event_types.MESSAGE_RECEIVED, async (data) => {
+        context.eventSource.on(context.event_types.MESSAGE_RECEIVED, async (data) => {
             console.log('[MBTI] MESSAGE_RECEIVED event fired, data:', data);
-            console.log('[MBTI] extension_settings:', extension_settings);
-            console.log('[MBTI] enabled?:', extension_settings?.mbti_widget?.enabled);
+            
+            // Use fresh context access like EchoText
+            const ctx = SillyTavern.getContext();
+            const settings = ctx.extension_settings?.mbti_widget;
+            console.log('[MBTI] Fresh settings:', settings);
+            console.log('[MBTI] enabled?:', settings?.enabled);
             console.log('[MBTI] isProcessing?:', isProcessing);
             
-            if (!extension_settings.mbti_widget?.enabled || isProcessing) {
+            if (!settings?.enabled || isProcessing) {
                 console.log('[MBTI] Skipping - not enabled or processing');
                 return;
             }
@@ -546,16 +557,16 @@ Respond with JSON only, no explanation.`;
             console.log('[MBTI] lastUserMessage:', lastUserMessage);
             if (!lastUserMessage) return;
 
-            const contextMsgCount = extension_settings.mbti_widget?.contextMessages || 5;
+            const contextMsgCount = settings?.contextMessages || 5;
             console.log('[MBTI] contextMsgCount:', contextMsgCount);
-            const context = getMessageContext(contextMsgCount);
-            console.log('[MBTI] context length:', context?.length);
-            if (!context) return;
+            const msgContext = getMessageContext(contextMsgCount);
+            console.log('[MBTI] context length:', msgContext?.length);
+            if (!msgContext) return;
 
             isProcessing = true;
             try {
                 console.log('[MBTI] Calling queryRating...');
-                const ratings = await queryRating(lastUserMessage, context);
+                const ratings = await queryRating(lastUserMessage, msgContext);
                 console.log('[MBTI] Ratings returned:', ratings);
                 if (ratings.length > 0) {
                     ratings.forEach(tag => applyTag(tag));
