@@ -1,5 +1,7 @@
 /* MBTI Widget Styles - scoped to prevent conflicts with SillyTavern UI */
 
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Raleway:wght@300;400;600;700&display=swap');
+
 /* Only apply these CSS variables within our widget scope */
 #mbti-widget-fab, #mbti-widget-panel {
     --mbti-theme-color: #d4af37;
@@ -165,7 +167,8 @@
 #mbti-widget-panel .axis-bars-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 8px 8px;
+    row-gap: 12px;
     margin-bottom: 4px;
     padding: 0 4px;
 }
@@ -214,6 +217,36 @@
     border-radius: 0 2px 2px 0;
     transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1;
+}
+
+/* Reasoning Display */
+#mbti-widget-panel .reasoning-display {
+    padding: 10px 8px 8px;
+    border-top: 1px solid rgba(212, 197, 169, 0.1);
+    margin-top: 8px;
+}
+
+#mbti-widget-panel .reasoning-label {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.35);
+    margin-bottom: 6px;
+}
+
+#mbti-widget-panel .reasoning-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 11px;
+    font-style: italic;
+    color: rgba(212, 197, 169, 0.6);
+    line-height: 1.5;
+    max-height: 48px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
 }
 
 /* Archetype Modal Overlay */

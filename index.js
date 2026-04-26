@@ -270,11 +270,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             }
         });
 
-        trail.push(JSON.parse(JSON.stringify(scores)));
+        trail.push({
+            scores: JSON.parse(JSON.stringify(scores)),
+            reasoning: ''
+        });
         if (trail.length > 5) trail.shift();
         const trailEl = document.getElementById('oct-trail');
         if (trailEl) {
-            trailEl.innerHTML = trail.map((s, i) => {
+            trailEl.innerHTML = trail.map((entry, i) => {
+                const s = entry.scores || entry;
                 const tPts = scoresToOctagonPoints(s);
                 const alpha = (i + 1) / trail.length * 0.2;
                 return `<polygon points="${pointsToStr(tPts)}" fill="none" stroke="${hexToRgba(arch.color, alpha)}" stroke-width="1"/>`;
@@ -290,6 +294,19 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         setBarIcon('icon-tf', scores.tf, '#60a5fa', '#f472b6');
         setBarIcon('icon-sn', scores.sn, '#34d399', '#a78bfa');
         setBarIcon('icon-jp', scores.jp, '#fbbf24', '#94a3b8');
+
+        const reasoningEl = document.getElementById('reasoning-text');
+        if (reasoningEl) {
+            const lastEntry = trail[trail.length - 1];
+            const reasoning = lastEntry && lastEntry.reasoning ? lastEntry.reasoning : '';
+            if (reasoning) {
+                reasoningEl.textContent = reasoning;
+                reasoningEl.style.color = 'rgba(212, 197, 169, 0.8)';
+            } else {
+                reasoningEl.textContent = 'Start chatting to see analysis...';
+                reasoningEl.style.color = 'rgba(212, 197, 169, 0.5)';
+            }
+        }
     }
 
     function updateBar(axis, val, max) {
@@ -403,6 +420,10 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                     <div class="axis-bar-item"><div class="axis-track" id="bar-tf"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-tf-left" style="background:#60a5fa;box-shadow:0 0 6px rgba(96,165,250,0.6);width:0%"></div><div class="axis-fill-right" id="bar-tf-right" style="background:#f472b6;box-shadow:0 0 6px rgba(244,114,182,0.6);width:0%"></div><div id="icon-tf" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div></div>
                     <div class="axis-bar-item"><div class="axis-track" id="bar-sn"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-sn-left" style="background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.6);width:0%"></div><div class="axis-fill-right" id="bar-sn-right" style="background:#a78bfa;box-shadow:0 0 6px rgba(167,139,250,0.6);width:0%"></div><div id="icon-sn" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div></div>
                     <div class="axis-bar-item"><div class="axis-track" id="bar-jp"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-jp-left" style="background:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,0.6);width:0%"></div><div class="axis-fill-right" id="bar-jp-right" style="background:#94a3b8;box-shadow:0 0 6px rgba(148,163,184,0.6);width:0%"></div><div id="icon-jp" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div></div>
+                </div>
+                <div class="reasoning-display" id="reasoning-display">
+                    <div class="reasoning-label">Latest Analysis</div>
+                    <div class="reasoning-text" id="reasoning-text">Start chatting to see analysis...</div>
                 </div>
             </div>
             <div class="arch-overlay" id="arch-overlay">
