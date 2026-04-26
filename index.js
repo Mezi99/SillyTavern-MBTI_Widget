@@ -182,9 +182,84 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         if (metadata?.mbti_scores) {
             scores = metadata.mbti_scores;
             trail = metadata.mbti_trail || [];
+            refreshPanelUI();
         } else {
             scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
             trail = [];
+            refreshPanelUI();
+        }
+    }
+
+    function refreshPanelUI() {
+        const key = getMBTIKey(scores);
+        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
+
+        const mbtiEl = document.getElementById('mbti-code');
+        if (mbtiEl) {
+            mbtiEl.textContent = arch.mbti;
+            mbtiEl.classList.toggle('is-known', key !== 'unknown');
+        }
+
+        const nameEl = document.getElementById('archetype-name');
+        if (nameEl) {
+            nameEl.textContent = arch.name;
+            nameEl.style.color = arch.color;
+        }
+
+        const descEl = document.getElementById('archetype-desc');
+        if (descEl) {
+            descEl.textContent = arch.tagline;
+        }
+
+        const pts = scoresToOctagonPoints(scores);
+        const poly = document.getElementById('oct-current');
+        if (poly) {
+            poly.setAttribute('points', pointsToStr(pts));
+            poly.setAttribute('fill', `${hexToRgba(arch.color, 0.12)}`);
+            poly.setAttribute('stroke', arch.color);
+        }
+
+        const dotIds = ['dot-reason', 'dot-pattern', 'dot-flame', 'dot-clue', 'dot-heart', 'dot-drift', 'dot-shadow', 'dot-anchor'];
+        dotIds.forEach((id, i) => {
+            const dot = document.getElementById(id);
+            if (dot) {
+                dot.setAttribute('cx', pts[i].x.toFixed(1));
+                dot.setAttribute('cy', pts[i].y.toFixed(1));
+                dot.setAttribute('opacity', '0.9');
+            }
+        });
+
+        const trailEl = document.getElementById('oct-trail');
+        if (trailEl) {
+            trailEl.innerHTML = trail.map((entry, i) => {
+                const s = entry.scores || entry;
+                const tPts = scoresToOctagonPoints(s);
+                const alpha = (i + 1) / trail.length * 0.2;
+                return `<polygon points="${pointsToStr(tPts)}" fill="none" stroke="${hexToRgba(arch.color, alpha)}" stroke-width="1"/>`;
+            }).join('');
+        }
+
+        updateBar('ie', scores.ie, MAX_SCORE);
+        updateBar('tf', scores.tf, MAX_SCORE);
+        updateBar('sn', scores.sn, MAX_SCORE);
+        updateBar('jp', scores.jp, MAX_SCORE);
+
+        setBarIcon('icon-ie', scores.ie, '#94a3b8', '#f97316');
+        setBarIcon('icon-tf', scores.tf, '#60a5fa', '#f472b6');
+        setBarIcon('icon-sn', scores.sn, '#34d399', '#a78bfa');
+        setBarIcon('icon-jp', scores.jp, '#fbbf24', '#94a3b8');
+
+        const reasoningEl = document.getElementById('reasoning-text');
+        if (reasoningEl) {
+            const lastEntry = trail[trail.length - 1];
+            const reasoning = lastEntry && lastEntry.reasoning ? lastEntry.reasoning : '';
+            if (reasoning) {
+                reasoningEl.textContent = reasoning;
+                reasoningEl.style.color = 'rgba(212, 197, 169, 0.8)';
+            } else {
+                reasoningEl.textContent = 'Start chatting to see analysis...';
+                reasoningEl.style.color = 'rgba(212, 197, 169, 0.5)';
+            }
         }
     }
 
@@ -366,9 +441,46 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         if (overlay) overlay.classList.add('is-open');
     }
 
+    function openFullArchModal() {
+        const key = getMBTIKey(scores);
+        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
+
+        const illKey = arch.illustration || 'unknown';
+        const illustrationEl = document.getElementById('full-arch-illustration');
+        if (illustrationEl) {
+            const illustrations = getIllustrations();
+            illustrationEl.innerHTML = (illustrations[illKey] || illustrations['unknown']) +
+                '<div class="full-arch-illustration-overlay"></div>' +
+                '<button class="full-arch-close" id="full-arch-close-btn">×</button>';
+        }
+
+        const bodyEl = document.getElementById('full-arch-body');
+        if (bodyEl) {
+            const traitHTML = arch.traits.map(t =>
+                `<span class="full-arch-trait" style="color:${t.color};border-color:${t.color}40;background:${t.color}10">${t.label}</span>`
+            ).join('');
+
+            const bulletsHTML = arch.bullets.map(b => `<div class="full-arch-bullet">${b}</div>`).join('');
+            const famousHTML = arch.famous.map(f => `<span class="full-arch-famous-name">${f}</span>`).join('');
+            const mbtiLine = key !== 'unknown' ? `<div class="full-arch-mbti-badge">${arch.mbti} · MBTI Analog</div>` : '';
+            const twoCol = arch.asset ? `<div class="full-arch-two-col"><div class="full-arch-col"><div class="full-arch-col-label is-asset">Greatest Asset</div><p>${arch.asset}</p></div><div class="full-arch-col"><div class="full-arch-col-label is-risk">Hidden Risk</div><p>${arch.risk}</p></div></div>` : '';
+            const famousSection = arch.famous.length ? `<div class="full-arch-section-label">Known Examples</div><div class="full-arch-famous">${famousHTML}</div>` : '';
+            const investigationSection = arch.bullets.length ? `<div class="full-arch-section-label">In This Investigation</div><div class="full-arch-bullets">${bulletsHTML}</div><div class="full-arch-divider"></div>${twoCol}<div class="full-arch-divider"></div>${famousSection}` : '';
+
+            bodyEl.innerHTML = `${mbtiLine}<div class="full-arch-title" style="color:${arch.color}">${arch.name}</div><div class="full-arch-tagline">${arch.tagline}</div>${traitHTML ? `<div class="full-arch-traits">${traitHTML}</div>` : ''}${investigationSection}`;
+        }
+
+        const overlay = document.getElementById('full-arch-overlay');
+        if (overlay) overlay.classList.add('is-open');
+    }
+
     window.MBTI_Widget = {
         closeArchModal: function() {
             const overlay = document.getElementById('arch-overlay');
+            if (overlay) overlay.classList.remove('is-open');
+        },
+        closeFullArchModal: function() {
+            const overlay = document.getElementById('full-arch-overlay');
             if (overlay) overlay.classList.remove('is-open');
         }
     };
@@ -432,14 +544,36 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                     <div class="arch-body" id="arch-body"></div>
                 </div>
             </div>
+            <div class="full-arch-overlay" id="full-arch-overlay">
+                <div class="full-arch-modal" id="full-arch-modal">
+                    <div class="full-arch-illustration" id="full-arch-illustration">
+                        <div class="full-arch-illustration-overlay"></div>
+                        <button class="full-arch-close" id="full-arch-close">×</button>
+                    </div>
+                    <div class="full-arch-body" id="full-arch-body"></div>
+                </div>
+            </div>
         `;
 
         document.body.appendChild(panel);
 
-        document.getElementById('magnify-btn').addEventListener('click', openArchModal);
+        document.getElementById('magnify-btn').addEventListener('click', openFullArchModal);
         document.getElementById('arch-overlay').addEventListener('click', function(e) {
             if (e.target === this) window.MBTI_Widget.closeArchModal();
         });
+
+        const fullArchOverlay = document.getElementById('full-arch-overlay');
+        if (fullArchOverlay) {
+            fullArchOverlay.addEventListener('click', function(e) {
+                if (e.target === this) window.MBTI_Widget.closeFullArchModal();
+            });
+        }
+        const fullArchCloseBtn = document.getElementById('full-arch-close-btn');
+        if (fullArchCloseBtn) {
+            fullArchCloseBtn.addEventListener('click', function() {
+                window.MBTI_Widget.closeFullArchModal();
+            });
+        }
 
         // Make panel draggable via header
         const header = panel.querySelector('.profile-header');

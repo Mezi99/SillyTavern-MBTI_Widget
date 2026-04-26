@@ -168,7 +168,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px 8px;
-    row-gap: 12px;
+    row-gap: 18px;
     margin-bottom: 4px;
     padding: 0 4px;
 }
@@ -500,4 +500,261 @@
     height: 1px;
     background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.2), transparent);
     margin: 20px 0;
+}
+
+/* =============================================
+   FULL-SCREEN ARCHETYPE MODAL
+   ============================================= */
+#mbti-widget-panel .full-arch-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(2, 4, 10, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    padding: 40px;
+}
+
+#mbti-widget-panel .full-arch-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#mbti-widget-panel .full-arch-modal {
+    width: 100%;
+    max-width: 580px;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 8px;
+    overflow: hidden;
+    transform: scale(0.96);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    background: #02040a;
+}
+
+#mbti-widget-panel .full-arch-overlay.is-open .full-arch-modal {
+    transform: scale(1);
+}
+
+#mbti-widget-panel .full-arch-illustration {
+    width: 100%;
+    height: 220px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #020508;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#mbti-widget-panel .full-arch-illustration svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+}
+
+#mbti-widget-panel .full-arch-illustration-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 90px;
+    background: linear-gradient(to top, #02040a 0%, transparent 100%);
+    z-index: 2;
+}
+
+#mbti-widget-panel .full-arch-close {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    z-index: 10;
+    background: rgba(2, 4, 10, 0.7);
+    border: 1px solid rgba(212, 197, 169, 0.2);
+    border-radius: 4px;
+    color: rgba(212, 197, 169, 0.6);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 10px;
+    transition: color 0.2s, background 0.2s;
+}
+
+#mbti-widget-panel .full-arch-close:hover {
+    color: #ef4444;
+    background: rgba(185, 28, 28, 0.3);
+}
+
+#mbti-widget-panel .full-arch-body {
+    padding: 28px 32px 32px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+}
+
+#mbti-widget-panel .full-arch-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+#mbti-widget-panel .full-arch-body::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.25);
+    border-radius: 2px;
+}
+
+#mbti-widget-panel .full-arch-mbti-badge {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: rgba(212, 175, 55, 0.6);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+#mbti-widget-panel .full-arch-title {
+    font-family: 'Cinzel', serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    transition: color 0.5s;
+}
+
+#mbti-widget-panel .full-arch-tagline {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-style: italic;
+    color: rgba(212, 197, 169, 0.65);
+    line-height: 1.6;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(212, 197, 169, 0.1);
+}
+
+#mbti-widget-panel .full-arch-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+#mbti-widget-panel .full-arch-trait {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 3px;
+    border: 1px solid;
+}
+
+#mbti-widget-panel .full-arch-section-label {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.4);
+    margin-bottom: 12px;
+    margin-top: 24px;
+}
+
+#mbti-widget-panel .full-arch-section-label:first-of-type {
+    margin-top: 0;
+}
+
+#mbti-widget-panel .full-arch-body p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: rgba(212, 197, 169, 0.82);
+}
+
+#mbti-widget-panel .full-arch-bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#mbti-widget-panel .full-arch-bullet {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(212, 197, 169, 0.75);
+}
+
+#mbti-widget-panel .full-arch-bullet::before {
+    content: '◈';
+    color: #d4af37;
+    font-size: 10px;
+    flex-shrink: 0;
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+#mbti-widget-panel .full-arch-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 6px;
+}
+
+#mbti-widget-panel .full-arch-col {
+    background: rgba(212, 197, 169, 0.04);
+    border: 1px solid rgba(212, 197, 169, 0.1);
+    border-radius: 4px;
+    padding: 14px 16px;
+}
+
+#mbti-widget-panel .full-arch-col-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+#mbti-widget-panel .full-arch-col-label.is-asset {
+    color: #10b981;
+}
+
+#mbti-widget-panel .full-arch-col-label.is-risk {
+    color: #ef4444;
+}
+
+#mbti-widget-panel .full-arch-col p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: rgba(212, 197, 169, 0.72);
+}
+
+#mbti-widget-panel .full-arch-famous {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+#mbti-widget-panel .full-arch-famous-name {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: rgba(212, 175, 55, 0.75);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    padding: 4px 10px;
+    border-radius: 3px;
+}
+
+#mbti-widget-panel .full-arch-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.25), transparent);
+    margin: 24px 0;
 }
