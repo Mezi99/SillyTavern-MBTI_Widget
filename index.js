@@ -539,11 +539,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             }
         });
 
-        trail.push({
-            scores: JSON.parse(JSON.stringify(scores)),
-            reasoning: ''
-        });
-        if (trail.length > 5) trail.shift();
         const trailEl = document.getElementById('oct-trail');
         if (trailEl) {
             trailEl.innerHTML = trail.map((entry, i) => {
@@ -668,6 +663,85 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         if (overlay) overlay.classList.add('is-open');
     }
 
+    function openHistoryModal() {
+        const key = getMBTIKey(scores);
+        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
+
+        const mbtiCodeEl = document.getElementById('history-mbti-code');
+        if (mbtiCodeEl) {
+            mbtiCodeEl.textContent = arch.mbti;
+            mbtiCodeEl.style.color = arch.color;
+        }
+
+        const nameEl = document.getElementById('history-archetype-name');
+        if (nameEl) {
+            nameEl.textContent = arch.name;
+            nameEl.style.color = arch.color;
+        }
+
+        const taglineEl = document.getElementById('history-tagline');
+        if (taglineEl) {
+            taglineEl.textContent = arch.tagline;
+        }
+
+        const gridEl = document.getElementById('history-grid');
+        if (gridEl) {
+            if (trail.length === 0) {
+                gridEl.innerHTML = '<div class="history-empty">No analysis data yet. Start chatting or re-scan to build history.</div>';
+            } else {
+                gridEl.innerHTML = trail.map((entry, i) => {
+                    const s = entry.scores || entry;
+                    const mbtiKey = getMBTIKey(s);
+                    const entryArch = ARCHETYPES[mbtiKey] || ARCHETYPES['unknown'];
+                    const tags = entry.reasoning ? extractTagsFromReasoning(entry) : [];
+                    const tagsHTML = tags.map(t => {
+                        const tagColors = {
+                            shadow: '#94a3b8', flame: '#f97316',
+                            reason: '#60a5fa', heart: '#f472b6',
+                            clue: '#34d399', pattern: '#a78bfa',
+                            anchor: '#fbbf24', drift: '#94a3b8'
+                        };
+                        return `<span class="history-tag" style="color:${tagColors[t] || '#d4af37'};border-color:${tagColors[t] || '#d4af37'}40">${t}</span>`;
+                    }).join('');
+
+                    return `
+                        <div class="history-row">
+                            <div class="history-row-num">${i + 1}</div>
+                            <div class="history-row-tags">${tagsHTML || '<span class="history-tag-empty">—</span>'}</div>
+                            <div class="history-row-reasoning">${entry.reasoning || 'No reasoning recorded'}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        const overlay = document.getElementById('history-overlay');
+        if (overlay) overlay.classList.add('is-open');
+    }
+
+    function extractTagsFromReasoning(entry) {
+        if (!entry.scores) return [];
+        const tags = [];
+        const prevEntry = trail[trail.indexOf(entry) - 1];
+        const prevScores = prevEntry ? (prevEntry.scores || prevEntry) : { ie: 0, tf: 0, sn: 0, jp: 0 };
+
+        if ((entry.scores.ie || 0) > (prevScores.ie || 0)) tags.push('flame');
+        else if ((entry.scores.ie || 0) < (prevScores.ie || 0)) tags.push('shadow');
+        if ((entry.scores.tf || 0) > (prevScores.tf || 0)) tags.push('heart');
+        else if ((entry.scores.tf || 0) < (prevScores.tf || 0)) tags.push('reason');
+        if ((entry.scores.sn || 0) > (prevScores.sn || 0)) tags.push('pattern');
+        else if ((entry.scores.sn || 0) < (prevScores.sn || 0)) tags.push('clue');
+        if ((entry.scores.jp || 0) > (prevScores.jp || 0)) tags.push('drift');
+        else if ((entry.scores.jp || 0) < (prevScores.jp || 0)) tags.push('anchor');
+
+        return tags;
+    }
+
+    function closeHistoryModal() {
+        const overlay = document.getElementById('history-overlay');
+        if (overlay) overlay.classList.remove('is-open');
+    }
+
     window.MBTI_Widget = {
         closeArchModal: function() {
             const overlay = document.getElementById('arch-overlay');
@@ -676,6 +750,9 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         closeFullArchModal: function() {
             const overlay = document.getElementById('mbti-full-arch-overlay');
             if (overlay) overlay.classList.remove('is-open');
+        },
+        closeHistoryModal: function() {
+            closeHistoryModal();
         }
     };
 
@@ -691,6 +768,14 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 <div class="profile-header">
                     <div class="mbti-code" id="mbti-code">????</div>
                     <div class="header-buttons">
+                        <button class="history-btn" id="history-btn" title="View analysis history">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </button>
                         <button class="rescan-btn" id="rescan-btn" title="Re-scan chat history">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M1 4v6h6M23 20v-6h-6"/>
@@ -785,6 +870,24 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         `;
         document.body.appendChild(fullArchOverlay);
 
+        const historyOverlay = document.createElement('div');
+        historyOverlay.id = 'history-overlay';
+        historyOverlay.className = 'history-overlay';
+        historyOverlay.innerHTML = `
+            <div class="history-modal" id="history-modal">
+                <div class="history-header">
+                    <button class="history-close" id="history-close">×</button>
+                    <div class="history-mbti-code" id="history-mbti-code">????</div>
+                    <div class="history-archetype-name" id="history-archetype-name">THE UNKNOWN</div>
+                    <div class="history-tagline" id="history-tagline">Start chatting to build your MBTI profile...</div>
+                </div>
+                <div class="history-divider"></div>
+                <div class="history-section-label">Analysis History</div>
+                <div class="history-grid" id="history-grid"></div>
+            </div>
+        `;
+        document.body.appendChild(historyOverlay);
+
         fullArchOverlay.addEventListener('click', function(e) {
             if (e.target === this) window.MBTI_Widget.closeFullArchModal();
         });
@@ -800,6 +903,19 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         document.getElementById('rescan-btn').addEventListener('click', function(e) {
             e.stopPropagation();
             openRescanPopup();
+        });
+
+        document.getElementById('history-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            openHistoryModal();
+        });
+
+        document.getElementById('history-close').addEventListener('click', function() {
+            closeHistoryModal();
+        });
+
+        document.getElementById('history-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeHistoryModal();
         });
 
         document.getElementById('rescan-slider').addEventListener('input', updateRescanSlider);
