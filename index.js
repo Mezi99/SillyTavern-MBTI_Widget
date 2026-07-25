@@ -190,12 +190,13 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         }
     }
 
-    function saveToChatMetadata() {
+    async function saveToChatMetadata() {
         const context = SillyTavern.getContext();
         const metadata = context.chatMetadata;
         if (!metadata) return;
         metadata.mbti_scores = scores;
         metadata.mbti_trail = trail;
+        await context.saveMetadata();
     }
 
     function loadFromChatMetadata() {
@@ -472,7 +473,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 }
             });
 
-            saveToChatMetadata();
+            await saveToChatMetadata();
             updatePanel();
 
             console.log('[MBTI] Re-scan complete. Final scores:', scores);
@@ -1138,7 +1139,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                         scores: JSON.parse(JSON.stringify(scores)),
                         reasoning: result.reasoning || ''
                     });
-                    saveToChatMetadata();
+                    await saveToChatMetadata();
                     updatePanel();
                     console.log('[MBTI] Panel updated with tags:', result.tags);
                 } else {
