@@ -58,6 +58,29 @@ Respond strictly ONLY with valid JSON:
 "reasoning": "Brief 1-2 sentence explanation"
 }`;
 
+    const RESCAN_PROMPT = `Analyze the following chat history. For EACH user message (marked with [is_user]), determine which MBTI tags apply based on the user's behavior in that specific message.
+
+For each user message, return an analysis with the message index and applicable tags.
+
+Respond strictly ONLY with valid JSON:
+{
+  "analyses": [
+    {
+      "messageIndex": 0,
+      "tags": ["tag1", "tag2"],
+      "reasoning": "Brief 1-2 sentence explanation"
+    }
+  ]
+}
+
+Tags (choose 1-4 per message):
+Pair 1 - Social energy: shadow (withdrew, avoided, observed from distance) vs flame (engaged, confronted, inserted themselves)
+Pair 2 - Decision method: reason (used logic, evidence, analysis) vs heart (used emotion, empathy, gut feeling)
+Pair 3 - Information focus: clue (focused on concrete physical details) vs pattern (made a connection, inference, or intuitive leap)
+Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs drift (kept options open, adapted, stayed flexible)
+
+If a message is genuinely neutral on an axis, omit both tags from that pair.`;
+
     function getMessageContext(count) {
         const context = SillyTavern.getContext();
         if (!context.chat) return '';
@@ -306,6 +329,169 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         return `rgba(${r},${g},${b},${alpha})`;
     }
 
+    function estimateTokens(messageCount) {
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        if (!chat) return 0;
+
+        const messages = chat.slice(-messageCount);
+        let totalChars = 0;
+
+        messages.forEach(m => {
+            totalChars += (m.mes || '').length + (m.name || '').length + 5;
+        });
+
+        totalChars += RESCAN_PROMPT.length;
+        return Math.round(totalChars / 4);
+    }
+
+    function countUserMessages(messageCount) {
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        if (!chat) return 0;
+
+        const messages = chat.slice(-messageCount);
+        return messages.filter(m => m.is_user).length;
+    }
+
+    function openRescanPopup() {
+        const popup = document.getElementById('rescan-popup');
+        if (!popup) return;
+
+        const isVisible = popup.style.display === 'block';
+        popup.style.display = isVisible ? 'none' : 'block';
+
+        if (!isVisible) {
+            updateRescanSlider();
+        }
+    }
+
+    function closeRescanPopup() {
+        const popup = document.getElementById('rescan-popup');
+        if (popup) popup.style.display = 'none';
+    }
+
+    function updateRescanSlider() {
+        const slider = document.getElementById('rescan-slider');
+        const countEl = document.getElementById('rescan-count');
+        const userCountEl = document.getElementById('rescan-user-count');
+        const tokensEl = document.getElementById('rescan-tokens');
+
+        if (!slider) return;
+
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        const totalMessages = chat ? chat.length : 10;
+
+        slider.min = Math.min(5, totalMessages);
+        slider.max = totalMessages;
+
+        if (parseInt(slider.value) > totalMessages) {
+            slider.value = totalMessages;
+        }
+
+        const messageCount = parseInt(slider.value);
+        countEl.textContent = `${messageCount} messages`;
+
+        const userCount = countUserMessages(messageCount);
+        userCountEl.textContent = `~${userCount} user messages`;
+
+        const tokens = estimateTokens(messageCount);
+        tokensEl.textContent = `~${tokens.toLocaleString()} tokens`;
+    }
+
+    function parseRescanResponse(response) {
+        try {
+            const parsed = JSON.parse(response);
+
+            if (parsed.analyses && Array.isArray(parsed.analyses)) {
+                const validAnalyses = parsed.analyses.filter(a =>
+                    a.messageIndex !== undefined &&
+                    Array.isArray(a.tags) &&
+                    a.tags.length >= 1 &&
+                    a.tags.length <= 4
+                );
+
+                return { analyses: validAnalyses };
+            }
+        } catch (e) {
+            console.error('MBTI Widget: Invalid re-scan JSON', e);
+        }
+
+        return { analyses: [] };
+    }
+
+    async function reScanHistory(messageCount) {
+        if (isProcessing) return;
+
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        if (!chat || chat.length === 0) return;
+
+        const messages = chat.slice(-messageCount);
+        if (messages.length === 0) return;
+
+        scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
+        trail = [];
+
+        isProcessing = true;
+        showRescanProgress(true);
+
+        try {
+            const chatText = messages.map((m, i) =>
+                `[${i}] ${m.is_user ? '[is_user]' : '[is_ai]'} ${m.name}: ${m.mes}`
+            ).join('\n');
+
+            const ctx = SillyTavern.getContext();
+            const response = await ctx.generateRaw({
+                prompt: chatText,
+                systemPrompt: RESCAN_PROMPT,
+            });
+
+            console.log('[MBTI] Re-scan response:', response);
+
+            const parsed = parseRescanResponse(response);
+            console.log('[MBTI] Parsed analyses:', parsed.analyses.length);
+
+            parsed.analyses.forEach(analysis => {
+                if (analysis.tags && analysis.tags.length > 0) {
+                    analysis.tags.forEach(tag => applyTag(tag));
+                    trail.push({
+                        scores: JSON.parse(JSON.stringify(scores)),
+                        reasoning: analysis.reasoning || ''
+                    });
+                }
+            });
+
+            if (trail.length > 5) trail = trail.slice(-5);
+
+            saveToChatMetadata();
+            updatePanel();
+
+            console.log('[MBTI] Re-scan complete. Final scores:', scores);
+
+        } catch (error) {
+            console.error('MBTI Widget: Re-scan failed', error);
+        } finally {
+            isProcessing = false;
+            showRescanProgress(false);
+            closeRescanPopup();
+        }
+    }
+
+    function showRescanProgress(show) {
+        const progressEl = document.getElementById('rescan-progress');
+        const goBtn = document.getElementById('rescan-go-btn');
+
+        if (progressEl) {
+            progressEl.style.display = show ? 'flex' : 'none';
+        }
+        if (goBtn) {
+            goBtn.disabled = show;
+            goBtn.textContent = show ? 'Scanning...' : 'Re-scan';
+        }
+    }
+
     function updatePanel() {
         const key = getMBTIKey(scores);
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
@@ -496,9 +682,17 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             <div class="profile-shell" id="profile-shell">
                 <div class="profile-header">
                     <div class="mbti-code" id="mbti-code">????</div>
-                    <button class="magnify-btn" id="magnify-btn">
-                        <div class="magnify-icon"></div>
-                    </button>
+                    <div class="header-buttons">
+                        <button class="rescan-btn" id="rescan-btn" title="Re-scan chat history">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 4v6h6M23 20v-6h-6"/>
+                                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                            </svg>
+                        </button>
+                        <button class="magnify-btn" id="magnify-btn">
+                            <div class="magnify-icon"></div>
+                        </button>
+                    </div>
                 </div>
                 <div class="profile-eyebrow">Your Nature</div>
                 <div class="archetype-name" id="archetype-name" style="color: var(--theme-gold)">THE UNKNOWN</div>
@@ -548,6 +742,27 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
 
         document.body.appendChild(panel);
 
+        const rescanPopup = document.createElement('div');
+        rescanPopup.id = 'rescan-popup';
+        rescanPopup.className = 'rescan-popup';
+        rescanPopup.innerHTML = `
+            <div class="rescan-title">Re-scan Chat History</div>
+            <div class="rescan-slider-row">
+                <input type="range" id="rescan-slider" min="5" max="10" value="5" class="rescan-slider">
+                <span id="rescan-count" class="rescan-count">5 messages</span>
+            </div>
+            <div class="rescan-info">
+                <span id="rescan-user-count" class="rescan-user-count">~3 user messages</span>
+                <span id="rescan-tokens" class="rescan-tokens">~1,500 tokens</span>
+            </div>
+            <button class="rescan-go-btn" id="rescan-go-btn">Re-scan</button>
+            <div class="rescan-progress" id="rescan-progress" style="display:none;">
+                <div class="rescan-spinner"></div>
+                <span id="rescan-progress-text">Analyzing chat history...</span>
+            </div>
+        `;
+        panel.appendChild(rescanPopup);
+
         const fullArchOverlay = document.createElement('div');
         fullArchOverlay.id = 'mbti-full-arch-overlay';
         fullArchOverlay.className = 'full-arch-overlay';
@@ -573,6 +788,29 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             if (e.target === this) window.MBTI_Widget.closeArchModal();
         });
         document.getElementById('magnify-btn').addEventListener('click', openFullArchModal);
+
+        document.getElementById('rescan-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            openRescanPopup();
+        });
+
+        document.getElementById('rescan-slider').addEventListener('input', updateRescanSlider);
+
+        document.getElementById('rescan-go-btn').addEventListener('click', function() {
+            const slider = document.getElementById('rescan-slider');
+            const messageCount = parseInt(slider.value);
+            reScanHistory(messageCount);
+        });
+
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('rescan-popup');
+            const btn = document.getElementById('rescan-btn');
+            if (popup && popup.style.display === 'block') {
+                if (!popup.contains(e.target) && !btn.contains(e.target)) {
+                    popup.style.display = 'none';
+                }
+            }
+        });
 
         // Make panel draggable via header
         const header = panel.querySelector('.profile-header');
