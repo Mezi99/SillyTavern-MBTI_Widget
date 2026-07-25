@@ -153,9 +153,8 @@ function getLastUserMessage() {
     function parseRatingResponse(response) {
         const knownTags = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'anchor', 'drift'];
         
-        // Strict JSON parsing only
         try {
-            const parsed = JSON.parse(response);
+            const parsed = JSON.parse(stripMarkdownFences(response));
             if (parsed.tags && Array.isArray(parsed.tags)) {
                 const tags = parsed.tags
                     .map(t => t.toLowerCase().trim())
@@ -329,6 +328,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         return `rgba(${r},${g},${b},${alpha})`;
     }
 
+    function stripMarkdownFences(response) {
+        let cleaned = response.trim();
+        const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (fenceMatch) {
+            cleaned = fenceMatch[1].trim();
+        }
+        return cleaned;
+    }
+
     function estimateTokens(messageCount) {
         const context = SillyTavern.getContext();
         const chat = context.chat;
@@ -402,7 +410,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
 
     function parseRescanResponse(response) {
         try {
-            const parsed = JSON.parse(response);
+            const parsed = JSON.parse(stripMarkdownFences(response));
 
             if (parsed.analyses && Array.isArray(parsed.analyses)) {
                 const validAnalyses = parsed.analyses.filter(a =>
