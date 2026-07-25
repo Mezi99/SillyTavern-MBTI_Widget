@@ -1083,7 +1083,7 @@
 
 .history-row {
     display: grid;
-    grid-template-columns: 32px 80px 1fr;
+    grid-template-columns: 32px auto 1fr;
     gap: 12px;
     align-items: start;
     padding: 12px 0;
