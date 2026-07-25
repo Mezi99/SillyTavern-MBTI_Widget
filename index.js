@@ -465,13 +465,12 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 if (analysis.tags && analysis.tags.length > 0) {
                     analysis.tags.forEach(tag => applyTag(tag));
                     trail.push({
+                        messageIndex: analysis.messageIndex,
                         scores: JSON.parse(JSON.stringify(scores)),
                         reasoning: analysis.reasoning || ''
                     });
                 }
             });
-
-            if (trail.length > 5) trail = trail.slice(-5);
 
             saveToChatMetadata();
             updatePanel();
@@ -704,9 +703,10 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                         return `<span class="history-tag" style="color:${tagColors[t] || '#d4af37'};border-color:${tagColors[t] || '#d4af37'}40">${t}</span>`;
                     }).join('');
 
+                    const rowNum = entry.messageIndex !== undefined ? entry.messageIndex : i + 1;
                     return `
                         <div class="history-row">
-                            <div class="history-row-num">${i + 1}</div>
+                            <div class="history-row-num">${rowNum}</div>
                             <div class="history-row-tags">${tagsHTML || '<span class="history-tag-empty">—</span>'}</div>
                             <div class="history-row-reasoning">${entry.reasoning || 'No reasoning recorded'}</div>
                         </div>
@@ -1130,11 +1130,14 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 
                 if (result.tags && result.tags.length > 0) {
                     result.tags.forEach(tag => applyTag(tag));
+                    const ctx = SillyTavern.getContext();
+                    const chat = ctx.chat;
+                    const msgIndex = chat ? chat.length - 1 : trail.length;
                     trail.push({
+                        messageIndex: msgIndex,
                         scores: JSON.parse(JSON.stringify(scores)),
                         reasoning: result.reasoning || ''
                     });
-                    if (trail.length > 5) trail.shift();
                     saveToChatMetadata();
                     updatePanel();
                     console.log('[MBTI] Panel updated with tags:', result.tags);

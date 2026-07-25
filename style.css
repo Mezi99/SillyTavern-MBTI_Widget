@@ -1,6 +1,6 @@
 /* MBTI Widget Styles - scoped to prevent conflicts with SillyTavern UI */
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Raleway:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Raleway:wght@300;400;600;700&family=Roboto:wght@300;400;500&display=swap');
 
 /* Only apply these CSS variables within our widget scope */
 #mbti-widget-fab, #mbti-widget-panel {
@@ -236,17 +236,12 @@
 }
 
 #mbti-widget-panel .reasoning-text {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Roboto', sans-serif;
     font-size: 11px;
-    font-style: italic;
-    color: rgba(212, 197, 169, 0.6);
+    font-style: normal;
+    color: rgba(212, 197, 169, 0.65);
     line-height: 1.5;
-    max-height: 48px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
+    word-wrap: break-word;
 }
 
 /* Archetype Modal Overlay */
@@ -1088,7 +1083,7 @@
 
 .history-row {
     display: grid;
-    grid-template-columns: 32px auto 1fr;
+    grid-template-columns: 32px 80px 1fr;
     gap: 12px;
     align-items: start;
     padding: 12px 0;
@@ -1108,9 +1103,9 @@
 }
 
 .history-row-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
 }
 
 .history-tag {
@@ -1131,9 +1126,9 @@
 }
 
 .history-row-reasoning {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Roboto', sans-serif;
     font-size: 12px;
-    font-style: italic;
-    color: rgba(212, 197, 169, 0.65);
+    font-style: normal;
+    color: rgba(212, 197, 169, 0.7);
     line-height: 1.5;
 }
