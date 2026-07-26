@@ -13,6 +13,26 @@
 
     const MAX_SCORE = 18;
 
+    const ILLUSTRATIONS = {
+        unknown: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020508"/><circle cx="290" cy="100" r="120" fill="none" stroke="rgba(212,175,55,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="80" fill="none" stroke="rgba(212,175,55,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="40" fill="none" stroke="rgba(212,175,55,0.12)" stroke-width="1"/><text x="290" y="115" text-anchor="middle" font-family="Cinzel,serif" font-size="56" font-weight="700" fill="rgba(212,175,55,0.08)" letter-spacing="8">????</text></svg>`,
+        architect: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020a18"/><g stroke="rgba(96,165,250,0.12)" stroke-width="0.75" fill="none"><line x1="0" y1="40" x2="580" y2="40"/><line x1="0" y1="80" x2="580" y2="80"/><line x1="0" y1="120" x2="580" y2="120"/><line x1="0" y1="160" x2="580" y2="160"/></g><polygon points="290,30 420,160 160,160" fill="none" stroke="rgba(96,165,250,0.3)" stroke-width="1.5"/><circle cx="290" cy="100" r="4" fill="rgba(96,165,250,0.8)"/></svg>`,
+        witness: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#060310"/><ellipse cx="290" cy="100" rx="160" ry="80" fill="none" stroke="rgba(167,139,250,0.1)" stroke-width="1"/><ellipse cx="290" cy="100" rx="100" ry="50" fill="none" stroke="rgba(167,139,250,0.12)" stroke-width="1"/><ellipse cx="290" cy="100" rx="40" ry="20" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/><ellipse cx="290" cy="100" rx="8" ry="8" fill="rgba(167,139,250,0.6)"/></svg>`,
+        examiner: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#021008"/><rect x="100" y="50" width="380" height="100" fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"/><line x1="100" y1="100" x2="480" y2="100" stroke="rgba(52,211,153,0.2)" stroke-width="1"/><circle cx="290" cy="100" r="10" fill="rgba(52,211,153,0.15)" stroke="rgba(52,211,153,0.5)" stroke-width="1"/></svg>`,
+        keeper: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,50 C260,50 230,70 230,100 C230,130 260,160 290,170 C320,160 350,130 350,100 C350,70 320,50 290,50 Z" fill="rgba(244,114,182,0.06)" stroke="rgba(244,114,182,0.25)" stroke-width="1.5"/><circle cx="290" cy="100" r="8" fill="rgba(244,114,182,0.5)"/></svg>`,
+        theorist: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#040210"/><g fill="none" stroke="rgba(167,139,250,0.2)" stroke-width="1"><circle cx="200" cy="100" r="30"/><circle cx="290" cy="70" r="30"/><circle cx="380" cy="100" r="30"/><circle cx="290" cy="130" r="30"/></g><circle cx="290" cy="100" r="6" fill="rgba(167,139,250,0.3)" stroke="rgba(167,139,250,0.4)" stroke-width="1"/></svg>`,
+        dreamer: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#06020e"/><path d="M100,150 Q200,20 290,100 Q380,180 480,50" fill="none" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/><circle cx="290" cy="100" r="3" fill="rgba(244,114,182,0.8)"/></svg>`,
+        operator: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#021008"/><rect x="240" y="60" width="100" height="80" fill="none" stroke="rgba(52,211,153,0.3)" stroke-width="1.5"/><line x1="80" y1="100" x2="240" y2="100" stroke="rgba(52,211,153,0.2)" stroke-width="1"/><circle cx="290" cy="100" r="5" fill="rgba(52,211,153,0.7)"/></svg>`,
+        empath: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,60 C275,45 250,45 250,65 C250,85 290,110 290,110 C290,110 330,85 330,65 C330,45 305,45 290,60Z" fill="rgba(244,114,182,0.2)" stroke="rgba(244,114,182,0.4)" stroke-width="1.5"/></svg>`,
+        conductor: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><g stroke="rgba(249,115,22,0.15)" stroke-width="1" fill="none"><line x1="290" y1="20" x2="100" y2="160"/><line x1="290" y1="20" x2="290" y2="180"/><line x1="290" y1="20" x2="480" y2="160"/></g><circle cx="290" cy="20" r="5" fill="rgba(249,115,22,0.8)"/></svg>`,
+        anchor: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><circle cx="290" cy="80" r="30" fill="none" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/><circle cx="290" cy="80" r="8" fill="rgba(244,114,182,0.3)"/><line x1="290" y1="110" x2="290" y2="160" stroke="rgba(244,114,182,0.25)" stroke-width="2"/></svg>`,
+        commander: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0a0800"/><rect x="140" y="50" width="300" height="100" fill="none" stroke="rgba(251,191,36,0.2)" stroke-width="2"/><rect x="140" y="50" width="300" height="18" fill="rgba(251,191,36,0.08)"/><circle cx="290" cy="59" r="3" fill="rgba(251,191,36,0.6)"/></svg>`,
+        caretaker: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020e06"/><g fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"><circle cx="200" cy="100" r="25"/><circle cx="290" cy="80" r="25"/><circle cx="380" cy="100" r="25"/></g><path d="M175,100 Q245,60 290,80 Q335,100 405,100" fill="none" stroke="rgba(52,211,153,0.2)" stroke-width="1"/></svg>`,
+        provocateur: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#040210"/><line x1="290" y1="100" x2="120" y2="60" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/><line x1="290" y1="100" x2="460" y2="60" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/><circle cx="290" cy="100" r="8" fill="rgba(167,139,250,0.5)"/></svg>`,
+        catalyst: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,100 L310,50 L330,100 L290,80 L350,80 Z" fill="rgba(244,114,182,0.15)" stroke="rgba(244,114,182,0.4)" stroke-width="1.5"/><circle cx="290" cy="100" r="50" fill="none" stroke="rgba(167,139,250,0.06)" stroke-width="1"/></svg>`,
+        livewire: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><path d="M80,100 L160,40 L200,100 L260,30 L290,100 L340,50 L380,120 L430,60 L500,100" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="2"/><circle cx="290" cy="100" r="5" fill="rgba(249,115,22,0.8)"/></svg>`,
+        storm: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><circle cx="290" cy="100" r="90" fill="none" stroke="rgba(249,115,22,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="60" fill="none" stroke="rgba(244,114,182,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="30" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.15)" stroke-width="1"/><circle cx="290" cy="100" r="6" fill="rgba(249,115,22,0.7)"/></svg>`
+    };
+
     const VERTICES = [
         { x: 110, y: 18 },
         { x: 190, y: 43 },
@@ -112,14 +132,6 @@ function getLastUserMessage() {
         return { userMessage, aiResponse };
     }
     
-    function getMessageContext(count) {
-        const context = SillyTavern.getContext();
-        if (!context.chat) return '';
-        const chat = context.chat;
-        const recent = chat.slice(-count);
-        return recent.map(m => `${m.name}: ${m.mes}`).join('\n');
-    }
-
     function getLastUserMessage_text() {
         const { userMessage } = getLastUserMessage();
         return userMessage;
@@ -205,15 +217,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         if (metadata?.mbti_scores) {
             scores = metadata.mbti_scores;
             trail = metadata.mbti_trail || [];
-            refreshPanelUI();
+            updatePanel();
         } else {
             scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
             trail = [];
-            refreshPanelUI();
+            updatePanel();
         }
     }
 
-    function refreshPanelUI() {
+    function updatePanel() {
         const key = getMBTIKey(scores);
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
 
@@ -500,79 +512,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         }
     }
 
-    function updatePanel() {
-        const key = getMBTIKey(scores);
-        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
-
-        const mbtiEl = document.getElementById('mbti-code');
-        if (mbtiEl) {
-            mbtiEl.textContent = arch.mbti;
-            mbtiEl.classList.toggle('is-known', key !== 'unknown');
-        }
-
-        const nameEl = document.getElementById('archetype-name');
-        if (nameEl) {
-            nameEl.textContent = arch.name;
-            nameEl.style.color = arch.color;
-        }
-
-        const descEl = document.getElementById('archetype-desc');
-        if (descEl) {
-            descEl.textContent = arch.tagline;
-        }
-
-        const pts = scoresToOctagonPoints(scores);
-        const poly = document.getElementById('oct-current');
-        if (poly) {
-            poly.setAttribute('points', pointsToStr(pts));
-            poly.setAttribute('fill', `${hexToRgba(arch.color, 0.12)}`);
-            poly.setAttribute('stroke', arch.color);
-        }
-
-        const dotIds = ['dot-reason', 'dot-pattern', 'dot-flame', 'dot-clue', 'dot-heart', 'dot-drift', 'dot-shadow', 'dot-anchor'];
-        dotIds.forEach((id, i) => {
-            const dot = document.getElementById(id);
-            if (dot) {
-                dot.setAttribute('cx', pts[i].x.toFixed(1));
-                dot.setAttribute('cy', pts[i].y.toFixed(1));
-                dot.setAttribute('opacity', '0.9');
-            }
-        });
-
-        const trailEl = document.getElementById('oct-trail');
-        if (trailEl) {
-            trailEl.innerHTML = trail.map((entry, i) => {
-                const s = entry.scores || entry;
-                const tPts = scoresToOctagonPoints(s);
-                const alpha = (i + 1) / trail.length * 0.2;
-                return `<polygon points="${pointsToStr(tPts)}" fill="none" stroke="${hexToRgba(arch.color, alpha)}" stroke-width="1"/>`;
-            }).join('');
-        }
-
-        updateBar('ie', scores.ie, MAX_SCORE);
-        updateBar('tf', scores.tf, MAX_SCORE);
-        updateBar('sn', scores.sn, MAX_SCORE);
-        updateBar('jp', scores.jp, MAX_SCORE);
-
-        setBarIcon('icon-ie', scores.ie, '#94a3b8', '#f97316');
-        setBarIcon('icon-tf', scores.tf, '#60a5fa', '#f472b6');
-        setBarIcon('icon-sn', scores.sn, '#34d399', '#a78bfa');
-        setBarIcon('icon-jp', scores.jp, '#fbbf24', '#94a3b8');
-
-        const reasoningEl = document.getElementById('reasoning-text');
-        if (reasoningEl) {
-            const lastEntry = trail[trail.length - 1];
-            const reasoning = lastEntry && lastEntry.reasoning ? lastEntry.reasoning : '';
-            if (reasoning) {
-                reasoningEl.textContent = reasoning;
-                reasoningEl.style.color = 'rgba(212, 197, 169, 0.8)';
-            } else {
-                reasoningEl.textContent = 'Start chatting to see analysis...';
-                reasoningEl.style.color = 'rgba(212, 197, 169, 0.5)';
-            }
-        }
-    }
-
     function updateBar(axis, val, max) {
         const pct = Math.abs(val) / max * 50;
         const leftEl = document.getElementById(`bar-${axis}-left`);
@@ -597,39 +536,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         else el.style.backgroundColor = 'rgba(212,197,169,0.3)';
     }
 
-    function openArchModal() {
-        const key = getMBTIKey(scores);
-        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
-
-        const illKey = arch.illustration || 'unknown';
-        const illustrationEl = document.getElementById('arch-illustration');
-        if (illustrationEl) {
-            const illustrations = getIllustrations();
-            illustrationEl.innerHTML = (illustrations[illKey] || illustrations['unknown']) +
-                '<div class="arch-illustration-overlay"></div>' +
-                '<button class="arch-close" onclick="window.MBTI_Widget.closeArchModal()">×</button>';
-        }
-
-        const bodyEl = document.getElementById('arch-body');
-        if (bodyEl) {
-            const traitHTML = arch.traits.map(t =>
-                `<span class="arch-trait" style="color:${t.color};border-color:${t.color}40;background:${t.color}10">${t.label}</span>`
-            ).join('');
-
-            const bulletsHTML = arch.bullets.map(b => `<div class="arch-bullet">${b}</div>`).join('');
-            const famousHTML = arch.famous.map(f => `<span class="arch-famous-name">${f}</span>`).join('');
-            const mbtiLine = key !== 'unknown' ? `<div class="arch-mbti-badge">${arch.mbti} · MBTI Analog</div>` : '';
-            const twoCol = arch.asset ? `<div class="arch-two-col"><div class="arch-col"><div class="arch-col-label is-asset">Greatest Asset</div><p>${arch.asset}</p></div><div class="arch-col"><div class="arch-col-label is-risk">Hidden Risk</div><p>${arch.risk}</p></div></div>` : '';
-            const famousSection = arch.famous.length ? `<div class="arch-section-label">Known Examples</div><div class="arch-famous">${famousHTML}</div>` : '';
-            const investigationSection = arch.bullets.length ? `<div class="arch-section-label">In This Investigation</div><div class="arch-bullets">${bulletsHTML}</div><div class="arch-divider"></div>${twoCol}<div class="arch-divider"></div>${famousSection}` : '';
-
-            bodyEl.innerHTML = `${mbtiLine}<div class="arch-title" style="color:${arch.color}">${arch.name}</div><div class="arch-tagline">${arch.tagline}</div>${traitHTML ? `<div class="arch-traits">${traitHTML}</div>` : ''}${investigationSection}`;
-        }
-
-        const overlay = document.getElementById('arch-overlay');
-        if (overlay) overlay.classList.add('is-open');
-    }
-
     function openFullArchModal() {
         const key = getMBTIKey(scores);
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
@@ -637,8 +543,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         const illKey = arch.illustration || 'unknown';
         const illustrationEl = document.getElementById('mbti-full-arch-illustration');
         if (illustrationEl) {
-            const illustrations = getIllustrations();
-            illustrationEl.innerHTML = (illustrations[illKey] || illustrations['unknown']) +
+            illustrationEl.innerHTML = (ILLUSTRATIONS[illKey] || ILLUSTRATIONS['unknown']) +
                 '<div class="full-arch-illustration-overlay"></div>' +
                 '<button class="full-arch-close" id="mbti-full-arch-close-btn">×</button>';
         }
@@ -744,10 +649,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
     }
 
     window.MBTI_Widget = {
-        closeArchModal: function() {
-            const overlay = document.getElementById('arch-overlay');
-            if (overlay) overlay.classList.remove('is-open');
-        },
         closeFullArchModal: function() {
             const overlay = document.getElementById('mbti-full-arch-overlay');
             if (overlay) overlay.classList.remove('is-open');
@@ -826,12 +727,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                     <div class="reasoning-text" id="reasoning-text">Start chatting to see analysis...</div>
                 </div>
             </div>
-            <div class="arch-overlay" id="arch-overlay">
-                <div class="arch-modal" id="arch-modal">
-                    <div class="arch-illustration" id="arch-illustration"></div>
-                    <div class="arch-body" id="arch-body"></div>
-                </div>
-            </div>
         `;
 
         document.body.appendChild(panel);
@@ -896,9 +791,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             window.MBTI_Widget.closeFullArchModal();
         });
 
-        document.getElementById('arch-overlay').addEventListener('click', function(e) {
-            if (e.target === this) window.MBTI_Widget.closeArchModal();
-        });
         document.getElementById('magnify-btn').addEventListener('click', openFullArchModal);
 
         document.getElementById('rescan-btn').addEventListener('click', function(e) {
@@ -1028,27 +920,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         document.body.appendChild(fab);
     }
 
-    function getIllustrations() {
-        return {
-            unknown: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020508"/><circle cx="290" cy="100" r="120" fill="none" stroke="rgba(212,175,55,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="80" fill="none" stroke="rgba(212,175,55,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="40" fill="none" stroke="rgba(212,175,55,0.12)" stroke-width="1"/><text x="290" y="115" text-anchor="middle" font-family="Cinzel,serif" font-size="56" font-weight="700" fill="rgba(212,175,55,0.08)" letter-spacing="8">????</text></svg>`,
-            architect: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020a18"/><g stroke="rgba(96,165,250,0.12)" stroke-width="0.75" fill="none"><line x1="0" y1="40" x2="580" y2="40"/><line x1="0" y1="80" x2="580" y2="80"/><line x1="0" y1="120" x2="580" y2="120"/><line x1="0" y1="160" x2="580" y2="160"/></g><polygon points="290,30 420,160 160,160" fill="none" stroke="rgba(96,165,250,0.3)" stroke-width="1.5"/><circle cx="290" cy="100" r="4" fill="rgba(96,165,250,0.8)"/></svg>`,
-            witness: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#060310"/><ellipse cx="290" cy="100" rx="160" ry="80" fill="none" stroke="rgba(167,139,250,0.1)" stroke-width="1"/><ellipse cx="290" cy="100" rx="100" ry="50" fill="none" stroke="rgba(167,139,250,0.12)" stroke-width="1"/><ellipse cx="290" cy="100" rx="40" ry="20" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/><ellipse cx="290" cy="100" rx="8" ry="8" fill="rgba(167,139,250,0.6)"/></svg>`,
-            examiner: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#021008"/><rect x="100" y="50" width="380" height="100" fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"/><line x1="100" y1="100" x2="480" y2="100" stroke="rgba(52,211,153,0.2)" stroke-width="1"/><circle cx="290" cy="100" r="10" fill="rgba(52,211,153,0.15)" stroke="rgba(52,211,153,0.5)" stroke-width="1"/></svg>`,
-            keeper: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,50 C260,50 230,70 230,100 C230,130 260,160 290,170 C320,160 350,130 350,100 C350,70 320,50 290,50 Z" fill="rgba(244,114,182,0.06)" stroke="rgba(244,114,182,0.25)" stroke-width="1.5"/><circle cx="290" cy="100" r="8" fill="rgba(244,114,182,0.5)"/></svg>`,
-            theorist: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#040210"/><g fill="none" stroke="rgba(167,139,250,0.2)" stroke-width="1"><circle cx="200" cy="100" r="30"/><circle cx="290" cy="70" r="30"/><circle cx="380" cy="100" r="30"/><circle cx="290" cy="130" r="30"/></g><circle cx="290" cy="100" r="6" fill="rgba(167,139,250,0.3)" stroke="rgba(167,139,250,0.4)" stroke-width="1"/></svg>`,
-            dreamer: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#06020e"/><path d="M100,150 Q200,20 290,100 Q380,180 480,50" fill="none" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/><circle cx="290" cy="100" r="3" fill="rgba(244,114,182,0.8)"/></svg>`,
-            operator: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#021008"/><rect x="240" y="60" width="100" height="80" fill="none" stroke="rgba(52,211,153,0.3)" stroke-width="1.5"/><line x1="80" y1="100" x2="240" y2="100" stroke="rgba(52,211,153,0.2)" stroke-width="1"/><circle cx="290" cy="100" r="5" fill="rgba(52,211,153,0.7)"/></svg>`,
-            empath: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,60 C275,45 250,45 250,65 C250,85 290,110 290,110 C290,110 330,85 330,65 C330,45 305,45 290,60Z" fill="rgba(244,114,182,0.2)" stroke="rgba(244,114,182,0.4)" stroke-width="1.5"/></svg>`,
-            conductor: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><g stroke="rgba(249,115,22,0.15)" stroke-width="1" fill="none"><line x1="290" y1="20" x2="100" y2="160"/><line x1="290" y1="20" x2="290" y2="180"/><line x1="290" y1="20" x2="480" y2="160"/></g><circle cx="290" cy="20" r="5" fill="rgba(249,115,22,0.8)"/></svg>`,
-            anchor: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><circle cx="290" cy="80" r="30" fill="none" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/><circle cx="290" cy="80" r="8" fill="rgba(244,114,182,0.3)"/><line x1="290" y1="110" x2="290" y2="160" stroke="rgba(244,114,182,0.25)" stroke-width="2"/></svg>`,
-            commander: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0a0800"/><rect x="140" y="50" width="300" height="100" fill="none" stroke="rgba(251,191,36,0.2)" stroke-width="2"/><rect x="140" y="50" width="300" height="18" fill="rgba(251,191,36,0.08)"/><circle cx="290" cy="59" r="3" fill="rgba(251,191,36,0.6)"/></svg>`,
-            caretaker: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020e06"/><g fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"><circle cx="200" cy="100" r="25"/><circle cx="290" cy="80" r="25"/><circle cx="380" cy="100" r="25"/></g><path d="M175,100 Q245,60 290,80 Q335,100 405,100" fill="none" stroke="rgba(52,211,153,0.2)" stroke-width="1"/></svg>`,
-            provocateur: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#040210"/><line x1="290" y1="100" x2="120" y2="60" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/><line x1="290" y1="100" x2="460" y2="60" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/><circle cx="290" cy="100" r="8" fill="rgba(167,139,250,0.5)"/></svg>`,
-            catalyst: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,100 L310,50 L330,100 L290,80 L350,80 Z" fill="rgba(244,114,182,0.15)" stroke="rgba(244,114,182,0.4)" stroke-width="1.5"/><circle cx="290" cy="100" r="50" fill="none" stroke="rgba(167,139,250,0.06)" stroke-width="1"/></svg>`,
-            livewire: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><path d="M80,100 L160,40 L200,100 L260,30 L290,100 L340,50 L380,120 L430,60 L500,100" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="2"/><circle cx="290" cy="100" r="5" fill="rgba(249,115,22,0.8)"/></svg>`,
-            storm: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><circle cx="290" cy="100" r="90" fill="none" stroke="rgba(249,115,22,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="60" fill="none" stroke="rgba(244,114,182,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="30" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.15)" stroke-width="1"/><circle cx="290" cy="100" r="6" fill="rgba(249,115,22,0.7)"/></svg>`
-        };
-    }
 
     async function init() {
         
