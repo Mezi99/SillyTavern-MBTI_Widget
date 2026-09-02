@@ -1,29 +1,102 @@
 <div class="et-settings-drawer">
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b>MBTI Widget</b>
+            <b><i class="fa-solid fa-brain"></i> MBTI Widget</b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
-        <div class="inline-drawer-content">
+        <div class="inline-drawer-content mbti-settings">
 
             <div class="et-drawer-description">
                 Build an evolving MBTI personality profile as you chat.
             </div>
 
-            <div class="et-field">
+            <!-- Enable toggle -->
+            <div class="mbti-set-block">
                 <label class="et-toggle-row" for="mbti_enabled">
                     <input type="checkbox" id="mbti_enabled" class="checkbox">
                     <span class="et-label-text">Enable MBTI Widget</span>
                 </label>
             </div>
 
-            <div class="et-field">
-                <label class="et-field-label"><i class="fa-solid fa-comments"></i> Context Messages</label>
-                <div class="et-range-wrapper">
-                    <input type="range" id="mbti_context_messages" min="1" max="10" value="5" class="et-range">
-                    <span id="mbti_context_messages_value" class="et-range-value">5</span>
+            <!-- Context messages -->
+            <div class="mbti-set-block">
+                <div class="mbti-set-label"><i class="fa-solid fa-comments"></i> Context Messages</div>
+                <div class="mbti-range-row">
+                    <input type="range" id="mbti_context_messages" min="1" max="10" value="5" class="mbti-range">
+                    <span id="mbti_context_messages_value" class="mbti-range-value">5</span>
                 </div>
-                <div class="et-hint">Number of recent messages included for context when analyzing.</div>
+                <div class="mbti-set-hint">Number of recent messages included for context when analyzing.</div>
+            </div>
+
+            <!-- LLM Backend -->
+            <div class="mbti-set-block mbti-set-section">
+                <div class="mbti-set-label"><i class="fa-solid fa-microchip"></i> LLM Backend</div>
+                <div class="mbti-set-hint">Choose which model powers the MBTI analysis.</div>
+
+                <div class="mbti-radio-row">
+                    <label class="mbti-radio-item" for="mbti_backend_st">
+                        <input type="radio" name="mbti_backend" id="mbti_backend_st" value="st" checked>
+                        <span class="mbti-radio-text">
+                            <span class="mbti-radio-title">Use SillyTavern current API</span>
+                            <span class="mbti-radio-sub">Uses the same model as your chat (recommended)</span>
+                        </span>
+                    </label>
+                    <label class="mbti-radio-item" for="mbti_backend_custom">
+                        <input type="radio" name="mbti_backend" id="mbti_backend_custom" value="custom">
+                        <span class="mbti-radio-text">
+                            <span class="mbti-radio-title">Custom OpenAI-compatible API</span>
+                            <span class="mbti-radio-sub">Connect to any OpenAI-compatible endpoint</span>
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Custom API fields (hidden unless custom backend) -->
+                <div id="mbti_custom_api" class="mbti-custom-api" style="display:none;">
+
+                    <div class="mbti-field">
+                        <label class="mbti-field-label" for="mbti_custom_base_url">API Base URL</label>
+                        <input type="text" id="mbti_custom_base_url" class="mbti-input" placeholder="https://api.openai.com/v1" autocomplete="off">
+                        <div class="mbti-set-hint">OpenAI-compatible base URL, e.g. https://api.openai.com/v1</div>
+                    </div>
+
+                    <div class="mbti-field">
+                        <label class="mbti-field-label" for="mbti_custom_api_key">API Key</label>
+                        <div class="mbti-input-row">
+                            <input type="password" id="mbti_custom_api_key" class="mbti-input" placeholder="sk-..." autocomplete="off">
+                            <button type="button" id="mbti_toggle_key" class="mbti-btn mbti-btn-icon" title="Show/Hide key">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="mbti-set-hint">Stored locally in your browser only.</div>
+                    </div>
+
+                    <div class="mbti-field">
+                        <label class="mbti-field-label" for="mbti_custom_model">Model</label>
+                        <div class="mbti-input-row">
+                            <input type="text" id="mbti_custom_model" class="mbti-input" placeholder="gpt-4o-mini" list="mbti_model_list" autocomplete="off">
+                            <datalist id="mbti_model_list"></datalist>
+                            <button type="button" id="mbti_fetch_models" class="mbti-btn">Fetch models</button>
+                        </div>
+                        <div class="mbti-set-hint">Type a model name or fetch available models from the API.</div>
+                    </div>
+
+                    <div class="mbti-field-row">
+                        <div class="mbti-field mbti-field-half">
+                            <label class="mbti-field-label" for="mbti_custom_max_tokens">Max Tokens</label>
+                            <input type="number" id="mbti_custom_max_tokens" class="mbti-input" value="2048" min="128" step="128">
+                        </div>
+                        <div class="mbti-field mbti-field-half">
+                            <label class="mbti-field-label" for="mbti_custom_temperature">Temperature</label>
+                            <input type="number" id="mbti_custom_temperature" class="mbti-input" value="0.7" min="0" max="2" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="mbti-field mbti-test-row">
+                        <button type="button" id="mbti_test_connection" class="mbti-btn mbti-btn-primary">Test Connection</button>
+                        <span id="mbti_test_result" class="mbti-test-result"></span>
+                    </div>
+
+                </div>
             </div>
 
         </div>

@@ -879,3 +879,235 @@
     color: rgba(212, 197, 169, 0.7);
     line-height: 1.5;
 }
+/* =============================================
+   SETTINGS DRAWER (LLM Backend)
+   ============================================= */
+.mbti-settings { padding: 8px 4px; }
+
+.mbti-set-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    margin: 10px 0;
+    background: var(--mbti-panel-bg, rgba(212, 197, 169, 0.04));
+    border: 1px solid var(--mbti-border, rgba(212, 197, 169, 0.12));
+    border-radius: 6px;
+}
+
+.mbti-set-section {
+    border-color: rgba(212, 175, 55, 0.25);
+    background: rgba(2, 4, 10, 0.4);
+}
+
+.mbti-set-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.9);
+}
+
+.mbti-set-label i { color: #d4af37; width: 16px; text-align: center; }
+
+.mbti-set-hint {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(212, 197, 169, 0.5);
+}
+
+.mbti-range-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mbti-range {
+    flex: 1;
+    accent-color: #d4af37;
+    cursor: pointer;
+}
+
+.mbti-range-value {
+    min-width: 28px;
+    text-align: right;
+    font-family: 'Roboto', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #d4af37;
+}
+
+/* Radio cards */
+.mbti-radio-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mbti-radio-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(212, 197, 169, 0.15);
+    border-radius: 6px;
+    background: rgba(212, 197, 169, 0.03);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.mbti-radio-item:hover {
+    border-color: rgba(212, 175, 55, 0.4);
+    background: rgba(212, 197, 169, 0.06);
+}
+
+.mbti-radio-item:has(input:checked) {
+    border-color: #d4af37;
+    background: rgba(212, 175, 55, 0.08);
+}
+
+.mbti-radio-item input[type="radio"] {
+    margin-top: 3px;
+    accent-color: #d4af37;
+    cursor: pointer;
+}
+
+.mbti-radio-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mbti-radio-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(212, 197, 169, 0.9);
+}
+
+.mbti-radio-sub {
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+    color: rgba(212, 197, 169, 0.45);
+}
+
+/* Custom API fields */
+.mbti-custom-api {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+.mbti-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.mbti-field-row {
+    display: flex;
+    gap: 10px;
+}
+
+.mbti-field-half { flex: 1; }
+
+.mbti-field-label {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(212, 197, 169, 0.85);
+}
+
+.mbti-input {
+    width: 100%;
+    padding: 8px 10px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 13px;
+    color: rgba(212, 197, 169, 0.9);
+    background: rgba(2, 4, 10, 0.6);
+    border: 1px solid rgba(212, 197, 169, 0.2);
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.mbti-input:focus {
+    border-color: #d4af37;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
+}
+
+.mbti-input-row {
+    display: flex;
+    gap: 6px;
+}
+
+.mbti-input-row .mbti-input { flex: 1; }
+
+.mbti-btn {
+    padding: 8px 12px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(212, 197, 169, 0.9);
+    background: rgba(212, 197, 169, 0.08);
+    border: 1px solid rgba(212, 197, 169, 0.25);
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.mbti-btn:hover {
+    background: rgba(212, 175, 55, 0.15);
+    border-color: rgba(212, 175, 55, 0.5);
+    color: #fff;
+}
+
+.mbti-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.mbti-btn-primary {
+    background: rgba(212, 175, 55, 0.2);
+    border-color: rgba(212, 175, 55, 0.4);
+    color: #ffd75e;
+}
+
+.mbti-btn-primary:hover {
+    background: rgba(212, 175, 55, 0.3);
+}
+
+.mbti-btn-icon {
+    padding: 8px 10px;
+    width: 36px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.mbti-test-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+
+.mbti-test-result {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    flex: 1;
+}
+
+.mbti-test-result.mbti-ok { color: #10b981; }
+.mbti-test-result.mbti-err { color: #ef4444; }
+.mbti-test-result.mbti-mut { color: #fbbf24; }
+
+/* datalist must not affect flex layout */
+#mbti_model_list { display: none; }

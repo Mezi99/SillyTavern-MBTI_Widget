@@ -139,3 +139,14 @@ trail = [
   // ... one trail entry per analyzed message
 ]
 ```
+
+---
+
+## LLM Backend / Transport
+
+This schema is the same regardless of which LLM backend the user selects. Only the **transport** differs:
+
+- **Use SillyTavern current API** — sent via `generateRaw({ prompt, systemPrompt })`, which uses the connection profile currently active in SillyTavern. It is a separate, out-of-band call (the main chat generation is unaffected).
+- **Custom OpenAI-compatible API** — sent as a direct `fetch()` POST to `{baseUrl}/chat/completions` with `{ model, messages: [{role:"system"},{role:"user"}], max_tokens, temperature }` and an optional `Authorization: Bearer <key>` header.
+
+The number of messages included in the re-scan is set via the slider in the re-scan popup. The manual re-scan uses the same backend as the automatic analysis.

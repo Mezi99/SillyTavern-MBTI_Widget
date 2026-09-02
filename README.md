@@ -35,6 +35,18 @@ The extension uses AI to analyze your messages and the conversation context. It 
 
 - Each message can contribute points to either side of each axis, building up a nuanced personality profile over time.
 - Each profile is attached separately for every chat.
+
+## LLM / API Usage
+
+The extension runs the MBTI analysis as a **separate, out-of-band** LLM call — it does not interfere with (or reuse the text of) your main chat generation. Both the automatic per-message analysis and the manual re-scan use the same backend. The analysis prompt is sent with only the recent messages you configured under **Context Messages** as context.
+
+You can choose which model powers the analysis in the extension settings under **LLM Backend**:
+
+- **Use SillyTavern current API** *(default)* — uses the same connection profile (and model) currently active in SillyTavern.
+- **Custom OpenAI-compatible API** — connect to any OpenAI-compatible endpoint by providing an **API Base URL**, **API Key**, and **Model**. Use **Fetch models** to list available models from the endpoint, then **Test Connection** to verify it works. You can also set **Max Tokens** and **Temperature**.
+
+The API key for a custom backend is stored **locally in your browser only** (never synced to the SillyTavern server or leaked to chat metadata).
+
 ## Usage
 
 - The floating panel shows your current MBTI type (e.g., "INTJ", "ENFP")
@@ -45,7 +57,7 @@ The extension uses AI to analyze your messages and the conversation context. It 
 ## Requirements
 
 - SillyTavern
-- An AI character with an API configured
+- An AI character with an API configured, **or** a custom OpenAI-compatible API endpoint (Base URL + Key + Model)
 
 ## Support
 

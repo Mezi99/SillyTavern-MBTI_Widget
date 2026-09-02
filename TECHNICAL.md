@@ -47,7 +47,7 @@ getLastUserMessage()     → Get user's latest message from context.chat
     ↓
 getMessageContext(n)    → Get n recent messages for LLM context
     ↓
-queryRating()          → Call generateRaw with prompt + systemPrompt
+queryRating()          → Call generateMBTI() with prompt + systemPrompt
     ↓
 parseRatingResponse() → Extract tags from LLM JSON response
     ↓
@@ -57,6 +57,24 @@ saveToChatMetadata()  → Persist scores to chat metadata
     ↓
 updatePanel()          → Update UI (octagon, bars, archetype info)
 ```
+
+---
+
+## LLM Backend (v3)
+
+All MBTI LLM calls go through a single dispatcher, `generateMBTI({ prompt, systemPrompt })`, used by both the auto-trigger (`queryRating`) and the manual re-scan (`reScanHistory`). The transport depends on the **LLM Backend** setting:
+
+- **`st`** (default): calls `SillyTavern.getContext().generateRaw({ prompt, systemPrompt })` — a separate, out-of-band request using the currently active SillyTavern connection profile. It does not include the character card, jailbreak, or full chat; only the injected context.
+- **`custom`**: calls `generateWithCustomOpenAI({ prompt, systemPrompt })` — a direct browser `fetch()` to a user-configured OpenAI-compatible endpoint (`POST {baseUrl}/chat/completions`), with:
+  - `messages: [{role:"system",content:systemPrompt},{role:"user",content:prompt}]`
+  - `model`, `max_tokens`, `temperature`
+  - optional `Authorization: Bearer <key>`
+
+Supporting helpers: `isCustomBackend()`, `getCustomApiSettings()`, `fetchModels()` (`GET {baseUrl}/models`), `testCustomConnection()`, `extractOpenAIContent()`.
+
+The custom API key is stored in `localStorage` under `mbti_widget_api_key` (never in `extension_settings`, so it is not synced to the server or written to chat metadata). All other backend settings live in `extension_settings.mbti_widget.{backend, customApi}`.
+
+---
 
 ---
 

@@ -137,6 +137,158 @@ function getLastUserMessage() {
         return userMessage;
     }
 
+    /* ============================================
+       LLM Backend abstraction (ST API or custom)
+       ============================================ */
+
+    const MBTI_API_KEY_STORAGE = 'mbti_widget_api_key';
+
+    function getCustomApiSettings() {
+        const cfg = extension_settings?.mbti_widget?.customApi || {};
+        const apiKey = localStorage.getItem(MBTI_API_KEY_STORAGE) || '';
+        return {
+            baseUrl: cfg.baseUrl || '',
+            model: cfg.model || '',
+            maxTokens: cfg.maxTokens ?? 2048,
+            temperature: cfg.temperature ?? 0.7,
+            apiKey: apiKey,
+        };
+    }
+
+    function isCustomBackend() {
+        return (extension_settings?.mbti_widget?.backend || 'st') === 'custom';
+    }
+
+    // Unified entry point used by both auto-trigger and re-scan.
+    async function generateMBTI({ prompt, systemPrompt }) {
+        if (isCustomBackend()) {
+            return await generateWithCustomOpenAI({ prompt, systemPrompt });
+        }
+        const ctx = SillyTavern.getContext();
+        return await ctx.generateRaw({
+            prompt: prompt,
+            systemPrompt: systemPrompt,
+        });
+    }
+
+    // Direct call to a user-configured OpenAI-compatible endpoint via fetch().
+    async function generateWithCustomOpenAI({ prompt, systemPrompt }) {
+        const { baseUrl, model, maxTokens, temperature, apiKey } = getCustomApiSettings();
+
+        if (!baseUrl || !baseUrl.trim()) {
+            throw new Error('Custom API base URL is not configured');
+        }
+        if (!model || !model.trim()) {
+            throw new Error('Custom API model is not configured');
+        }
+
+        const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, '');
+        const endpoint = `${normalizedBaseUrl}/chat/completions`;
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (apiKey && apiKey.trim()) {
+            headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+        }
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    model: model.trim(),
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: prompt },
+                    ],
+                    max_tokens: maxTokens || 2048,
+                    temperature: temperature ?? 0.7,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = `Custom API error: ${response.status} ${response.statusText}`;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson.error?.message) {
+                        errorMessage = `Custom API error: ${errorJson.error.message}`;
+                    }
+                } catch (e) {
+                    if (errorText && errorText.length < 200) {
+                        errorMessage = `Custom API error: ${errorText}`;
+                    }
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            const content = extractOpenAIContent(data);
+            if (!content || !content.trim()) {
+                throw new Error('Invalid response format from custom API - no text content found');
+            }
+            return content;
+        } catch (error) {
+            if (error.name === 'TypeError' && (String(error.message).includes('fetch') || String(error.message).includes('Failed to fetch') || String(error.message).includes('NetworkError'))) {
+                throw new Error(`CORS Access Blocked: This API endpoint (${normalizedBaseUrl}) does not allow direct access from the browser. This is a browser security restriction (CORS). Use an endpoint that supports CORS (like OpenRouter or a proxy) or switch back to "Use SillyTavern current API".`);
+            }
+            throw error;
+        }
+    }
+
+    function extractOpenAIContent(data) {
+        if (data && typeof data === 'object') {
+            const choices = data.choices;
+            if (Array.isArray(choices) && choices.length > 0) {
+                const message = choices[0].message;
+                if (message && typeof message.content === 'string') {
+                    return message.content;
+                }
+            }
+        }
+        return '';
+    }
+
+    // Fetch available model IDs from the custom API (GET {base}/models).
+    async function fetchModels() {
+        const { baseUrl, apiKey } = getCustomApiSettings();
+        if (!baseUrl || !baseUrl.trim()) {
+            throw new Error('Custom API base URL is not configured');
+        }
+        const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, '');
+        const endpoint = `${normalizedBaseUrl}/models`;
+
+        const headers = {};
+        if (apiKey && apiKey.trim()) {
+            headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+        }
+
+        const response = await fetch(endpoint, { method: 'GET', headers: headers });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (Array.isArray(data?.data)) {
+            return data.data
+                .map(m => (m && typeof m === 'object' ? m.id : null))
+                .filter(Boolean);
+        }
+        return [];
+    }
+
+    // Test the custom API connection with a minimal prompt.
+    async function testCustomConnection() {
+        try {
+            const content = await generateWithCustomOpenAI({
+                prompt: 'Respond with exactly: "Connection successful"',
+                systemPrompt: 'You are a helpful assistant.',
+            });
+            const model = getCustomApiSettings().model;
+            return { success: true, message: `Connection successful! Model: ${model}`, model: model };
+        } catch (error) {
+            return { success: false, message: error.message || 'Connection failed' };
+        }
+    }
+
     async function queryRating(lastUserMessage, lastAiResponse, chatHistory) {
         const promptData = {
             chat_history: chatHistory,
@@ -148,9 +300,8 @@ function getLastUserMessage() {
         console.log('[MBTI] queryRating - RATING_PROMPT:', RATING_PROMPT);
         
         try {
-            const ctx = SillyTavern.getContext();
-            console.log('[MBTI] queryRating - ctx.generateRaw exists:', typeof ctx.generateRaw);
-            const response = await ctx.generateRaw({
+            console.log('[MBTI] queryRating - backend:', (extension_settings?.mbti_widget?.backend || 'st'));
+            const response = await generateMBTI({
                 prompt: JSON.stringify(promptData, null, 2),
                 systemPrompt: RATING_PROMPT,
             });
@@ -158,6 +309,9 @@ function getLastUserMessage() {
             return parseRatingResponse(response);
         } catch (error) {
             console.error('MBTI Widget: Rating query failed', error);
+            if (isCustomBackend()) {
+                showTestResult(`Analysis failed: ${error.message}`, 'err');
+            }
             return { tags: [], reasoning: '' };
         }
     }
@@ -463,8 +617,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 `[${i}] ${m.is_user ? '[is_user]' : '[is_ai]'} ${m.name}: ${m.mes}`
             ).join('\n');
 
-            const ctx = SillyTavern.getContext();
-            const response = await ctx.generateRaw({
+            const response = await generateMBTI({
                 prompt: chatText,
                 systemPrompt: RESCAN_PROMPT,
             });
@@ -1028,6 +1181,18 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             contextMessages: 5,
             autoOpenOnLoad: false,
         };
+        // Ensure nested backend settings exist (v3)
+        if (!extension_settings.mbti_widget.backend) {
+            extension_settings.mbti_widget.backend = 'st';
+        }
+        if (!extension_settings.mbti_widget.customApi) {
+            extension_settings.mbti_widget.customApi = {
+                baseUrl: '',
+                model: '',
+                maxTokens: 2048,
+                temperature: 0.7,
+            };
+        }
 
         createFab();
         createPanel();
@@ -1036,6 +1201,8 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         jQuery('#mbti_enabled').prop('checked', extension_settings.mbti_widget.enabled);
         jQuery('#mbti_context_messages').val(extension_settings.mbti_widget.contextMessages);
         jQuery('#mbti_context_messages_value').text(extension_settings.mbti_widget.contextMessages);
+
+        initializeBackendSettings();
 
         // Sync quick toggle if present
         if (jQuery('#mbti_enabled_quick').length) {
@@ -1089,6 +1256,157 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         updatePanel();
 
         console.log('MBTI Widget loaded');
+    }
+
+    function showTestResult(message, type) {
+        const el = document.getElementById('mbti_test_result');
+        if (!el) return;
+        el.textContent = message || '';
+        el.className = 'mbti-test-result';
+        if (type === 'ok') el.classList.add('mbti-ok');
+        else if (type === 'err') el.classList.add('mbti-err');
+        else if (type === 'mut') el.classList.add('mbti-mut');
+    }
+
+    function updateBackendVisibility() {
+        const custom = isCustomBackend();
+        const customEl = document.getElementById('mbti_custom_api');
+        if (customEl) {
+            customEl.style.display = custom ? 'flex' : 'none';
+        }
+        const stRadio = document.getElementById('mbti_backend_st');
+        const customRadio = document.getElementById('mbti_backend_custom');
+        if (stRadio) stRadio.checked = !custom;
+        if (customRadio) customRadio.checked = custom;
+    }
+
+    function initializeBackendSettings() {
+        // Populate radio + custom fields from saved settings
+        updateBackendVisibility();
+
+        const customApi = extension_settings.mbti_widget.customApi || {};
+        const baseUrlEl = document.getElementById('mbti_custom_base_url');
+        const modelEl = document.getElementById('mbti_custom_model');
+        const apiKeyEl = document.getElementById('mbti_custom_api_key');
+        const maxTokensEl = document.getElementById('mbti_custom_max_tokens');
+        const tempEl = document.getElementById('mbti_custom_temperature');
+
+        if (baseUrlEl) baseUrlEl.value = customApi.baseUrl || '';
+        if (modelEl) modelEl.value = customApi.model || '';
+        if (apiKeyEl) {
+            apiKeyEl.value = localStorage.getItem(MBTI_API_KEY_STORAGE) || '';
+        }
+        if (maxTokensEl) maxTokensEl.value = customApi.maxTokens ?? 2048;
+        if (tempEl) tempEl.value = customApi.temperature ?? 0.7;
+
+        // --- Event handlers ---
+
+        jQuery('input[name="mbti_backend"]').on('change', function() {
+            extension_settings.mbti_widget.backend = jQuery(this).val();
+            updateBackendVisibility();
+            saveSettingsDebounced();
+        });
+
+        jQuery('#mbti_custom_base_url').on('change', function() {
+            extension_settings.mbti_widget.customApi.baseUrl = String(jQuery(this).val()).trim();
+            // Clear stale model list when base URL changes
+            jQuery('#mbti_model_list').empty();
+            saveSettingsDebounced();
+        });
+
+        jQuery('#mbti_custom_api_key').on('change', function() {
+            const apiKey = String(jQuery(this).val()).trim();
+            localStorage.setItem(MBTI_API_KEY_STORAGE, apiKey);
+        });
+
+        jQuery('#mbti_custom_model').on('change', function() {
+            extension_settings.mbti_widget.customApi.model = String(jQuery(this).val()).trim();
+            saveSettingsDebounced();
+        });
+
+        jQuery('#mbti_custom_max_tokens').on('change', function() {
+            extension_settings.mbti_widget.customApi.maxTokens = parseInt(jQuery(this).val(), 10) || 2048;
+            saveSettingsDebounced();
+        });
+
+        jQuery('#mbti_custom_temperature').on('change', function() {
+            extension_settings.mbti_widget.customApi.temperature = parseFloat(jQuery(this).val());
+            if (isNaN(extension_settings.mbti_widget.customApi.temperature)) {
+                extension_settings.mbti_widget.customApi.temperature = 0.7;
+            }
+            saveSettingsDebounced();
+        });
+
+        // Show/hide API key
+        jQuery('#mbti_toggle_key').on('click', function() {
+            const input = document.getElementById('mbti_custom_api_key');
+            const icon = jQuery(this).find('i');
+            if (!input) return;
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            if (isPassword) {
+                icon.removeClass('fa-eye').addClass('fa-eye-slash');
+            } else {
+                icon.removeClass('fa-eye-slash').addClass('fa-eye');
+            }
+        });
+
+        // Fetch models
+        jQuery('#mbti_fetch_models').on('click', async function() {
+            const btn = jQuery(this);
+            const orig = btn.html();
+            btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Fetching...');
+            showTestResult('', '');
+            try {
+                const models = await fetchModels();
+                const datalist = document.getElementById('mbti_model_list');
+                const modelInput = document.getElementById('mbti_custom_model');
+                if (datalist) datalist.innerHTML = '';
+                if (models.length === 0) {
+                    showTestResult('No models returned by the API.', 'err');
+                } else {
+                    const opts = models.slice(0, 100);
+                    opts.forEach(id => {
+                        const opt = document.createElement('option');
+                        opt.value = id;
+                        if (datalist) datalist.appendChild(opt);
+                    });
+                    if (modelInput && !modelInput.value && opts.length > 0) {
+                        modelInput.value = opts[0];
+                        extension_settings.mbti_widget.customApi.model = opts[0];
+                        saveSettingsDebounced();
+                    }
+                    showTestResult(`${opts.length} model${opts.length === 1 ? '' : 's'} available. Pick one below.`, 'mut');
+                }
+            } catch (error) {
+                showTestResult(error.message, 'err');
+            } finally {
+                btn.prop('disabled', false).html(orig);
+            }
+        });
+
+        // Test connection
+        jQuery('#mbti_test_connection').on('click', async function() {
+            const btn = jQuery(this);
+            const orig = btn.html();
+            btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Testing...');
+            showTestResult('', '');
+            try {
+                const result = await testCustomConnection();
+                if (result.success) {
+                    showTestResult(result.message, 'ok');
+                    toastr?.success(result.message);
+                } else {
+                    showTestResult(result.message, 'err');
+                    toastr?.error(result.message);
+                }
+            } catch (error) {
+                showTestResult(error.message || 'Connection failed', 'err');
+                toastr?.error(error.message || 'Connection failed');
+            } finally {
+                btn.prop('disabled', false).html(orig);
+            }
+        });
     }
 
     function showWidget() {
