@@ -931,6 +931,25 @@
     gap: 8px;
 }
 
+.mbti-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.mbti-toggle-row input[type="checkbox"] {
+    accent-color: #d4af37;
+    cursor: pointer;
+}
+
+.mbti-toggle-label {
+    font-family: 'Roboto', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(212, 197, 169, 0.9);
+}
+
 .mbti-set-hint {
     font-family: 'Roboto', sans-serif;
     font-size: 12px;
