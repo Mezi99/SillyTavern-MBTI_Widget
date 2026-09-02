@@ -13,6 +13,26 @@
 
     const MAX_SCORE = 18;
 
+    const ILLUSTRATIONS = {
+        unknown: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020508"/><circle cx="290" cy="100" r="120" fill="none" stroke="rgba(212,175,55,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="80" fill="none" stroke="rgba(212,175,55,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="40" fill="none" stroke="rgba(212,175,55,0.12)" stroke-width="1"/><text x="290" y="115" text-anchor="middle" font-family="Cinzel,serif" font-size="56" font-weight="700" fill="rgba(212,175,55,0.08)" letter-spacing="8">????</text></svg>`,
+        architect: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020a18"/><g stroke="rgba(96,165,250,0.12)" stroke-width="0.75" fill="none"><line x1="0" y1="40" x2="580" y2="40"/><line x1="0" y1="80" x2="580" y2="80"/><line x1="0" y1="120" x2="580" y2="120"/><line x1="0" y1="160" x2="580" y2="160"/></g><polygon points="290,30 420,160 160,160" fill="none" stroke="rgba(96,165,250,0.3)" stroke-width="1.5"/><circle cx="290" cy="100" r="4" fill="rgba(96,165,250,0.8)"/></svg>`,
+        witness: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#060310"/><ellipse cx="290" cy="100" rx="160" ry="80" fill="none" stroke="rgba(167,139,250,0.1)" stroke-width="1"/><ellipse cx="290" cy="100" rx="100" ry="50" fill="none" stroke="rgba(167,139,250,0.12)" stroke-width="1"/><ellipse cx="290" cy="100" rx="40" ry="20" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/><ellipse cx="290" cy="100" rx="8" ry="8" fill="rgba(167,139,250,0.6)"/></svg>`,
+        examiner: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#021008"/><rect x="100" y="50" width="380" height="100" fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"/><line x1="100" y1="100" x2="480" y2="100" stroke="rgba(52,211,153,0.2)" stroke-width="1"/><circle cx="290" cy="100" r="10" fill="rgba(52,211,153,0.15)" stroke="rgba(52,211,153,0.5)" stroke-width="1"/></svg>`,
+        keeper: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,50 C260,50 230,70 230,100 C230,130 260,160 290,170 C320,160 350,130 350,100 C350,70 320,50 290,50 Z" fill="rgba(244,114,182,0.06)" stroke="rgba(244,114,182,0.25)" stroke-width="1.5"/><circle cx="290" cy="100" r="8" fill="rgba(244,114,182,0.5)"/></svg>`,
+        theorist: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#040210"/><g fill="none" stroke="rgba(167,139,250,0.2)" stroke-width="1"><circle cx="200" cy="100" r="30"/><circle cx="290" cy="70" r="30"/><circle cx="380" cy="100" r="30"/><circle cx="290" cy="130" r="30"/></g><circle cx="290" cy="100" r="6" fill="rgba(167,139,250,0.3)" stroke="rgba(167,139,250,0.4)" stroke-width="1"/></svg>`,
+        dreamer: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#06020e"/><path d="M100,150 Q200,20 290,100 Q380,180 480,50" fill="none" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/><circle cx="290" cy="100" r="3" fill="rgba(244,114,182,0.8)"/></svg>`,
+        operator: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#021008"/><rect x="240" y="60" width="100" height="80" fill="none" stroke="rgba(52,211,153,0.3)" stroke-width="1.5"/><line x1="80" y1="100" x2="240" y2="100" stroke="rgba(52,211,153,0.2)" stroke-width="1"/><circle cx="290" cy="100" r="5" fill="rgba(52,211,153,0.7)"/></svg>`,
+        empath: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,60 C275,45 250,45 250,65 C250,85 290,110 290,110 C290,110 330,85 330,65 C330,45 305,45 290,60Z" fill="rgba(244,114,182,0.2)" stroke="rgba(244,114,182,0.4)" stroke-width="1.5"/></svg>`,
+        conductor: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><g stroke="rgba(249,115,22,0.15)" stroke-width="1" fill="none"><line x1="290" y1="20" x2="100" y2="160"/><line x1="290" y1="20" x2="290" y2="180"/><line x1="290" y1="20" x2="480" y2="160"/></g><circle cx="290" cy="20" r="5" fill="rgba(249,115,22,0.8)"/></svg>`,
+        anchor: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><circle cx="290" cy="80" r="30" fill="none" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/><circle cx="290" cy="80" r="8" fill="rgba(244,114,182,0.3)"/><line x1="290" y1="110" x2="290" y2="160" stroke="rgba(244,114,182,0.25)" stroke-width="2"/></svg>`,
+        commander: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0a0800"/><rect x="140" y="50" width="300" height="100" fill="none" stroke="rgba(251,191,36,0.2)" stroke-width="2"/><rect x="140" y="50" width="300" height="18" fill="rgba(251,191,36,0.08)"/><circle cx="290" cy="59" r="3" fill="rgba(251,191,36,0.6)"/></svg>`,
+        caretaker: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020e06"/><g fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"><circle cx="200" cy="100" r="25"/><circle cx="290" cy="80" r="25"/><circle cx="380" cy="100" r="25"/></g><path d="M175,100 Q245,60 290,80 Q335,100 405,100" fill="none" stroke="rgba(52,211,153,0.2)" stroke-width="1"/></svg>`,
+        provocateur: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#040210"/><line x1="290" y1="100" x2="120" y2="60" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/><line x1="290" y1="100" x2="460" y2="60" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/><circle cx="290" cy="100" r="8" fill="rgba(167,139,250,0.5)"/></svg>`,
+        catalyst: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,100 L310,50 L330,100 L290,80 L350,80 Z" fill="rgba(244,114,182,0.15)" stroke="rgba(244,114,182,0.4)" stroke-width="1.5"/><circle cx="290" cy="100" r="50" fill="none" stroke="rgba(167,139,250,0.06)" stroke-width="1"/></svg>`,
+        livewire: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><path d="M80,100 L160,40 L200,100 L260,30 L290,100 L340,50 L380,120 L430,60 L500,100" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="2"/><circle cx="290" cy="100" r="5" fill="rgba(249,115,22,0.8)"/></svg>`,
+        storm: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><circle cx="290" cy="100" r="90" fill="none" stroke="rgba(249,115,22,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="60" fill="none" stroke="rgba(244,114,182,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="30" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.15)" stroke-width="1"/><circle cx="290" cy="100" r="6" fill="rgba(249,115,22,0.7)"/></svg>`
+    };
+
     const VERTICES = [
         { x: 110, y: 18 },
         { x: 190, y: 43 },
@@ -58,6 +78,29 @@ Respond strictly ONLY with valid JSON:
 "reasoning": "Brief 1-2 sentence explanation"
 }`;
 
+    const RESCAN_PROMPT = `Analyze the following chat history. For EACH user message (marked with [is_user]), determine which MBTI tags apply based on the user's behavior in that specific message.
+
+For each user message, return an analysis with the message index and applicable tags.
+
+Respond strictly ONLY with valid JSON:
+{
+  "analyses": [
+    {
+      "messageIndex": 0,
+      "tags": ["tag1", "tag2"],
+      "reasoning": "Brief 1-2 sentence explanation"
+    }
+  ]
+}
+
+Tags (choose 1-4 per message):
+Pair 1 - Social energy: shadow (withdrew, avoided, observed from distance) vs flame (engaged, confronted, inserted themselves)
+Pair 2 - Decision method: reason (used logic, evidence, analysis) vs heart (used emotion, empathy, gut feeling)
+Pair 3 - Information focus: clue (focused on concrete physical details) vs pattern (made a connection, inference, or intuitive leap)
+Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs drift (kept options open, adapted, stayed flexible)
+
+If a message is genuinely neutral on an axis, omit both tags from that pair.`;
+
     function getMessageContext(count) {
         const context = SillyTavern.getContext();
         if (!context.chat) return '';
@@ -89,14 +132,6 @@ function getLastUserMessage() {
         return { userMessage, aiResponse };
     }
     
-    function getMessageContext(count) {
-        const context = SillyTavern.getContext();
-        if (!context.chat) return '';
-        const chat = context.chat;
-        const recent = chat.slice(-count);
-        return recent.map(m => `${m.name}: ${m.mes}`).join('\n');
-    }
-
     function getLastUserMessage_text() {
         const { userMessage } = getLastUserMessage();
         return userMessage;
@@ -130,9 +165,8 @@ function getLastUserMessage() {
     function parseRatingResponse(response) {
         const knownTags = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'anchor', 'drift'];
         
-        // Strict JSON parsing only
         try {
-            const parsed = JSON.parse(response);
+            const parsed = JSON.parse(stripMarkdownFences(response));
             if (parsed.tags && Array.isArray(parsed.tags)) {
                 const tags = parsed.tags
                     .map(t => t.toLowerCase().trim())
@@ -168,12 +202,13 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         }
     }
 
-    function saveToChatMetadata() {
+    async function saveToChatMetadata() {
         const context = SillyTavern.getContext();
         const metadata = context.chatMetadata;
         if (!metadata) return;
         metadata.mbti_scores = scores;
         metadata.mbti_trail = trail;
+        await context.saveMetadata();
     }
 
     function loadFromChatMetadata() {
@@ -182,15 +217,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         if (metadata?.mbti_scores) {
             scores = metadata.mbti_scores;
             trail = metadata.mbti_trail || [];
-            refreshPanelUI();
+            updatePanel();
         } else {
             scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
             trail = [];
-            refreshPanelUI();
+            updatePanel();
         }
     }
 
-    function refreshPanelUI() {
+    function updatePanel() {
         const key = getMBTIKey(scores);
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
 
@@ -306,81 +341,174 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         return `rgba(${r},${g},${b},${alpha})`;
     }
 
-    function updatePanel() {
-        const key = getMBTIKey(scores);
-        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
-
-        const mbtiEl = document.getElementById('mbti-code');
-        if (mbtiEl) {
-            mbtiEl.textContent = arch.mbti;
-            mbtiEl.classList.toggle('is-known', key !== 'unknown');
+    function stripMarkdownFences(response) {
+        let cleaned = response.trim();
+        const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (fenceMatch) {
+            cleaned = fenceMatch[1].trim();
         }
+        return cleaned;
+    }
 
-        const nameEl = document.getElementById('archetype-name');
-        if (nameEl) {
-            nameEl.textContent = arch.name;
-            nameEl.style.color = arch.color;
-        }
+    function estimateTokens(messageCount) {
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        if (!chat) return 0;
 
-        const descEl = document.getElementById('archetype-desc');
-        if (descEl) {
-            descEl.textContent = arch.tagline;
-        }
+        const messages = chat.slice(-messageCount);
+        let totalChars = 0;
 
-        const pts = scoresToOctagonPoints(scores);
-        const poly = document.getElementById('oct-current');
-        if (poly) {
-            poly.setAttribute('points', pointsToStr(pts));
-            poly.setAttribute('fill', `${hexToRgba(arch.color, 0.12)}`);
-            poly.setAttribute('stroke', arch.color);
-        }
-
-        const dotIds = ['dot-reason', 'dot-pattern', 'dot-flame', 'dot-clue', 'dot-heart', 'dot-drift', 'dot-shadow', 'dot-anchor'];
-        dotIds.forEach((id, i) => {
-            const dot = document.getElementById(id);
-            if (dot) {
-                dot.setAttribute('cx', pts[i].x.toFixed(1));
-                dot.setAttribute('cy', pts[i].y.toFixed(1));
-                dot.setAttribute('opacity', '0.9');
-            }
+        messages.forEach(m => {
+            totalChars += (m.mes || '').length + (m.name || '').length + 5;
         });
 
-        trail.push({
-            scores: JSON.parse(JSON.stringify(scores)),
-            reasoning: ''
-        });
-        if (trail.length > 5) trail.shift();
-        const trailEl = document.getElementById('oct-trail');
-        if (trailEl) {
-            trailEl.innerHTML = trail.map((entry, i) => {
-                const s = entry.scores || entry;
-                const tPts = scoresToOctagonPoints(s);
-                const alpha = (i + 1) / trail.length * 0.2;
-                return `<polygon points="${pointsToStr(tPts)}" fill="none" stroke="${hexToRgba(arch.color, alpha)}" stroke-width="1"/>`;
-            }).join('');
+        totalChars += RESCAN_PROMPT.length;
+        return Math.round(totalChars / 4);
+    }
+
+    function countUserMessages(messageCount) {
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        if (!chat) return 0;
+
+        const messages = chat.slice(-messageCount);
+        return messages.filter(m => m.is_user).length;
+    }
+
+    function openRescanPopup() {
+        const popup = document.getElementById('rescan-popup');
+        if (!popup) return;
+
+        const isVisible = popup.style.display === 'block';
+        popup.style.display = isVisible ? 'none' : 'block';
+
+        if (!isVisible) {
+            updateRescanSlider();
+        }
+    }
+
+    function closeRescanPopup() {
+        const popup = document.getElementById('rescan-popup');
+        if (popup) popup.style.display = 'none';
+    }
+
+    function updateRescanSlider() {
+        const slider = document.getElementById('rescan-slider');
+        const countEl = document.getElementById('rescan-count');
+        const userCountEl = document.getElementById('rescan-user-count');
+        const tokensEl = document.getElementById('rescan-tokens');
+
+        if (!slider) return;
+
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        const totalMessages = chat ? chat.length : 10;
+
+        slider.min = Math.min(5, totalMessages);
+        slider.max = totalMessages;
+
+        if (parseInt(slider.value) > totalMessages) {
+            slider.value = totalMessages;
         }
 
-        updateBar('ie', scores.ie, MAX_SCORE);
-        updateBar('tf', scores.tf, MAX_SCORE);
-        updateBar('sn', scores.sn, MAX_SCORE);
-        updateBar('jp', scores.jp, MAX_SCORE);
+        const messageCount = parseInt(slider.value);
+        countEl.textContent = `${messageCount} messages`;
 
-        setBarIcon('icon-ie', scores.ie, '#94a3b8', '#f97316');
-        setBarIcon('icon-tf', scores.tf, '#60a5fa', '#f472b6');
-        setBarIcon('icon-sn', scores.sn, '#34d399', '#a78bfa');
-        setBarIcon('icon-jp', scores.jp, '#fbbf24', '#94a3b8');
+        const userCount = countUserMessages(messageCount);
+        userCountEl.textContent = `~${userCount} user messages`;
 
-        const reasoningEl = document.getElementById('reasoning-text');
-        if (reasoningEl) {
-            const lastEntry = trail[trail.length - 1];
-            const reasoning = lastEntry && lastEntry.reasoning ? lastEntry.reasoning : '';
-            if (reasoning) {
-                reasoningEl.textContent = reasoning;
-                reasoningEl.style.color = 'rgba(212, 197, 169, 0.8)';
-            } else {
-                reasoningEl.textContent = 'Start chatting to see analysis...';
-                reasoningEl.style.color = 'rgba(212, 197, 169, 0.5)';
+        const tokens = estimateTokens(messageCount);
+        tokensEl.textContent = `~${tokens.toLocaleString()} tokens`;
+    }
+
+    function parseRescanResponse(response) {
+        try {
+            const parsed = JSON.parse(stripMarkdownFences(response));
+
+            if (parsed.analyses && Array.isArray(parsed.analyses)) {
+                const validAnalyses = parsed.analyses.filter(a =>
+                    a.messageIndex !== undefined &&
+                    Array.isArray(a.tags) &&
+                    a.tags.length >= 1 &&
+                    a.tags.length <= 4
+                );
+
+                return { analyses: validAnalyses };
             }
+        } catch (e) {
+            console.error('MBTI Widget: Invalid re-scan JSON', e);
+        }
+
+        return { analyses: [] };
+    }
+
+    async function reScanHistory(messageCount) {
+        if (isProcessing) return;
+
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        if (!chat || chat.length === 0) return;
+
+        const messages = chat.slice(-messageCount);
+        if (messages.length === 0) return;
+
+        scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
+        trail = [];
+
+        isProcessing = true;
+        showRescanProgress(true);
+
+        try {
+            const chatText = messages.map((m, i) =>
+                `[${i}] ${m.is_user ? '[is_user]' : '[is_ai]'} ${m.name}: ${m.mes}`
+            ).join('\n');
+
+            const ctx = SillyTavern.getContext();
+            const response = await ctx.generateRaw({
+                prompt: chatText,
+                systemPrompt: RESCAN_PROMPT,
+            });
+
+            console.log('[MBTI] Re-scan response:', response);
+
+            const parsed = parseRescanResponse(response);
+            console.log('[MBTI] Parsed analyses:', parsed.analyses.length);
+
+            parsed.analyses.forEach(analysis => {
+                if (analysis.tags && analysis.tags.length > 0) {
+                    analysis.tags.forEach(tag => applyTag(tag));
+                    trail.push({
+                        messageIndex: analysis.messageIndex,
+                        scores: JSON.parse(JSON.stringify(scores)),
+                        reasoning: analysis.reasoning || ''
+                    });
+                }
+            });
+
+            await saveToChatMetadata();
+            updatePanel();
+
+            console.log('[MBTI] Re-scan complete. Final scores:', scores);
+
+        } catch (error) {
+            console.error('MBTI Widget: Re-scan failed', error);
+        } finally {
+            isProcessing = false;
+            showRescanProgress(false);
+            closeRescanPopup();
+        }
+    }
+
+    function showRescanProgress(show) {
+        const progressEl = document.getElementById('rescan-progress');
+        const goBtn = document.getElementById('rescan-go-btn');
+
+        if (progressEl) {
+            progressEl.style.display = show ? 'flex' : 'none';
+        }
+        if (goBtn) {
+            goBtn.disabled = show;
+            goBtn.textContent = show ? 'Scanning...' : 'Re-scan';
         }
     }
 
@@ -408,39 +536,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         else el.style.backgroundColor = 'rgba(212,197,169,0.3)';
     }
 
-    function openArchModal() {
-        const key = getMBTIKey(scores);
-        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
-
-        const illKey = arch.illustration || 'unknown';
-        const illustrationEl = document.getElementById('arch-illustration');
-        if (illustrationEl) {
-            const illustrations = getIllustrations();
-            illustrationEl.innerHTML = (illustrations[illKey] || illustrations['unknown']) +
-                '<div class="arch-illustration-overlay"></div>' +
-                '<button class="arch-close" onclick="window.MBTI_Widget.closeArchModal()">×</button>';
-        }
-
-        const bodyEl = document.getElementById('arch-body');
-        if (bodyEl) {
-            const traitHTML = arch.traits.map(t =>
-                `<span class="arch-trait" style="color:${t.color};border-color:${t.color}40;background:${t.color}10">${t.label}</span>`
-            ).join('');
-
-            const bulletsHTML = arch.bullets.map(b => `<div class="arch-bullet">${b}</div>`).join('');
-            const famousHTML = arch.famous.map(f => `<span class="arch-famous-name">${f}</span>`).join('');
-            const mbtiLine = key !== 'unknown' ? `<div class="arch-mbti-badge">${arch.mbti} · MBTI Analog</div>` : '';
-            const twoCol = arch.asset ? `<div class="arch-two-col"><div class="arch-col"><div class="arch-col-label is-asset">Greatest Asset</div><p>${arch.asset}</p></div><div class="arch-col"><div class="arch-col-label is-risk">Hidden Risk</div><p>${arch.risk}</p></div></div>` : '';
-            const famousSection = arch.famous.length ? `<div class="arch-section-label">Known Examples</div><div class="arch-famous">${famousHTML}</div>` : '';
-            const investigationSection = arch.bullets.length ? `<div class="arch-section-label">In This Investigation</div><div class="arch-bullets">${bulletsHTML}</div><div class="arch-divider"></div>${twoCol}<div class="arch-divider"></div>${famousSection}` : '';
-
-            bodyEl.innerHTML = `${mbtiLine}<div class="arch-title" style="color:${arch.color}">${arch.name}</div><div class="arch-tagline">${arch.tagline}</div>${traitHTML ? `<div class="arch-traits">${traitHTML}</div>` : ''}${investigationSection}`;
-        }
-
-        const overlay = document.getElementById('arch-overlay');
-        if (overlay) overlay.classList.add('is-open');
-    }
-
     function openFullArchModal() {
         const key = getMBTIKey(scores);
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
@@ -448,8 +543,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         const illKey = arch.illustration || 'unknown';
         const illustrationEl = document.getElementById('mbti-full-arch-illustration');
         if (illustrationEl) {
-            const illustrations = getIllustrations();
-            illustrationEl.innerHTML = (illustrations[illKey] || illustrations['unknown']) +
+            illustrationEl.innerHTML = (ILLUSTRATIONS[illKey] || ILLUSTRATIONS['unknown']) +
                 '<div class="full-arch-illustration-overlay"></div>' +
                 '<button class="full-arch-close" id="mbti-full-arch-close-btn">×</button>';
         }
@@ -474,14 +568,93 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         if (overlay) overlay.classList.add('is-open');
     }
 
+    function openHistoryModal() {
+        const key = getMBTIKey(scores);
+        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
+
+        const mbtiCodeEl = document.getElementById('history-mbti-code');
+        if (mbtiCodeEl) {
+            mbtiCodeEl.textContent = arch.mbti;
+            mbtiCodeEl.style.color = arch.color;
+        }
+
+        const nameEl = document.getElementById('history-archetype-name');
+        if (nameEl) {
+            nameEl.textContent = arch.name;
+            nameEl.style.color = arch.color;
+        }
+
+        const taglineEl = document.getElementById('history-tagline');
+        if (taglineEl) {
+            taglineEl.textContent = arch.tagline;
+        }
+
+        const gridEl = document.getElementById('history-grid');
+        if (gridEl) {
+            if (trail.length === 0) {
+                gridEl.innerHTML = '<div class="history-empty">No analysis data yet. Start chatting or re-scan to build history.</div>';
+            } else {
+                gridEl.innerHTML = trail.map((entry, i) => {
+                    const s = entry.scores || entry;
+                    const mbtiKey = getMBTIKey(s);
+                    const entryArch = ARCHETYPES[mbtiKey] || ARCHETYPES['unknown'];
+                    const tags = entry.reasoning ? extractTagsFromReasoning(entry) : [];
+                    const tagsHTML = tags.map(t => {
+                        const tagColors = {
+                            shadow: '#94a3b8', flame: '#f97316',
+                            reason: '#60a5fa', heart: '#f472b6',
+                            clue: '#34d399', pattern: '#a78bfa',
+                            anchor: '#fbbf24', drift: '#94a3b8'
+                        };
+                        return `<span class="history-tag" style="color:${tagColors[t] || '#d4af37'};border-color:${tagColors[t] || '#d4af37'}40">${t}</span>`;
+                    }).join('');
+
+                    const rowNum = entry.messageIndex !== undefined ? entry.messageIndex : i + 1;
+                    return `
+                        <div class="history-row">
+                            <div class="history-row-num">${rowNum}</div>
+                            <div class="history-row-tags">${tagsHTML || '<span class="history-tag-empty">—</span>'}</div>
+                            <div class="history-row-reasoning">${entry.reasoning || 'No reasoning recorded'}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        const overlay = document.getElementById('history-overlay');
+        if (overlay) overlay.classList.add('is-open');
+    }
+
+    function extractTagsFromReasoning(entry) {
+        if (!entry.scores) return [];
+        const tags = [];
+        const prevEntry = trail[trail.indexOf(entry) - 1];
+        const prevScores = prevEntry ? (prevEntry.scores || prevEntry) : { ie: 0, tf: 0, sn: 0, jp: 0 };
+
+        if ((entry.scores.ie || 0) > (prevScores.ie || 0)) tags.push('flame');
+        else if ((entry.scores.ie || 0) < (prevScores.ie || 0)) tags.push('shadow');
+        if ((entry.scores.tf || 0) > (prevScores.tf || 0)) tags.push('heart');
+        else if ((entry.scores.tf || 0) < (prevScores.tf || 0)) tags.push('reason');
+        if ((entry.scores.sn || 0) > (prevScores.sn || 0)) tags.push('pattern');
+        else if ((entry.scores.sn || 0) < (prevScores.sn || 0)) tags.push('clue');
+        if ((entry.scores.jp || 0) > (prevScores.jp || 0)) tags.push('drift');
+        else if ((entry.scores.jp || 0) < (prevScores.jp || 0)) tags.push('anchor');
+
+        return tags;
+    }
+
+    function closeHistoryModal() {
+        const overlay = document.getElementById('history-overlay');
+        if (overlay) overlay.classList.remove('is-open');
+    }
+
     window.MBTI_Widget = {
-        closeArchModal: function() {
-            const overlay = document.getElementById('arch-overlay');
-            if (overlay) overlay.classList.remove('is-open');
-        },
         closeFullArchModal: function() {
             const overlay = document.getElementById('mbti-full-arch-overlay');
             if (overlay) overlay.classList.remove('is-open');
+        },
+        closeHistoryModal: function() {
+            closeHistoryModal();
         }
     };
 
@@ -496,9 +669,25 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             <div class="profile-shell" id="profile-shell">
                 <div class="profile-header">
                     <div class="mbti-code" id="mbti-code">????</div>
-                    <button class="magnify-btn" id="magnify-btn">
-                        <div class="magnify-icon"></div>
-                    </button>
+                    <div class="header-buttons">
+                        <button class="history-btn" id="history-btn" title="View analysis history">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </button>
+                        <button class="rescan-btn" id="rescan-btn" title="Re-scan chat history">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 4v6h6M23 20v-6h-6"/>
+                                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                            </svg>
+                        </button>
+                        <button class="magnify-btn" id="magnify-btn">
+                            <div class="magnify-icon"></div>
+                        </button>
+                    </div>
                 </div>
                 <div class="profile-eyebrow">Your Nature</div>
                 <div class="archetype-name" id="archetype-name" style="color: var(--theme-gold)">THE UNKNOWN</div>
@@ -538,15 +727,30 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                     <div class="reasoning-text" id="reasoning-text">Start chatting to see analysis...</div>
                 </div>
             </div>
-            <div class="arch-overlay" id="arch-overlay">
-                <div class="arch-modal" id="arch-modal">
-                    <div class="arch-illustration" id="arch-illustration"></div>
-                    <div class="arch-body" id="arch-body"></div>
-                </div>
-            </div>
         `;
 
         document.body.appendChild(panel);
+
+        const rescanPopup = document.createElement('div');
+        rescanPopup.id = 'rescan-popup';
+        rescanPopup.className = 'rescan-popup';
+        rescanPopup.innerHTML = `
+            <div class="rescan-title">Re-scan Chat History</div>
+            <div class="rescan-slider-row">
+                <input type="range" id="rescan-slider" min="5" max="10" value="5" class="rescan-slider">
+                <span id="rescan-count" class="rescan-count">5 messages</span>
+            </div>
+            <div class="rescan-info">
+                <span id="rescan-user-count" class="rescan-user-count">~3 user messages</span>
+                <span id="rescan-tokens" class="rescan-tokens">~1,500 tokens</span>
+            </div>
+            <button class="rescan-go-btn" id="rescan-go-btn">Re-scan</button>
+            <div class="rescan-progress" id="rescan-progress" style="display:none;">
+                <div class="rescan-spinner"></div>
+                <span id="rescan-progress-text">Analyzing chat history...</span>
+            </div>
+        `;
+        panel.appendChild(rescanPopup);
 
         const fullArchOverlay = document.createElement('div');
         fullArchOverlay.id = 'mbti-full-arch-overlay';
@@ -562,6 +766,24 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         `;
         document.body.appendChild(fullArchOverlay);
 
+        const historyOverlay = document.createElement('div');
+        historyOverlay.id = 'history-overlay';
+        historyOverlay.className = 'history-overlay';
+        historyOverlay.innerHTML = `
+            <div class="history-modal" id="history-modal">
+                <div class="history-header">
+                    <button class="history-close" id="history-close">×</button>
+                    <div class="history-mbti-code" id="history-mbti-code">????</div>
+                    <div class="history-archetype-name" id="history-archetype-name">THE UNKNOWN</div>
+                    <div class="history-tagline" id="history-tagline">Start chatting to build your MBTI profile...</div>
+                </div>
+                <div class="history-divider"></div>
+                <div class="history-section-label">Analysis History</div>
+                <div class="history-grid" id="history-grid"></div>
+            </div>
+        `;
+        document.body.appendChild(historyOverlay);
+
         fullArchOverlay.addEventListener('click', function(e) {
             if (e.target === this) window.MBTI_Widget.closeFullArchModal();
         });
@@ -569,10 +791,43 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             window.MBTI_Widget.closeFullArchModal();
         });
 
-        document.getElementById('arch-overlay').addEventListener('click', function(e) {
-            if (e.target === this) window.MBTI_Widget.closeArchModal();
-        });
         document.getElementById('magnify-btn').addEventListener('click', openFullArchModal);
+
+        document.getElementById('rescan-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            openRescanPopup();
+        });
+
+        document.getElementById('history-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            openHistoryModal();
+        });
+
+        document.getElementById('history-close').addEventListener('click', function() {
+            closeHistoryModal();
+        });
+
+        document.getElementById('history-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeHistoryModal();
+        });
+
+        document.getElementById('rescan-slider').addEventListener('input', updateRescanSlider);
+
+        document.getElementById('rescan-go-btn').addEventListener('click', function() {
+            const slider = document.getElementById('rescan-slider');
+            const messageCount = parseInt(slider.value);
+            reScanHistory(messageCount);
+        });
+
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('rescan-popup');
+            const btn = document.getElementById('rescan-btn');
+            if (popup && popup.style.display === 'block') {
+                if (!popup.contains(e.target) && !btn.contains(e.target)) {
+                    popup.style.display = 'none';
+                }
+            }
+        });
 
         // Make panel draggable via header
         const header = panel.querySelector('.profile-header');
@@ -665,27 +920,6 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         document.body.appendChild(fab);
     }
 
-    function getIllustrations() {
-        return {
-            unknown: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020508"/><circle cx="290" cy="100" r="120" fill="none" stroke="rgba(212,175,55,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="80" fill="none" stroke="rgba(212,175,55,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="40" fill="none" stroke="rgba(212,175,55,0.12)" stroke-width="1"/><text x="290" y="115" text-anchor="middle" font-family="Cinzel,serif" font-size="56" font-weight="700" fill="rgba(212,175,55,0.08)" letter-spacing="8">????</text></svg>`,
-            architect: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020a18"/><g stroke="rgba(96,165,250,0.12)" stroke-width="0.75" fill="none"><line x1="0" y1="40" x2="580" y2="40"/><line x1="0" y1="80" x2="580" y2="80"/><line x1="0" y1="120" x2="580" y2="120"/><line x1="0" y1="160" x2="580" y2="160"/></g><polygon points="290,30 420,160 160,160" fill="none" stroke="rgba(96,165,250,0.3)" stroke-width="1.5"/><circle cx="290" cy="100" r="4" fill="rgba(96,165,250,0.8)"/></svg>`,
-            witness: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#060310"/><ellipse cx="290" cy="100" rx="160" ry="80" fill="none" stroke="rgba(167,139,250,0.1)" stroke-width="1"/><ellipse cx="290" cy="100" rx="100" ry="50" fill="none" stroke="rgba(167,139,250,0.12)" stroke-width="1"/><ellipse cx="290" cy="100" rx="40" ry="20" fill="rgba(167,139,250,0.06)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/><ellipse cx="290" cy="100" rx="8" ry="8" fill="rgba(167,139,250,0.6)"/></svg>`,
-            examiner: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#021008"/><rect x="100" y="50" width="380" height="100" fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"/><line x1="100" y1="100" x2="480" y2="100" stroke="rgba(52,211,153,0.2)" stroke-width="1"/><circle cx="290" cy="100" r="10" fill="rgba(52,211,153,0.15)" stroke="rgba(52,211,153,0.5)" stroke-width="1"/></svg>`,
-            keeper: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,50 C260,50 230,70 230,100 C230,130 260,160 290,170 C320,160 350,130 350,100 C350,70 320,50 290,50 Z" fill="rgba(244,114,182,0.06)" stroke="rgba(244,114,182,0.25)" stroke-width="1.5"/><circle cx="290" cy="100" r="8" fill="rgba(244,114,182,0.5)"/></svg>`,
-            theorist: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#040210"/><g fill="none" stroke="rgba(167,139,250,0.2)" stroke-width="1"><circle cx="200" cy="100" r="30"/><circle cx="290" cy="70" r="30"/><circle cx="380" cy="100" r="30"/><circle cx="290" cy="130" r="30"/></g><circle cx="290" cy="100" r="6" fill="rgba(167,139,250,0.3)" stroke="rgba(167,139,250,0.4)" stroke-width="1"/></svg>`,
-            dreamer: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#06020e"/><path d="M100,150 Q200,20 290,100 Q380,180 480,50" fill="none" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/><circle cx="290" cy="100" r="3" fill="rgba(244,114,182,0.8)"/></svg>`,
-            operator: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#021008"/><rect x="240" y="60" width="100" height="80" fill="none" stroke="rgba(52,211,153,0.3)" stroke-width="1.5"/><line x1="80" y1="100" x2="240" y2="100" stroke="rgba(52,211,153,0.2)" stroke-width="1"/><circle cx="290" cy="100" r="5" fill="rgba(52,211,153,0.7)"/></svg>`,
-            empath: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,60 C275,45 250,45 250,65 C250,85 290,110 290,110 C290,110 330,85 330,65 C330,45 305,45 290,60Z" fill="rgba(244,114,182,0.2)" stroke="rgba(244,114,182,0.4)" stroke-width="1.5"/></svg>`,
-            conductor: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><g stroke="rgba(249,115,22,0.15)" stroke-width="1" fill="none"><line x1="290" y1="20" x2="100" y2="160"/><line x1="290" y1="20" x2="290" y2="180"/><line x1="290" y1="20" x2="480" y2="160"/></g><circle cx="290" cy="20" r="5" fill="rgba(249,115,22,0.8)"/></svg>`,
-            anchor: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><circle cx="290" cy="80" r="30" fill="none" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/><circle cx="290" cy="80" r="8" fill="rgba(244,114,182,0.3)"/><line x1="290" y1="110" x2="290" y2="160" stroke="rgba(244,114,182,0.25)" stroke-width="2"/></svg>`,
-            commander: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0a0800"/><rect x="140" y="50" width="300" height="100" fill="none" stroke="rgba(251,191,36,0.2)" stroke-width="2"/><rect x="140" y="50" width="300" height="18" fill="rgba(251,191,36,0.08)"/><circle cx="290" cy="59" r="3" fill="rgba(251,191,36,0.6)"/></svg>`,
-            caretaker: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020e06"/><g fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"><circle cx="200" cy="100" r="25"/><circle cx="290" cy="80" r="25"/><circle cx="380" cy="100" r="25"/></g><path d="M175,100 Q245,60 290,80 Q335,100 405,100" fill="none" stroke="rgba(52,211,153,0.2)" stroke-width="1"/></svg>`,
-            provocateur: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#040210"/><line x1="290" y1="100" x2="120" y2="60" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/><line x1="290" y1="100" x2="460" y2="60" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/><circle cx="290" cy="100" r="8" fill="rgba(167,139,250,0.5)"/></svg>`,
-            catalyst: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#08020e"/><path d="M290,100 L310,50 L330,100 L290,80 L350,80 Z" fill="rgba(244,114,182,0.15)" stroke="rgba(244,114,182,0.4)" stroke-width="1.5"/><circle cx="290" cy="100" r="50" fill="none" stroke="rgba(167,139,250,0.06)" stroke-width="1"/></svg>`,
-            livewire: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><path d="M80,100 L160,40 L200,100 L260,30 L290,100 L340,50 L380,120 L430,60 L500,100" fill="none" stroke="rgba(249,115,22,0.4)" stroke-width="2"/><circle cx="290" cy="100" r="5" fill="rgba(249,115,22,0.8)"/></svg>`,
-            storm: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#0d0500"/><circle cx="290" cy="100" r="90" fill="none" stroke="rgba(249,115,22,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="60" fill="none" stroke="rgba(244,114,182,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="30" fill="rgba(249,115,22,0.04)" stroke="rgba(249,115,22,0.15)" stroke-width="1"/><circle cx="290" cy="100" r="6" fill="rgba(249,115,22,0.7)"/></svg>`
-        };
-    }
 
     async function init() {
         
@@ -768,12 +1002,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 
                 if (result.tags && result.tags.length > 0) {
                     result.tags.forEach(tag => applyTag(tag));
+                    const ctx = SillyTavern.getContext();
+                    const chat = ctx.chat;
+                    const msgIndex = chat ? chat.length - 1 : trail.length;
                     trail.push({
+                        messageIndex: msgIndex,
                         scores: JSON.parse(JSON.stringify(scores)),
                         reasoning: result.reasoning || ''
                     });
-                    if (trail.length > 5) trail.shift();
-                    saveToChatMetadata();
+                    await saveToChatMetadata();
                     updatePanel();
                     console.log('[MBTI] Panel updated with tags:', result.tags);
                 } else {
