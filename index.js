@@ -1,5 +1,3 @@
-import { getMaxPromptTokens } from '../../../script.js';
-
 (function () {
     'use strict';
 
@@ -166,22 +164,62 @@ function getLastUserMessage() {
     // ST backend: use ST's own per-model budget (context minus reserved response).
     // Custom backend: use the user-configured contextLength if set, otherwise fall
     // back to ST's budget as a conservative baseline. Never a hardcoded guess.
-    function getContextBudget() {
-        const getStBudget = () => {
+    //
+    // Uses a guarded dynamic import() (not a top-level static import) so a missing
+    // or mis-pathed script.js can never prevent the extension from loading. The
+    // relative path is the documented depth for third-party installs; fallbacks
+    // handle other mount points and older/newer ST versions.
+    async function getStBudget() {
+        const ST_IMPORT_PATHS = [
+            '../../../../script.js',
+            '../../../script.js',
+        ];
+        // Sequential attempt across candidate paths.
+        for (const p of ST_IMPORT_PATHS) {
             try {
-                return typeof getMaxPromptTokens === 'function' ? getMaxPromptTokens() : 0;
+                const mod = await import(p).catch(() => null);
+                if (mod && typeof mod.getMaxPromptTokens === 'function') {
+                    const result = mod.getMaxPromptTokens();
+                    if (typeof result === 'number' && result > 0) return result;
+                }
             } catch (e) {
-                return 0;
+                // continue to next candidate
             }
-        };
+        }
+        return null;
+    }
+
+    async function getContextBudget() {
+        const stBudget = await getStBudget();
+
+        // Custom backend: user-configured context takes priority.
         if (isCustomBackend()) {
             const custom = getCustomApiSettings();
             if (custom.contextLength && custom.contextLength > 0) {
                 return custom.contextLength;
             }
-            return getStBudget();
         }
-        return getStBudget();
+
+        // Otherwise use ST's own per-model budget (context minus reserved response).
+        if (typeof stBudget === 'number' && stBudget > 0) return stBudget;
+
+        // Final fallbacks if the script.js import is unavailable: read the active
+        // API's context from the SillyTavern context object directly.
+        try {
+            const context = SillyTavern.getContext();
+            if (context && context.chatCompletionSettings) {
+                const openaiMax = Number(context.chatCompletionSettings.openai_max_context);
+                if (openaiMax > 0) return openaiMax;
+            }
+            if (context && context.maxContext) {
+                const genericMax = Number(context.maxContext);
+                if (genericMax > 0) return genericMax;
+            }
+        } catch (e) {
+            console.warn('MBTI Widget: Could not determine context budget', e);
+        }
+
+        return 0;
     }
 
     // Unified entry point used by both auto-trigger and re-scan.
@@ -700,7 +738,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         isProcessing = true;
         showRescanProgress(true);
 
-        const budget = getContextBudget();
+        const budget = await getContextBudget();
         let overflowing = false;
 
         try {
