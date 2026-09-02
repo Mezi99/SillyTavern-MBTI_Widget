@@ -1310,7 +1310,10 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         jQuery('#mbti_custom_base_url').on('change', function() {
             extension_settings.mbti_widget.customApi.baseUrl = String(jQuery(this).val()).trim();
             // Clear stale model list when base URL changes
-            jQuery('#mbti_model_list').empty();
+            const dd = document.getElementById('mbti_model_dropdown');
+            if (dd) { dd.innerHTML = ''; dd.classList.remove('open'); }
+            const countEl = document.getElementById('mbti_model_count');
+            if (countEl) countEl.textContent = '';
             saveSettingsDebounced();
         });
 
@@ -1319,9 +1322,55 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             localStorage.setItem(MBTI_API_KEY_STORAGE, apiKey);
         });
 
+        // --- Model field: change, dropdown filter, select, outside-click ---
+
+        function closeModelDropdown() {
+            const dd = document.getElementById('mbti_model_dropdown');
+            if (dd) dd.classList.remove('open');
+        }
+
+        function filterModelDropdown(query) {
+            const dd = document.getElementById('mbti_model_dropdown');
+            if (!dd) return;
+            const q = String(query).toLowerCase();
+            const items = dd.querySelectorAll('.mbti-model-item');
+            let visible = 0;
+            items.forEach(item => {
+                const match = !q || item.dataset.id.toLowerCase().includes(q);
+                item.classList.toggle('hidden', !match);
+                if (match) visible++;
+            });
+            dd.classList.toggle('open', visible > 0);
+        }
+
+        function selectModel(id) {
+            const modelInput = document.getElementById('mbti_custom_model');
+            if (modelInput) modelInput.value = id;
+            extension_settings.mbti_widget.customApi.model = id;
+            saveSettingsDebounced();
+            closeModelDropdown();
+        }
+
         jQuery('#mbti_custom_model').on('change', function() {
             extension_settings.mbti_widget.customApi.model = String(jQuery(this).val()).trim();
             saveSettingsDebounced();
+        });
+
+        jQuery('#mbti_custom_model').on('input', function() {
+            filterModelDropdown(jQuery(this).val());
+        });
+
+        jQuery('#mbti_custom_model').on('focus', function() {
+            filterModelDropdown(jQuery(this).val());
+        });
+
+        // Close dropdown when clicking outside the model field
+        document.addEventListener('click', function(e) {
+            const field = document.getElementById('mbti_custom_model');
+            const dd = document.getElementById('mbti_model_dropdown');
+            if (!field || !dd) return;
+            if (e.target === field || e.target === dd || dd.contains(e.target)) return;
+            closeModelDropdown();
         });
 
         jQuery('#mbti_custom_max_tokens').on('change', function() {
@@ -1351,7 +1400,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             }
         });
 
-        // Fetch models
+        // Fetch models → populate custom dropdown
         jQuery('#mbti_fetch_models').on('click', async function() {
             const btn = jQuery(this);
             const orig = btn.html();
@@ -1359,24 +1408,30 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             showTestResult('', '');
             try {
                 const models = await fetchModels();
-                const datalist = document.getElementById('mbti_model_list');
+                const dd = document.getElementById('mbti_model_dropdown');
                 const modelInput = document.getElementById('mbti_custom_model');
-                if (datalist) datalist.innerHTML = '';
+                const countEl = document.getElementById('mbti_model_count');
+                if (dd) dd.innerHTML = '';
                 if (models.length === 0) {
                     showTestResult('No models returned by the API.', 'err');
+                    if (countEl) countEl.textContent = '';
                 } else {
-                    const opts = models.slice(0, 100);
-                    opts.forEach(id => {
-                        const opt = document.createElement('option');
-                        opt.value = id;
-                        if (datalist) datalist.appendChild(opt);
+                    models.forEach(id => {
+                        const item = document.createElement('div');
+                        item.className = 'mbti-model-item';
+                        item.dataset.id = id;
+                        item.textContent = id;
+                        item.addEventListener('click', function() { selectModel(id); });
+                        if (dd) dd.appendChild(item);
                     });
-                    if (modelInput && !modelInput.value && opts.length > 0) {
-                        modelInput.value = opts[0];
-                        extension_settings.mbti_widget.customApi.model = opts[0];
+                    if (modelInput && !modelInput.value && models.length > 0) {
+                        modelInput.value = models[0];
+                        extension_settings.mbti_widget.customApi.model = models[0];
                         saveSettingsDebounced();
                     }
-                    showTestResult(`${opts.length} model${opts.length === 1 ? '' : 's'} available. Pick one below.`, 'mut');
+                    if (countEl) countEl.textContent = `${models.length} model${models.length === 1 ? '' : 's'} available`;
+                    if (dd) dd.classList.add('open');
+                    showTestResult('', '');
                 }
             } catch (error) {
                 showTestResult(error.message, 'err');

@@ -887,32 +887,49 @@
 .mbti-set-block {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px 14px;
+    gap: 0;
     margin: 10px 0;
-    background: var(--mbti-panel-bg, rgba(212, 197, 169, 0.04));
-    border: 1px solid var(--mbti-border, rgba(212, 197, 169, 0.12));
+    background: rgba(2, 4, 10, 0.4);
+    border: 1px solid rgba(212, 175, 55, 0.25);
     border-radius: 6px;
 }
 
-.mbti-set-section {
-    border-color: rgba(212, 175, 55, 0.25);
-    background: rgba(2, 4, 10, 0.4);
-}
-
-.mbti-set-label {
+.mbti-set-header {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
     font-family: 'Cinzel', serif;
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
     color: rgba(212, 197, 169, 0.9);
+    list-style: none;
 }
 
-.mbti-set-label i { color: #d4af37; width: 16px; text-align: center; }
+.mbti-set-header::-webkit-details-marker { display: none; }
+.mbti-set-header::marker { content: ''; }
+
+.mbti-set-chevron {
+    color: #d4af37;
+    font-size: 11px;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.mbti-set-block[open] > .mbti-set-header .mbti-set-chevron {
+    transform: rotate(180deg);
+}
+
+.mbti-set-body {
+    padding: 4px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
 
 .mbti-set-hint {
     font-family: 'Roboto', sans-serif;
@@ -1109,5 +1126,55 @@
 .mbti-test-result.mbti-err { color: #ef4444; }
 .mbti-test-result.mbti-mut { color: #fbbf24; }
 
-/* datalist must not affect flex layout */
-#mbti_model_list { display: none; }
+/* Model field header */
+.mbti-field-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mbti-model-count {
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+    color: rgba(212, 175, 55, 0.7);
+    white-space: nowrap;
+}
+
+/* Custom model dropdown */
+.mbti-model-dropdown {
+    display: none;
+    position: relative;
+    z-index: 100;
+    max-height: 240px;
+    overflow-y: auto;
+    background: rgba(2, 4, 10, 0.92);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 4px;
+    margin-top: -4px;
+}
+
+.mbti-model-dropdown.open {
+    display: block;
+}
+
+.mbti-model-item {
+    padding: 7px 10px;
+    font-family: 'Roboto', monospace;
+    font-size: 12px;
+    color: rgba(212, 197, 169, 0.85);
+    cursor: pointer;
+    transition: background 0.12s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mbti-model-item:hover,
+.mbti-model-item.active {
+    background: rgba(212, 175, 55, 0.15);
+    color: #d4af37;
+}
+
+.mbti-model-item.hidden {
+    display: none;
+}
