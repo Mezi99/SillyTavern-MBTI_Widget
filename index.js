@@ -149,7 +149,7 @@ function getLastUserMessage() {
         return {
             baseUrl: cfg.baseUrl || '',
             model: cfg.model || '',
-            maxTokens: cfg.maxTokens ?? 2048,
+            maxTokens: cfg.maxTokens ?? 8192,
             temperature: cfg.temperature ?? 0.7,
             contextLength: cfg.contextLength ?? 0,
             apiKey: apiKey,
@@ -223,9 +223,9 @@ function getLastUserMessage() {
     }
 
     // Unified entry point used by both auto-trigger and re-scan.
-    async function generateMBTI({ prompt, systemPrompt }) {
+    async function generateMBTI({ prompt, systemPrompt, maxTokensOverride }) {
         if (isCustomBackend()) {
-            return await generateWithCustomOpenAI({ prompt, systemPrompt });
+            return await generateWithCustomOpenAI({ prompt, systemPrompt, maxTokensOverride });
         }
         const ctx = SillyTavern.getContext();
         return await ctx.generateRaw({
@@ -235,7 +235,7 @@ function getLastUserMessage() {
     }
 
     // Direct call to a user-configured OpenAI-compatible endpoint via fetch().
-    async function generateWithCustomOpenAI({ prompt, systemPrompt }) {
+    async function generateWithCustomOpenAI({ prompt, systemPrompt, maxTokensOverride }) {
         const { baseUrl, model, maxTokens, temperature, apiKey } = getCustomApiSettings();
 
         if (!baseUrl || !baseUrl.trim()) {
@@ -263,7 +263,7 @@ function getLastUserMessage() {
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: prompt },
                     ],
-                    max_tokens: maxTokens || 2048,
+                    max_tokens: maxTokensOverride || maxTokens || 2048,
                     temperature: temperature ?? 0.7,
                 }),
             });
@@ -287,7 +287,17 @@ function getLastUserMessage() {
             const data = await response.json();
             const content = extractOpenAIContent(data);
             if (!content || !content.trim()) {
-                throw new Error('Invalid response format from custom API - no text content found');
+                const finishReason = data?.choices?.[0]?.finish_reason || 'unknown';
+                const hasReasoning = !!(data?.choices?.[0]?.message?.reasoning);
+                let hint = '';
+                if (finishReason === 'length') {
+                    hint = ' (output hit max_tokens — try raising "Max Tokens" in extension settings)';
+                }
+                const reasonInfo = hasReasoning ? ' [model provided reasoning content only]' : '';
+                throw new Error(
+                    `Custom API returned no text content (finish_reason: "${finishReason}"${reasonInfo}${hint}). ` +
+                    `Response structure: ${JSON.stringify(Object.keys(data || {}))}`
+                );
             }
             return content;
         } catch (error) {
@@ -720,6 +730,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         return { analyses: [] };
     }
 
+    // Compute output token budget for re-scan: scale by user message count so
+    // long chats aren't truncated, capped to avoid wasteful allocation.
+    function getRescanOutputBudget(userMessageCount) {
+        const configured = getCustomApiSettings().maxTokens;
+        const estimated = userMessageCount * 120;
+        const MAX_OUTPUT = 32768;
+        return Math.min(Math.max(configured, estimated), MAX_OUTPUT);
+    }
+
     async function reScanHistory(messageCount) {
         if (isProcessing) return;
 
@@ -773,9 +792,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 }
             }
 
+            // Re-scan output grows linearly with user messages (one analysis entry
+            // each: tags + reasoning). Scale output tokens to prevent truncation.
+            const includedUserCount = includedMsgs.filter(m => m.is_user).length;
+            const outputBudget = getRescanOutputBudget(includedUserCount);
+
             const response = await generateMBTI({
                 prompt: chatText,
                 systemPrompt: RESCAN_PROMPT,
+                maxTokensOverride: outputBudget,
             });
 
             console.log('[MBTI] Re-scan response:', response);
@@ -1350,7 +1375,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             extension_settings.mbti_widget.customApi = {
                 baseUrl: '',
                 model: '',
-                maxTokens: 2048,
+                maxTokens: 8192,
                 temperature: 0.7,
                 contextLength: 0,
             };
@@ -1468,7 +1493,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         if (apiKeyEl) {
             apiKeyEl.value = localStorage.getItem(MBTI_API_KEY_STORAGE) || '';
         }
-        if (maxTokensEl) maxTokensEl.value = customApi.maxTokens ?? 2048;
+        if (maxTokensEl) maxTokensEl.value = customApi.maxTokens ?? 8192;
         if (tempEl) tempEl.value = customApi.temperature ?? 0.7;
         if (contextLenEl) contextLenEl.value = customApi.contextLength || 0;
 
@@ -1553,7 +1578,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         });
 
         jQuery('#mbti_custom_max_tokens').on('change', function() {
-            extension_settings.mbti_widget.customApi.maxTokens = parseInt(jQuery(this).val(), 10) || 2048;
+            extension_settings.mbti_widget.customApi.maxTokens = parseInt(jQuery(this).val(), 10) || 8192;
             saveSettingsDebounced();
         });
 

@@ -62,12 +62,12 @@ updatePanel()          → Update UI (octagon, bars, archetype info)
 
 ## LLM Backend (v3)
 
-All MBTI LLM calls go through a single dispatcher, `generateMBTI({ prompt, systemPrompt })`, used by both the auto-trigger (`queryRating`) and the manual re-scan (`reScanHistory`). The transport depends on the **LLM Backend** setting:
+All MBTI LLM calls go through a single dispatcher, `generateMBTI({ prompt, systemPrompt, maxTokensOverride? })`, used by both the auto-trigger (`queryRating`) and the manual re-scan (`reScanHistory`). The transport depends on the **LLM Backend** setting:
 
 - **`st`** (default): calls `SillyTavern.getContext().generateRaw({ prompt, systemPrompt })` — a separate, out-of-band request using the currently active SillyTavern connection profile. It does not include the character card, jailbreak, or full chat; only the injected context.
-- **`custom`**: calls `generateWithCustomOpenAI({ prompt, systemPrompt })` — a direct browser `fetch()` to a user-configured OpenAI-compatible endpoint (`POST {baseUrl}/chat/completions`), with:
+- **`custom`**: calls `generateWithCustomOpenAI({ prompt, systemPrompt, maxTokensOverride? })` — a direct browser `fetch()` to a user-configured OpenAI-compatible endpoint (`POST {baseUrl}/chat/completions`), with:
   - `messages: [{role:"system",content:systemPrompt},{role:"user",content:prompt}]`
-  - `model`, `max_tokens`, `temperature`
+  - `model`, `max_tokens` (defaults to 8192, overridden by re-scan scaling), `temperature`
   - optional `Authorization: Bearer <key>`
 
 Supporting helpers: `isCustomBackend()`, `getCustomApiSettings()`, `fetchModels()` (`GET {baseUrl}/models`), `testCustomConnection()`, `extractOpenAIContent()`.
@@ -84,6 +84,8 @@ The re-scan request can include a large slice of the chat, so it is guarded agai
 If the `script.js` dynamic import is unavailable (path/export differences across ST versions), `getContextBudget()` falls back to reading `context.chatCompletionSettings.openai_max_context` (OpenAI) or `context.maxContext` (local/text-generation backends), and finally `0` (no cap). Because the import is dynamic and wrapped in try/catch, a failure can never prevent the extension from loading.
 
 Message packing is **newest-first greedy**: `reScanHistory()` adds the newest messages until the estimated prompt would exceed the budget, then stops. `countRescanTokens()` uses `context.getTokenCountAsync()` (SillyTavern's tokenizer) with a `chars/4` heuristic fallback. If older messages are dropped, a note line is prepended to the prompt and a non-blocking warning is shown in the re-scan popup. The auto-trigger (`queryRating`) is **not** capped — it only rates the newest reply with a bounded `contextMessages` window.
+
+**Re-scan output scaling:** The re-scan prompt asks the model to return one analysis entry per user message (tags + reasoning). This output grows linearly with user message count and can exceed a fixed `max_tokens`. `getRescanOutputBudget(userMessageCount)` computes a scaled output limit: `max(userMessageCount × 120, configured maxTokens)`, capped at 32,768. The auto-trigger is unaffected (its small output fits the default). If the custom API still returns empty content despite the scaling, the error now includes `finish_reason` and response structure details for diagnosis.
 
 ### Message role handling
 
