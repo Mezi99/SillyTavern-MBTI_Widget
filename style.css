@@ -618,6 +618,18 @@
     color: rgba(212, 197, 169, 0.5);
 }
 
+.rescan-warning {
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 4px;
+    font-family: 'Raleway', sans-serif;
+    font-size: 10px;
+    line-height: 1.4;
+    color: rgba(251, 191, 36, 0.9);
+}
+
 .rescan-go-btn {
     width: 100%;
     padding: 8px 12px;

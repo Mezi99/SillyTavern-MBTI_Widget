@@ -1,3 +1,5 @@
+import { getMaxPromptTokens } from '../../../script.js';
+
 (function () {
     'use strict';
 
@@ -78,7 +80,7 @@ Respond strictly ONLY with valid JSON:
 "reasoning": "Brief 1-2 sentence explanation"
 }`;
 
-    const RESCAN_PROMPT = `Analyze the following chat history. For EACH user message (marked with [is_user]), determine which MBTI tags apply based on the user's behavior in that specific message.
+    const RESCAN_PROMPT = `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
 
 For each user message, return an analysis with the message index and applicable tags.
 
@@ -105,8 +107,8 @@ If a message is genuinely neutral on an axis, omit both tags from that pair.`;
         const context = SillyTavern.getContext();
         if (!context.chat) return '';
         const chat = context.chat;  // chat IS the array (not chat.messages)
-        const recent = chat.slice(-count);
-        return recent.map(m => `${m.name}: ${m.mes}`).join('\n');  // .mes, not .msg
+        const recent = chat.slice(-count).filter(m => !m.is_system);
+        return recent.map(m => `${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${m.mes}`).join('\n');  // .mes, not .msg
     }
 
 function getLastUserMessage() {
@@ -151,12 +153,35 @@ function getLastUserMessage() {
             model: cfg.model || '',
             maxTokens: cfg.maxTokens ?? 2048,
             temperature: cfg.temperature ?? 0.7,
+            contextLength: cfg.contextLength ?? 0,
             apiKey: apiKey,
         };
     }
 
     function isCustomBackend() {
         return (extension_settings?.mbti_widget?.backend || 'st') === 'custom';
+    }
+
+    // Effective LLM context budget (in tokens) for the selected backend.
+    // ST backend: use ST's own per-model budget (context minus reserved response).
+    // Custom backend: use the user-configured contextLength if set, otherwise fall
+    // back to ST's budget as a conservative baseline. Never a hardcoded guess.
+    function getContextBudget() {
+        const getStBudget = () => {
+            try {
+                return typeof getMaxPromptTokens === 'function' ? getMaxPromptTokens() : 0;
+            } catch (e) {
+                return 0;
+            }
+        };
+        if (isCustomBackend()) {
+            const custom = getCustomApiSettings();
+            if (custom.contextLength && custom.contextLength > 0) {
+                return custom.contextLength;
+            }
+            return getStBudget();
+        }
+        return getStBudget();
     }
 
     // Unified entry point used by both auto-trigger and re-scan.
@@ -268,11 +293,40 @@ function getLastUserMessage() {
         }
         const data = await response.json();
         if (Array.isArray(data?.data)) {
+            // Return model objects ({id, contextLength?}) so the caller can auto-fill
+            // the context-window setting from the provider's metadata.
             return data.data
-                .map(m => (m && typeof m === 'object' ? m.id : null))
+                .map(m => {
+                    if (!m || typeof m !== 'object') return null;
+                    const id = typeof m.id === 'string' ? m.id : null;
+                    if (!id) return null;
+                    const ctx = extractModelContextLength(m);
+                    return { id: id, contextLength: ctx };
+                })
                 .filter(Boolean);
         }
         return [];
+    }
+
+    // Pull a context-window size (tokens) from provider model metadata. Providers
+    // expose it under various keys; ST reads the same set. Returns 0 when unknown.
+    function extractModelContextLength(m) {
+        const candidates = [
+            m.context_length,
+            m.max_model_len,
+            m.max_context_length,
+            m.context_window,
+            m.inputTokenLimit,
+            m.input_token_limit,
+        ];
+        for (const c of candidates) {
+            if (typeof c === 'number' && c > 0) return c;
+            if (typeof c === 'string' && c.trim() !== '') {
+                const num = parseInt(c, 10);
+                if (!isNaN(num) && num > 0) return num;
+            }
+        }
+        return 0;
     }
 
     // Test the custom API connection with a minimal prompt.
@@ -520,6 +574,33 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         return Math.round(totalChars / 4);
     }
 
+    // Build the text representation of messages for the re-scan payload/sizing.
+    function buildRescanChatText(messages) {
+        return messages.map((m, i) =>
+            `[${i}] ${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${m.mes}`
+        ).join('\n');
+    }
+
+    // Count tokens of the full re-scan prompt (RESCAN_PROMPT + chat text) using
+    // SillyTavern's tokenizer. Falls back to a chars/4 heuristic if unavailable.
+    async function countRescanTokens(messages) {
+        try {
+            const context = SillyTavern.getContext();
+            if (context && typeof context.getTokenCountAsync === 'function') {
+                const text = buildRescanChatText(messages);
+                const promptTokens = await context.getTokenCountAsync(RESCAN_PROMPT + '\n' + text);
+                return promptTokens || 0;
+            }
+        } catch (e) {
+            console.warn('MBTI Widget: getTokenCountAsync failed, using heuristic', e);
+        }
+        let totalChars = RESCAN_PROMPT.length;
+        messages.forEach(m => {
+            totalChars += (m.mes || '').length + (m.name || '').length + 5;
+        });
+        return Math.round(totalChars / 4);
+    }
+
     function countUserMessages(messageCount) {
         const context = SillyTavern.getContext();
         const chat = context.chat;
@@ -537,6 +618,10 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         popup.style.display = isVisible ? 'none' : 'block';
 
         if (!isVisible) {
+            const slider = document.getElementById('rescan-slider');
+            if (slider && extension_settings?.mbti_widget?.rescanMessages) {
+                slider.value = extension_settings.mbti_widget.rescanMessages;
+            }
             updateRescanSlider();
         }
     }
@@ -546,7 +631,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         if (popup) popup.style.display = 'none';
     }
 
-    function updateRescanSlider() {
+    async function updateRescanSlider() {
         const slider = document.getElementById('rescan-slider');
         const countEl = document.getElementById('rescan-count');
         const userCountEl = document.getElementById('rescan-user-count');
@@ -571,7 +656,8 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         const userCount = countUserMessages(messageCount);
         userCountEl.textContent = `~${userCount} user messages`;
 
-        const tokens = estimateTokens(messageCount);
+        const messages = chat ? chat.slice(-messageCount) : [];
+        const tokens = await countRescanTokens(messages);
         tokensEl.textContent = `~${tokens.toLocaleString()} tokens`;
     }
 
@@ -603,7 +689,9 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         const chat = context.chat;
         if (!chat || chat.length === 0) return;
 
-        const messages = chat.slice(-messageCount);
+        // Use the newest N messages, skipping system messages (not user behavior).
+        const sliced = chat.slice(-messageCount);
+        const messages = sliced.filter(m => !m.is_system);
         if (messages.length === 0) return;
 
         scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
@@ -612,10 +700,40 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         isProcessing = true;
         showRescanProgress(true);
 
+        const budget = getContextBudget();
+        let overflowing = false;
+
         try {
-            const chatText = messages.map((m, i) =>
-                `[${i}] ${m.is_user ? '[is_user]' : '[is_ai]'} ${m.name}: ${m.mes}`
-            ).join('\n');
+            // Greedily include messages newest-first until we hit the context budget.
+            // The prompt is RESCAN_PROMPT + the formatted history.
+            let includedMsgs = [];
+            for (const m of [...messages].reverse()) {
+                const candidateAll = [m, ...includedMsgs];
+                const est = await countRescanTokens(candidateAll);
+                if (budget > 0 && est > budget) {
+                    overflowing = true;
+                    break;
+                }
+                includedMsgs = candidateAll;
+            }
+            // includedMsgs is newest-first; keep it chronological for the prompt.
+            includedMsgs = includedMsgs.reverse();
+
+            let chatText = buildRescanChatText(includedMsgs);
+            if (overflowing && includedMsgs.length < messages.length) {
+                const omitted = messages.length - includedMsgs.length;
+                chatText = `[NOTE: ${omitted} earlier message(s) omitted to fit the model context window.]\n${chatText}`;
+                console.warn(`[MBTI] Re-scan truncated: omitted ${omitted} earlier messages (budget ${budget} tokens).`);
+            }
+
+            const warnEl = document.getElementById('rescan-warning');
+            if (warnEl) {
+                warnEl.style.display = overflowing ? 'block' : 'none';
+                if (overflowing) {
+                    const omittedTotal = messages.length - includedMsgs.length;
+                    warnEl.textContent = `Chat exceeds the model context (~${budget.toLocaleString()} tokens) — analyzing the newest ${includedMsgs.length} messages. ${omittedTotal} earlier message(s) omitted.`;
+                }
+            }
 
             const response = await generateMBTI({
                 prompt: chatText,
@@ -897,6 +1015,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 <span id="rescan-user-count" class="rescan-user-count">~3 user messages</span>
                 <span id="rescan-tokens" class="rescan-tokens">~1,500 tokens</span>
             </div>
+            <div class="rescan-warning" id="rescan-warning" style="display:none;"></div>
             <button class="rescan-go-btn" id="rescan-go-btn">Re-scan</button>
             <div class="rescan-progress" id="rescan-progress" style="display:none;">
                 <div class="rescan-spinner"></div>
@@ -964,7 +1083,11 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             if (e.target === this) closeHistoryModal();
         });
 
-        document.getElementById('rescan-slider').addEventListener('input', updateRescanSlider);
+        document.getElementById('rescan-slider').addEventListener('input', function() {
+            extension_settings.mbti_widget.rescanMessages = parseInt(this.value);
+            saveSettingsDebounced();
+            updateRescanSlider();
+        });
 
         document.getElementById('rescan-go-btn').addEventListener('click', function() {
             const slider = document.getElementById('rescan-slider');
@@ -1191,8 +1314,18 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 model: '',
                 maxTokens: 2048,
                 temperature: 0.7,
+                contextLength: 0,
             };
         }
+        // Migrate existing settings that predate contextLength
+        if (extension_settings.mbti_widget.customApi.contextLength === undefined) {
+            extension_settings.mbti_widget.customApi.contextLength = 0;
+        }
+        // Persisted re-scan depth (default 5)
+        if (extension_settings.mbti_widget.rescanMessages === undefined) {
+            extension_settings.mbti_widget.rescanMessages = 5;
+        }
+
 
         createFab();
         createPanel();
@@ -1290,6 +1423,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         const apiKeyEl = document.getElementById('mbti_custom_api_key');
         const maxTokensEl = document.getElementById('mbti_custom_max_tokens');
         const tempEl = document.getElementById('mbti_custom_temperature');
+        const contextLenEl = document.getElementById('mbti_custom_context_length');
 
         if (baseUrlEl) baseUrlEl.value = customApi.baseUrl || '';
         if (modelEl) modelEl.value = customApi.model || '';
@@ -1298,6 +1432,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         }
         if (maxTokensEl) maxTokensEl.value = customApi.maxTokens ?? 2048;
         if (tempEl) tempEl.value = customApi.temperature ?? 0.7;
+        if (contextLenEl) contextLenEl.value = customApi.contextLength || 0;
 
         // --- Event handlers ---
 
@@ -1343,10 +1478,16 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             dd.classList.toggle('open', visible > 0);
         }
 
-        function selectModel(id) {
+        function selectModel(id, contextLength) {
             const modelInput = document.getElementById('mbti_custom_model');
             if (modelInput) modelInput.value = id;
             extension_settings.mbti_widget.customApi.model = id;
+            // Auto-fill context window from provider metadata when available.
+            if (contextLength && contextLength > 0) {
+                extension_settings.mbti_widget.customApi.contextLength = contextLength;
+                const ctxField = document.getElementById('mbti_custom_context_length');
+                if (ctxField) ctxField.value = contextLength;
+            }
             saveSettingsDebounced();
             closeModelDropdown();
         }
@@ -1386,6 +1527,12 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             saveSettingsDebounced();
         });
 
+        jQuery('#mbti_custom_context_length').on('change', function() {
+            const val = parseInt(jQuery(this).val(), 10);
+            extension_settings.mbti_widget.customApi.contextLength = isNaN(val) || val < 0 ? 0 : val;
+            saveSettingsDebounced();
+        });
+
         // Show/hide API key
         jQuery('#mbti_toggle_key').on('click', function() {
             const input = document.getElementById('mbti_custom_api_key');
@@ -1416,18 +1563,21 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                     showTestResult('No models returned by the API.', 'err');
                     if (countEl) countEl.textContent = '';
                 } else {
-                    models.forEach(id => {
+                    models.forEach(m => {
+                        const id = typeof m === 'string' ? m : (m && m.id);
+                        const ctxLen = (typeof m === 'object' && m) ? m.contextLength : 0;
                         const item = document.createElement('div');
                         item.className = 'mbti-model-item';
                         item.dataset.id = id;
                         item.textContent = id;
-                        item.addEventListener('click', function() { selectModel(id); });
+                        item.addEventListener('click', function() { selectModel(id, ctxLen); });
                         if (dd) dd.appendChild(item);
                     });
                     if (modelInput && !modelInput.value && models.length > 0) {
-                        modelInput.value = models[0];
-                        extension_settings.mbti_widget.customApi.model = models[0];
-                        saveSettingsDebounced();
+                        const first = models[0];
+                        const firstId = typeof first === 'string' ? first : first.id;
+                        const firstCtx = (typeof first === 'object' && first) ? first.contextLength : 0;
+                        selectModel(firstId, firstCtx);
                     }
                     if (countEl) countEl.textContent = `${models.length} model${models.length === 1 ? '' : 's'} available`;
                     if (dd) dd.classList.add('open');

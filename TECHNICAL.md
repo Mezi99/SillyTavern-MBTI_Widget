@@ -74,6 +74,19 @@ Supporting helpers: `isCustomBackend()`, `getCustomApiSettings()`, `fetchModels(
 
 The custom API key is stored in `localStorage` under `mbti_widget_api_key` (never in `extension_settings`, so it is not synced to the server or written to chat metadata). All other backend settings live in `extension_settings.mbti_widget.{backend, customApi}`.
 
+### Context budget / overflow guard (re-scan)
+
+The re-scan request can include a large slice of the chat, so it is guarded against exceeding the model's context window. The effective budget comes from `getContextBudget()`:
+
+- **`st` backend**: imports `getMaxPromptTokens()` from `../../../script.js` — the same authoritative per-model budget SillyTavern itself uses (context minus reserved response). Never hardcoded.
+- **`custom` backend**: uses `customApi.contextLength` when set to a positive number (auto-filled from the provider's `/models` metadata via `extractModelContextLength()`), otherwise **falls back to `getMaxPromptTokens()`** as a conservative baseline.
+
+Message packing is **newest-first greedy**: `reScanHistory()` adds the newest messages until the estimated prompt would exceed the budget, then stops. `countRescanTokens()` uses `context.getTokenCountAsync()` (SillyTavern's tokenizer) with a `chars/4` heuristic fallback. If older messages are dropped, a note line is prepended to the prompt and a non-blocking warning is shown in the re-scan popup. The auto-trigger (`queryRating`) is **not** capped — it only rates the newest reply with a bounded `contextMessages` window.
+
+### Message role handling
+
+Both `getMessageContext()` (auto-trigger) and `reScanHistory()` (re-scan) **skip `is_system` messages** (they aren't user behavior and would be mislabeled). Messages are labeled `[user]` / `[ai]` inline (with the speaker's name) rather than relying on native role arrays, so a one-shot re-scan can ask the model to return the `messageIndex` of each analyzed message.
+
 ---
 
 ---

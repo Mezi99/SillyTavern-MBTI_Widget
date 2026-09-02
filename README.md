@@ -43,9 +43,11 @@ The extension runs the MBTI analysis as a **separate, out-of-band** LLM call —
 You can choose which model powers the analysis in the extension settings under **LLM Backend**:
 
 - **Use SillyTavern current API** *(default)* — uses the same connection profile (and model) currently active in SillyTavern.
-- **Custom OpenAI-compatible API** — connect to any OpenAI-compatible endpoint by providing an **API Base URL**, **API Key**, and **Model**. Use **Fetch models** to list available models from the endpoint, then **Test Connection** to verify it works. You can also set **Max Tokens** and **Temperature**.
+- **Custom OpenAI-compatible API** — connect to any OpenAI-compatible endpoint by providing an **API Base URL**, **API Key**, and **Model**. Use **Fetch models** to list available models from the endpoint, then **Test Connection** to verify it works. You can also set **Max Tokens**, **Temperature**, and **Context size (tokens)**.
 
 The API key for a custom backend is stored **locally in your browser only** (never synced to the SillyTavern server or leaked to chat metadata).
+
+When re-scanning a long chat, the extension automatically **guards against exceeding the model's context window** — it sends the newest messages that fit and shows a warning in the re-scan popup if older ones had to be omitted. For the SillyTavern backend the budget comes from SillyTavern's own per-model setting; for a custom backend it uses the **Context size (tokens)** field (auto-filled when you fetch models, and falling back to SillyTavern's setting if left at 0).
 
 ## Usage
 
