@@ -1,7 +1,7 @@
 # MBTI Widget
 
 A SillyTavern extension that analyzes your chat messages to build and visualize an evolving MBTI personality profile.
-
+<img width="321" height="587" alt="Screenshot 2026-09-02 at 10-30-08 SillyTavern" src="https://github.com/user-attachments/assets/2af3b18a-958d-4a71-b2bf-ac3dbf90a417" />
 ## Features
 
 - **Automatic Personality Analysis** - Every message you send is analyzed to update your MBTI profile
@@ -27,6 +27,7 @@ The extension uses AI to analyze your messages and the conversation context. It 
 | T / F | Thinking ↔ Feeling |
 | S / N | Sensing ↔ Intuitive |
 | J / P | Judging ↔ Perceiving |
+
 
 Each message can contribute points to either side of each axis, building up a nuanced personality profile over time.
 
