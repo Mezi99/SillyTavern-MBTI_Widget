@@ -9,15 +9,15 @@ Batch analysis of chat history triggered manually via refresh button.
 Sent as `prompt` via the selected backend (`generateRaw()` for ST API, or direct `fetch()` for a custom API):
 
 ```
-[0] [user] UserName: I think we should analyze the data first...
-[1] [ai] Character: That's a good idea. Here's what I found...
-[2] [user] UserName: Let me check the records...
-[3] [ai] Character: I'll wait while you look...
+[12] [user] UserName: I think we should analyze the data first...
+[13] [ai] Character: That's a good idea. Here's what I found...
+[14] [user] UserName: Let me check the records...
+[15] [ai] Character: I'll wait while you look...
 ```
 
 ### Format
 
-Each line: `[index] [role] Name: message`
+Each line: `[index] [role] Name: message` — `index` is the message's **global chat index** (its position in the chat array), so re-scan records share the same `messageIndex` keys as the auto-analysis records and overwrite them instead of duplicating.
 
 | Marker | Meaning |
 |--------|---------|
@@ -37,8 +37,8 @@ Analyze the following chat history. For EACH user message (marked with
 [user]), determine which MBTI tags apply based on the user's behavior
 in that specific message.
 
-For each user message, return an analysis with the message index and
-applicable tags.
+For each user message, return an analysis with the message index shown
+in the history and the applicable tags.
 
 Respond strictly ONLY with valid JSON:
 {
@@ -86,7 +86,7 @@ If a message is genuinely neutral on an axis, omit both tags from that pair.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `analyses` | array | Yes | Array of per-message analysis objects |
-| `analyses[].messageIndex` | number | Yes | Index of the message in the input (0-based) |
+| `analyses[].messageIndex` | number | Yes | Global chat message index (as numbered by the `[index]` markers in the provided history) — matches the auto-analysis records so re-scan overwrites them |
 | `analyses[].tags` | string[] | Yes | 1-4 tags from the allowed set |
 | `analyses[].reasoning` | string | Yes | Brief explanation of tag choices |
 

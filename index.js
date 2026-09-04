@@ -123,7 +123,7 @@ Respond strictly ONLY with valid JSON:
         const analysis = sanitizePromptText(p.analysis) || DEFAULT_ANALYSIS_PROMPT;
         return `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
 
-For each user message, return an analysis with the message index and applicable tags.
+For each user message, return an analysis with the message index shown in the history and the applicable tags.
 
 Respond strictly ONLY with valid JSON:
 {
@@ -479,7 +479,6 @@ function getLastUserMessage() {
         isProcessing = true;
         setStatus('busy', 'Analyzing the last turn...');
         try {
-            const previousScores = JSON.parse(JSON.stringify(scores));
             const result = await queryRating(userMessage, aiResponse, chatHistory);
 
             if (result.error) {
@@ -489,26 +488,26 @@ function getLastUserMessage() {
                 return false;
             }
 
+            const ctx = SillyTavern.getContext();
+            const chat = ctx.chat;
+            const msgIndex = chat ? chat.length - 1 : trail.length;
+            const professorName = getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME;
+
+            upsertTrailEntry(msgIndex, {
+                tags: result.tags || [],
+                reasoning: result.reasoning || '',
+                professor: result.professor || '',
+                professorName: professorName,
+            });
+
+            await saveToChatMetadata();
+            updatePanel();
             if (result.tags && result.tags.length > 0) {
-                result.tags.forEach(tag => applyTag(tag));
-                const ctx = SillyTavern.getContext();
-                const chat = ctx.chat;
-                const msgIndex = chat ? chat.length - 1 : trail.length;
-                trail.push({
-                    messageIndex: msgIndex,
-                    scores: JSON.parse(JSON.stringify(scores)),
-                    reasoning: result.reasoning || '',
-                    professor: result.professor || '',
-                    professorName: getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME,
-                    previousScores: previousScores,
-                });
-                await saveToChatMetadata();
-                updatePanel();
                 setStatus('done', 'Analysis complete');
-                return true;
+            } else {
+                setStatus('done', 'No tags detected');
             }
-            setStatus('done', 'No tags detected');
-            return false;
+            return result.tags && result.tags.length > 0;
         } catch (error) {
             console.error('MBTI Widget: Analysis error', error);
             setStatus('error', 'Analysis failed');
@@ -550,17 +549,101 @@ function getLastUserMessage() {
         return { tags: [], reasoning: '', professor: '', error: true };
     }
 
-    function applyTag(tag) {
-        switch (tag) {
-            case 'shadow': scores.ie = Math.max(-MAX_SCORE, scores.ie - 1); break;
-            case 'flame': scores.ie = Math.min(MAX_SCORE, scores.ie + 1); break;
-            case 'reason': scores.tf = Math.max(-MAX_SCORE, scores.tf - 1); break;
-            case 'heart': scores.tf = Math.min(MAX_SCORE, scores.tf + 1); break;
-            case 'clue': scores.sn = Math.max(-MAX_SCORE, scores.sn - 1); break;
-            case 'pattern': scores.sn = Math.min(MAX_SCORE, scores.sn + 1); break;
-            case 'anchor': scores.jp = Math.max(-MAX_SCORE, scores.jp - 1); break;
-            case 'drift': scores.jp = Math.min(MAX_SCORE, scores.jp + 1); break;
+    // Apply MBTI tags by mutating the given scores object (no global side effects).
+    function applyTagsTo(scoresObj, tags) {
+        (tags || []).forEach(tag => {
+            switch (tag) {
+                case 'shadow': scoresObj.ie = Math.max(-MAX_SCORE, scoresObj.ie - 1); break;
+                case 'flame': scoresObj.ie = Math.min(MAX_SCORE, scoresObj.ie + 1); break;
+                case 'reason': scoresObj.tf = Math.max(-MAX_SCORE, scoresObj.tf - 1); break;
+                case 'heart': scoresObj.tf = Math.min(MAX_SCORE, scoresObj.tf + 1); break;
+                case 'clue': scoresObj.sn = Math.max(-MAX_SCORE, scoresObj.sn - 1); break;
+                case 'pattern': scoresObj.sn = Math.min(MAX_SCORE, scoresObj.sn + 1); break;
+                case 'anchor': scoresObj.jp = Math.max(-MAX_SCORE, scoresObj.jp - 1); break;
+                case 'drift': scoresObj.jp = Math.min(MAX_SCORE, scoresObj.jp + 1); break;
+            }
+        });
+    }
+
+    // Handles both current entries ({ scores: {...} }) and legacy bare-score
+    // entries stored before the wrapper existed.
+    function getEntryScores(entry) {
+        return entry.scores || entry;
+    }
+
+    // Recompute the cumulative chain from idx (inclusive) onward, keeping each
+    // entry's own contribution (scores - previousScores) intact. Keeps the
+    // stored snapshots consistent after a record is replaced/inserted/removed.
+    function rebaseTrailAfter(idx) {
+        for (let j = idx; j < trail.length; j++) {
+            const entry = trail[j];
+            const oldPrev = entry.previousScores;
+            const oldScores = getEntryScores(entry);
+            const prev = j === 0
+                ? { ie: 0, tf: 0, sn: 0, jp: 0 }
+                : JSON.parse(JSON.stringify(getEntryScores(trail[j - 1])));
+            const delta = ['ie', 'tf', 'sn', 'jp'].map(a =>
+                oldPrev && oldScores ? ((oldScores[a] || 0) - (oldPrev[a] || 0)) : 0
+            );
+            entry.previousScores = prev;
+            entry.scores = JSON.parse(JSON.stringify(prev));
+            ['ie', 'tf', 'sn', 'jp'].forEach((a, k) => {
+                entry.scores[a] = (entry.scores[a] || 0) + delta[k];
+            });
         }
+    }
+
+    function syncScoresFromTrail() {
+        if (trail.length > 0) {
+            scores = JSON.parse(JSON.stringify(getEntryScores(trail[trail.length - 1])));
+        } else {
+            scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
+        }
+    }
+
+    // Single writer for the trail: one record per analyzed reply. Replaces (or
+    // inserts, chronologically) the entry for messageIndex then rebases every
+    // following entry so the cumulative chain stays consistent. With an empty
+    // tags array, any existing record for messageIndex is removed instead.
+    function upsertTrailEntry(messageIndex, entryData) {
+        let existingIdx = -1;
+        let insertIdx = 0;
+        for (let i = 0; i < trail.length; i++) {
+            if (trail[i].messageIndex === messageIndex) existingIdx = i;
+            if (trail[i].messageIndex < messageIndex) insertIdx = i + 1;
+        }
+
+        const tags = entryData.tags || [];
+        if (tags.length === 0) {
+            if (existingIdx === -1) return;
+            trail.splice(existingIdx, 1);
+            rebaseTrailAfter(existingIdx);
+            syncScoresFromTrail();
+            return;
+        }
+
+        const base = insertIdx > 0
+            ? JSON.parse(JSON.stringify(getEntryScores(trail[insertIdx - 1])))
+            : { ie: 0, tf: 0, sn: 0, jp: 0 };
+        const after = JSON.parse(JSON.stringify(base));
+        applyTagsTo(after, tags);
+
+        const record = {
+            messageIndex: messageIndex,
+            scores: after,
+            reasoning: entryData.reasoning || '',
+            professor: entryData.professor || '',
+            previousScores: JSON.parse(JSON.stringify(base)),
+        };
+        if (entryData.professorName) record.professorName = entryData.professorName;
+
+        if (existingIdx >= 0) {
+            trail[existingIdx] = record;
+        } else {
+            trail.splice(insertIdx, 0, record);
+        }
+        rebaseTrailAfter(existingIdx >= 0 ? existingIdx : insertIdx);
+        syncScoresFromTrail();
     }
 
     async function saveToChatMetadata() {
@@ -856,9 +939,15 @@ function getLastUserMessage() {
 
     // Build the text representation of messages for the re-scan payload/sizing.
     function buildRescanChatText(messages) {
-        return messages.map((m, i) =>
-            `[${i}] ${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${m.mes}`
-        ).join('\n');
+        // Number messages with their global chat index so the LLM's returned
+        // messageIndex matches the auto-analysis records (which use the chat
+        // array position), keeping one record per reply across both paths.
+        const context = SillyTavern.getContext();
+        const chat = context ? context.chat : null;
+        return messages.map(m => {
+            const idx = chat ? chat.indexOf(m) : -1;
+            return `[${idx}] ${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${m.mes}`;
+        }).join('\n');
     }
 
     // Count tokens of the full re-scan prompt (rescan prompt + chat text) using
@@ -987,9 +1076,6 @@ function getLastUserMessage() {
         // Remember depth so the error popup's Re-send re-runs the same scan.
         lastScanCount = messageCount;
 
-        scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
-        trail = [];
-
         isProcessing = true;
         showRescanProgress(true);
         setStatus('busy', `Re-scanning last ${messageCount} messages...`);
@@ -1052,23 +1138,21 @@ function getLastUserMessage() {
                 return;
             }
 
-            parsed.analyses.forEach(analysis => {
-                if (analysis.tags && analysis.tags.length > 0) {
-                    const previousScores = JSON.parse(JSON.stringify(scores));
-                    analysis.tags.forEach(tag => applyTag(tag));
-                    trail.push({
-                        messageIndex: analysis.messageIndex,
-                        scores: JSON.parse(JSON.stringify(scores)),
-                        reasoning: analysis.reasoning || '',
-                        professor: '',
-                        previousScores: previousScores,
-                    });
-                }
-            });
-
+            // Dedupe by messageIndex (last occurrence wins) and process in
+            // chronological order so the cumulative chain stays consistent.
             if (parsed.analyses.length === 0 && response.trim()) {
                 console.warn('[MBTI] Re-scan: response parsed but contained no valid analyses.');
             }
+            const byIndex = new Map();
+            parsed.analyses.forEach(a => byIndex.set(a.messageIndex, a));
+            const ordered = [...byIndex.values()].sort((a, b) => a.messageIndex - b.messageIndex);
+            ordered.forEach(analysis => {
+                upsertTrailEntry(analysis.messageIndex, {
+                    tags: analysis.tags,
+                    reasoning: analysis.reasoning || '',
+                    professor: '',
+                });
+            });
 
             await saveToChatMetadata();
             updatePanel();

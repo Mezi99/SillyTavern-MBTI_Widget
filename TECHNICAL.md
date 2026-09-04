@@ -372,6 +372,8 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 
 ## Version History
 
+- **3.2.4** - One record per reply: trail writes go through `upsertTrailEntry()` (replace/insert/remove-by-`messageIndex`), so re-analyzing or re-scanning the same reply overwrites its previous record instead of appending. Re-analyze rebases from the preceding record (no more score inflation on repeat analysis); "no tags" now removes a stale record. Re-scan dedupes analyses by `messageIndex` (last-wins), processes them chronologically, and numbers messages by their global chat index so re-scan keys collide with auto-analysis records; the `scores`/`trail` reset was removed from the pre-LLM phase so a failed scan no longer wipes the existing history.
+
 - **3.2.3** - History modal now reads the commenter name strictly from metadata (`professorName`, captured per record at analysis time); the current-settings fallback in the render path is removed. Records with a comment but no stored name render without a prefix, so the history never mislabels old entries if the commenter is changed later.
 
 - **3.2.2** - History modal: the commenter line now sits under a subtle top separator and is prefixed inline with the commenter name that was active when the entry was generated (`professorName`, captured at analysis time via `professorName: getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME`). Re-scan stores no comments (and no name), as before.
