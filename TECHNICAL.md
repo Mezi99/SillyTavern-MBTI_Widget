@@ -372,7 +372,9 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 
 ## Version History
 
-- **3.2.2** - History modal: the commenter line now sits under a subtle top separator and is prefixed inline with the commenter name that was active when the entry was generated (`professorName`, captured at analysis time via `professorName: getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME`); old entries without the field fall back to the current settings name. Re-scan stores no comments (and no name), as before.
+- **3.2.3** - History modal now reads the commenter name strictly from metadata (`professorName`, captured per record at analysis time); the current-settings fallback in the render path is removed. Records with a comment but no stored name render without a prefix, so the history never mislabels old entries if the commenter is changed later.
+
+- **3.2.2** - History modal: the commenter line now sits under a subtle top separator and is prefixed inline with the commenter name that was active when the entry was generated (`professorName`, captured at analysis time via `professorName: getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME`). Re-scan stores no comments (and no name), as before.
 - **3.2.1** - All UI fonts increased by 1px. Colors are now class-driven by sign instead of inline styles: new `mbti-tag-*` classes (flame/shadow/heart/reason/pattern/clue/drift/anchor — one per positive/negative tag) color the text and any child icon, used by the main meters (delta numbers, meter icons via `applyTagClass()`, bar fills via `bar-fill-<axis>-<neg|pos>` classes), the history sums, per-record icon/point chips, and the 8-color legend. `ratingIconHTML()`/`ratingChipHTML()`/`renderHistorySummary()`/`renderHistoryLegend()` no longer emit inline colors; neutral/zero state uses `mbti-tag-neutral`. Commenter text now matches the analysis text in both the main panel and history modal (no italics, same color/size; shared CSS rules).
 - **3.2.0** - New "Prompts" settings section (below LLM Backend): "Latest Analysis" (reasoning instruction) and "Commenter" (Name + Prompt). The rating tags/pairs stay locked; the fixed `RATING_PROMPT`/`RESCAN_PROMPT` strings are replaced by `buildRatingSystemPrompt()` / `buildRescanPrompt()`, which inject the configured wording into the reasoning/commenter JSON-schema description lines. Commenter name is display-only (panel section label, default "Psy Professor", configurable via `prompts.commenter.name`); it is not sent to the model. Re-scan stores no comments, as before.
 - **3.1.2** - History modal reworked: rows now show the msg number plus per-turn rating chips (axis icon + signed point change, colored per the main meters) on their own row, followed by the reasoning and the Psy Professor one-liner on separate rows; added a totals row under the header (current score per axis) and a legend footer for the icons. Shared `AXIS_META` constant drives the icons/colors for the meters and the modal; `extractTagsFromReasoning()` removed in favor of exact per-entry deltas from stored scores/previousScores.
@@ -406,13 +408,13 @@ This data is stored in the chat file (`.jsonl`) under `chat_metadata`:
   "chat_metadata": {
     "mbti_scores": { "ie": 2, "tf": -1, "sn": 3, "jp": 0 },
     "mbti_trail": [
-      { "scores": { "ie": 1, "tf": 0, "sn": 2, "jp": 0 }, "reasoning": "...", "professor": "...", "previousScores": { "ie": 0, "tf": 0, "sn": 1, "jp": 0 } }
+      { "scores": { "ie": 1, "tf": 0, "sn": 2, "jp": 0 }, "reasoning": "...", "professor": "...", "professorName": "Psy Professor", "previousScores": { "ie": 0, "tf": 0, "sn": 1, "jp": 0 } }
     ]
   }
 }
 ```
 
-`reasoning` and `professor` are the LLM's analysis and its sarcastic "Psy Professor" one-liner for the turn. `previousScores` is a snapshot of `scores` taken *before* that turn's tags were applied, used to render the per-axis point deltas in the panel. All three are optional for backward compatibility with trails saved before these fields existed.
+`reasoning` and `professor` are the LLM's analysis and its sarcastic "Psy Professor" one-liner for the turn. `previousScores` is a snapshot of `scores` taken *before* that turn's tags were applied, used to render the per-axis point deltas in the panel. `professorName` is the commenter name captured when the turn was generated, so history records keep their original author even if the commenter is renamed later. All four are optional for backward compatibility with trails saved before these fields existed (the history modal shows the comment without a name prefix when `professorName` is missing).
 
 ---
 
