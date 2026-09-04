@@ -415,7 +415,7 @@ function getLastUserMessage() {
             if (isCustomBackend()) {
                 showTestResult(`Analysis failed: ${error.message}`, 'err');
             }
-            return { tags: [], reasoning: '', professor: '' };
+            return { tags: [], reasoning: '', professor: '', error: false };
         }
     }
 
@@ -434,9 +434,17 @@ function getLastUserMessage() {
         if (!chatHistory) return false;
 
         isProcessing = true;
+        setStatus('busy', 'Analyzing the last turn...');
         try {
             const previousScores = JSON.parse(JSON.stringify(scores));
             const result = await queryRating(userMessage, aiResponse, chatHistory);
+
+            if (result.error) {
+                setStatus('error', 'Response format error');
+                errorResendHandler = reAnalyzeLastTurn;
+                showErrorPopup('The analysis returned an invalid response format. Re-send to try again.');
+                return false;
+            }
 
             if (result.tags && result.tags.length > 0) {
                 result.tags.forEach(tag => applyTag(tag));
@@ -452,11 +460,16 @@ function getLastUserMessage() {
                 });
                 await saveToChatMetadata();
                 updatePanel();
+                setStatus('done', 'Analysis complete');
                 return true;
             }
+            setStatus('done', 'No tags detected');
             return false;
         } catch (error) {
             console.error('MBTI Widget: Analysis error', error);
+            setStatus('error', 'Analysis failed');
+            errorResendHandler = reAnalyzeLastTurn;
+            showErrorPopup('The analysis failed. Re-send to try again.');
             return false;
         } finally {
             isProcessing = false;
@@ -480,15 +493,17 @@ function getLastUserMessage() {
                     console.log('[MBTI] parseRatingResponse - tags:', tags);
                     console.log('[MBTI] parseRatingResponse - reasoning:', reasoning);
                     console.log('[MBTI] parseRatingResponse - professor:', professor);
-                    return { tags, reasoning, professor };
+                    return { tags, reasoning, professor, error: false };
                 }
             }
         } catch (e) {
             console.error('MBTI Widget: Invalid JSON response', e);
         }
         
-console.error('MBTI Widget: Failed to parse valid JSON response');
-        return { tags: [], reasoning: '', professor: '' };
+        // Hard failure: response wasn't valid/parseable (empty, malformed, etc).
+        // The caller surfaces this to the user.
+        console.error('MBTI Widget: Failed to parse valid JSON response');
+        return { tags: [], reasoning: '', professor: '', error: true };
     }
 
     function applyTag(tag) {
@@ -662,6 +677,63 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         }, 8000);
     }
 
+    // Footer status indicator. states: 'idle' | 'busy' | 'done' | 'error'
+    function setStatus(state, msg) {
+        const textEl = document.getElementById('mbti-footer-text');
+        const spinnerEl = document.getElementById('mbti-footer-spinner');
+        if (!textEl) return;
+
+        const footer = document.getElementById('mbti-footer');
+        if (footer) footer.classList.remove('is-error', 'is-done', 'is-busy');
+
+        if (state === 'busy') {
+            if (spinnerEl) spinnerEl.style.display = 'inline-block';
+            textEl.textContent = msg || 'Analyzing...';
+            if (footer) footer.classList.add('is-busy');
+        } else {
+            if (spinnerEl) spinnerEl.style.display = 'none';
+            if (state === 'done') {
+                textEl.textContent = msg || 'Completed';
+                if (footer) footer.classList.add('is-done');
+            } else if (state === 'error') {
+                textEl.textContent = msg || 'Analysis failed — see popup';
+                if (footer) footer.classList.add('is-error');
+            } else {
+                textEl.textContent = msg || 'Idle';
+            }
+        }
+    }
+
+    // Remember which flow triggered the error popup, so Re-send re-runs it.
+    let errorResendHandler = null;
+    // Remember the last re-scan depth, so Re-send re-runs the same scan.
+    let lastScanCount = 5;
+
+    function showErrorPopup(message) {
+        const popup = document.getElementById('mbti-error-popup');
+        const msgEl = document.getElementById('mbti-error-message');
+        if (!popup) return;
+        if (msgEl) msgEl.textContent = message || 'The analysis returned an invalid response format.';
+        popup.classList.add('is-open');
+    }
+
+    function closeErrorPopup() {
+        const popup = document.getElementById('mbti-error-popup');
+        if (popup) popup.classList.remove('is-open');
+        errorResendHandler = null;
+    }
+
+    function bindErrorPopup() {
+        const closeBtn = document.getElementById('mbti-error-close');
+        const resendBtn = document.getElementById('mbti-error-resend');
+        if (closeBtn) closeBtn.addEventListener('click', closeErrorPopup);
+        if (resendBtn) resendBtn.addEventListener('click', () => {
+            const handler = errorResendHandler;
+            closeErrorPopup();
+            if (handler) handler();
+        });
+    }
+
     function getMBTIKey(s) {
         if (s.ie === 0 && s.tf === 0 && s.sn === 0 && s.jp === 0) return 'unknown';
         const i_e = (s.ie || 0) >= 0 ? 'E' : 'I';
@@ -829,13 +901,13 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                     a.tags.length <= 4
                 );
 
-                return { analyses: validAnalyses };
+                return { analyses: validAnalyses, error: false };
             }
         } catch (e) {
             console.error('MBTI Widget: Invalid re-scan JSON', e);
         }
 
-        return { analyses: [] };
+        return { analyses: [], error: true };
     }
 
     // Compute output token budget for re-scan: scale by user message count so
@@ -859,11 +931,15 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         const messages = sliced.filter(m => !m.is_system);
         if (messages.length === 0) return;
 
+        // Remember depth so the error popup's Re-send re-runs the same scan.
+        lastScanCount = messageCount;
+
         scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
         trail = [];
 
         isProcessing = true;
         showRescanProgress(true);
+        setStatus('busy', `Re-scanning last ${messageCount} messages...`);
 
         const budget = await getContextBudget();
         let overflowing = false;
@@ -916,6 +992,13 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             const parsed = parseRescanResponse(response);
             console.log('[MBTI] Parsed analyses:', parsed.analyses.length);
 
+            if (parsed.error) {
+                setStatus('error', 'Re-scan format error');
+                errorResendHandler = () => reScanHistory(lastScanCount);
+                showErrorPopup('The re-scan returned an invalid response format. Re-send to try again.');
+                return;
+            }
+
             parsed.analyses.forEach(analysis => {
                 if (analysis.tags && analysis.tags.length > 0) {
                     const previousScores = JSON.parse(JSON.stringify(scores));
@@ -930,13 +1013,21 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 }
             });
 
+            if (parsed.analyses.length === 0 && response.trim()) {
+                console.warn('[MBTI] Re-scan: response parsed but contained no valid analyses.');
+            }
+
             await saveToChatMetadata();
             updatePanel();
+            setStatus('done', 'Re-scan complete');
 
             console.log('[MBTI] Re-scan complete. Final scores:', scores);
 
         } catch (error) {
             console.error('MBTI Widget: Re-scan failed', error);
+            setStatus('error', 'Re-scan failed');
+            errorResendHandler = () => reScanHistory(lastScanCount);
+            showErrorPopup('The re-scan failed. Re-send to try again.');
         } finally {
             isProcessing = false;
             showRescanProgress(false);
@@ -1181,6 +1272,10 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                         <div class="professor-text" id="professor-text"></div>
                     </div>
                 </div>
+                <div class="mbti-footer" id="mbti-footer">
+                    <div class="mbti-footer-spinner" id="mbti-footer-spinner" style="display:none;"></div>
+                    <span class="mbti-footer-text" id="mbti-footer-text">Idle</span>
+                </div>
             </div>
         `;
 
@@ -1207,6 +1302,19 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             </div>
         `;
         panel.appendChild(rescanPopup);
+
+        const errorPopup = document.createElement('div');
+        errorPopup.id = 'mbti-error-popup';
+        errorPopup.className = 'mbti-error-popup';
+        errorPopup.innerHTML = `
+            <div class="mbti-error-title">Analysis Error</div>
+            <div class="mbti-error-message" id="mbti-error-message"></div>
+            <div class="mbti-error-actions">
+                <button class="mbti-error-btn" id="mbti-error-close">Close</button>
+                <button class="mbti-error-btn is-primary" id="mbti-error-resend">Re-send</button>
+            </div>
+        `;
+        panel.appendChild(errorPopup);
 
         const fullArchOverlay = document.createElement('div');
         fullArchOverlay.id = 'mbti-full-arch-overlay';
@@ -1277,6 +1385,8 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             e.stopPropagation();
             reAnalyzeLastTurn();
         });
+
+        bindErrorPopup();
 
         document.getElementById('rescan-go-btn').addEventListener('click', function() {
             const slider = document.getElementById('rescan-slider');
@@ -1434,6 +1544,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
 
         context.eventSource.on(context.event_types.MESSAGE_RECEIVED, async (data) => {
             console.log('[MBTI] MESSAGE_RECEIVED event fired, data:', data);
+            setStatus('busy', 'New message received — analyzing...');
             const analyzed = await reAnalyzeLastTurn();
             console.log('[MBTI] reAnalyzeLastTurn analyzed:', analyzed);
         });

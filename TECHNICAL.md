@@ -386,6 +386,7 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 
 ## Version History
 
+- **3.1.1** - Response-format errors are surfaced to the user: `parseRatingResponse()` / `parseRescanResponse()` now return an `error` flag on hard failures (empty/malformed response), `reAnalyzeLastTurn()` / `reScanHistory()` show a styled, dismissible error popup with a context-aware **Re-send** button, and a persistent footer status bar (`setStatus()`) reflects busy/done/error/idle states.
 - **3.1.0** - Manual "Re-analyze last turn" button; per-axis point deltas (`+N`/`-N`) on the meters with auto-fade; "Psy Professor" sarcastic one-liner in the analysis output (stored per trail entry, displayed in its own section)
 - **3.0.0** - LLM Backend selection (SillyTavern current API vs custom OpenAI-compatible), re-scan context-safety guard, backend dispatcher (`generateMBTI`)
 - **1.0.0** - Per-chat persistence, structured prompt system, trail history with reasoning

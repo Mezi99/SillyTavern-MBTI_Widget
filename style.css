@@ -760,6 +760,125 @@
 }
 
 /* =============================================
+   ERROR POPUP
+   ============================================= */
+.mbti-error-popup {
+    display: none;
+    position: absolute;
+    bottom: 52px;
+    right: 10px;
+    width: 220px;
+    padding: 12px;
+    background: rgba(20, 8, 10, 0.98);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 8px;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.mbti-error-popup.is-open {
+    display: block;
+    animation: mbti-error-pop 0.18s ease-out;
+}
+
+@keyframes mbti-error-pop {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.mbti-error-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 11px;
+    color: rgba(248, 113, 113, 0.95);
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+    text-align: center;
+}
+
+.mbti-error-message {
+    font-family: 'Raleway', sans-serif;
+    font-size: 10px;
+    line-height: 1.4;
+    color: rgba(248, 197, 197, 0.85);
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.mbti-error-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.mbti-error-btn {
+    flex: 1;
+    padding: 6px 0;
+    background: rgba(248, 113, 113, 0.08);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 4px;
+    color: rgba(248, 113, 113, 0.9);
+    font-family: 'Raleway', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mbti-error-btn:hover {
+    background: rgba(248, 113, 113, 0.16);
+    border-color: rgba(248, 113, 113, 0.5);
+}
+
+.mbti-error-btn.is-primary {
+    background: rgba(248, 113, 113, 0.16);
+    border-color: rgba(248, 113, 113, 0.5);
+}
+
+/* =============================================
+   PANEL FOOTER (status bar)
+   ============================================= */
+.mbti-footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-top: 1px solid rgba(212, 175, 55, 0.15);
+    background: rgba(5, 10, 18, 0.4);
+}
+
+.mbti-footer-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(212, 175, 55, 0.2);
+    border-top-color: rgba(212, 175, 55, 0.8);
+    border-radius: 50%;
+    animation: rescan-spin 1s linear infinite;
+    flex-shrink: 0;
+}
+
+.mbti-footer-text {
+    font-family: 'Raleway', sans-serif;
+    font-size: 10px;
+    color: rgba(212, 197, 169, 0.45);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mbti-footer.is-busy .mbti-footer-text {
+    color: rgba(212, 175, 55, 0.85);
+}
+
+.mbti-footer.is-done .mbti-footer-text {
+    color: rgba(52, 211, 153, 0.85);
+}
+
+.mbti-footer.is-error .mbti-footer-text {
+    color: rgba(248, 113, 113, 0.9);
+}
+
+/* =============================================
    HISTORY MODAL
    ============================================= */
 .history-btn {
