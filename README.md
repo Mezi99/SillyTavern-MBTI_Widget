@@ -56,6 +56,7 @@ When re-scanning a long chat, the extension automatically **guards against excee
 - Each chat has its own independent profile
 - The panel shows your trail history - hover over dots to see what triggered changes
 - The **Latest Analysis** section shows the reasoning for the last turn, plus a sarcastic **Psy Professor** one-liner; use the button beside it to **re-analyze the last turn** (re-running the auto-analysis manually)
+- The **history modal** lists each analyzed message with its point changes as colored icons (fire / heart / lamp / wind), a totals row under the header, and a legend of what each icon means
 - Each meter shows a small colored **+N / -N** for how many points it changed in the last turn
 - A persistent status bar at the bottom of the panel shows what the extension is doing (analyzing, completed, or an error); if a response comes back in an invalid format, a popup explains the issue and lets you **Re-send** the analysis
 

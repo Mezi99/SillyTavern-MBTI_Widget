@@ -1033,9 +1033,61 @@
     padding: 32px 16px;
 }
 
+/* Totals row under the modal header (current score per axis) */
+.history-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 16px 32px 0;
+}
+
+.history-summary-label {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.35);
+}
+
+.history-summary-chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Icon + signed number chip (shared by summary and rows) */
+.mbti-rating-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'Raleway', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.mbti-rating-chip.is-summary {
+    font-size: 12px;
+}
+
+.mbti-rating-icon {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
 .history-row {
     display: grid;
-    grid-template-columns: 32px auto 1fr;
+    grid-template-columns: 32px 1fr;
     gap: 12px;
     align-items: start;
     padding: 12px 0;
@@ -1054,27 +1106,24 @@
     padding-top: 2px;
 }
 
-.history-row-tags {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3px;
+.history-row-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.history-tag {
-    font-family: 'Raleway', sans-serif;
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    padding: 2px 6px;
-    border-radius: 2px;
-    border: 1px solid;
-    background: transparent;
+.history-row-tags {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .history-tag-empty {
     font-size: 11px;
-    color: rgba(212, 197, 169, 0.2);
+    font-style: italic;
+    color: rgba(212, 197, 169, 0.25);
 }
 
 .history-row-reasoning {
@@ -1084,13 +1133,60 @@
     color: rgba(212, 197, 169, 0.7);
     line-height: 1.5;
 }
+
 .history-row-professor {
     font-family: 'Roboto', sans-serif;
     font-size: 11px;
     font-style: italic;
     color: rgba(212, 175, 55, 0.6);
     line-height: 1.4;
-    margin-top: 4px;
+    margin-top: 2px;
+}
+
+/* Legend footer (below the scrollable grid) */
+.history-footer {
+    padding: 12px 32px 20px;
+    border-top: 1px solid rgba(212, 175, 55, 0.12);
+    background: rgba(2, 4, 10, 0.6);
+}
+
+.history-footer-title {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.35);
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.history-legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.legend-text {
+    font-family: 'Raleway', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.legend-arrow {
+    color: rgba(212, 197, 169, 0.3);
+    font-weight: 300;
+}
+
+.legend-neg {
+    font-weight: 500;
 }
 /* =============================================
    SETTINGS DRAWER (LLM Backend)

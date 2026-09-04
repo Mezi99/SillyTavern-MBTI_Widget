@@ -13,6 +13,16 @@
 
     const MAX_SCORE = 18;
 
+    // Shared axis metadata: icon mask image, sign colors, and the tag names
+    // each sign maps to (used by the main meters, history modal rows, totals
+    // and legend). Mirrors the icons/colors in the panel axis bars.
+    const AXIS_META = [
+        { axis: 'ie', icon: 'https://img.icons8.com/ios-filled/50/ffffff/fire-element.png', pos: '#f97316', neg: '#94a3b8', posTag: 'flame', negTag: 'shadow' },
+        { axis: 'tf', icon: 'https://img.icons8.com/ios-filled/50/ffffff/like--v1.png', pos: '#f472b6', neg: '#60a5fa', posTag: 'heart', negTag: 'reason' },
+        { axis: 'sn', icon: 'https://img.icons8.com/ios-filled/50/ffffff/idea.png', pos: '#a78bfa', neg: '#34d399', posTag: 'pattern', negTag: 'clue' },
+        { axis: 'jp', icon: 'https://img.icons8.com/ios-filled/50/ffffff/wind.png', pos: '#94a3b8', neg: '#fbbf24', posTag: 'drift', negTag: 'anchor' },
+    ];
+
     const ILLUSTRATIONS = {
         unknown: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020508"/><circle cx="290" cy="100" r="120" fill="none" stroke="rgba(212,175,55,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="80" fill="none" stroke="rgba(212,175,55,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="40" fill="none" stroke="rgba(212,175,55,0.12)" stroke-width="1"/><text x="290" y="115" text-anchor="middle" font-family="Cinzel,serif" font-size="56" font-weight="700" fill="rgba(212,175,55,0.08)" letter-spacing="8">????</text></svg>`,
         architect: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020a18"/><g stroke="rgba(96,165,250,0.12)" stroke-width="0.75" fill="none"><line x1="0" y1="40" x2="580" y2="40"/><line x1="0" y1="80" x2="580" y2="80"/><line x1="0" y1="120" x2="580" y2="120"/><line x1="0" y1="160" x2="580" y2="160"/></g><polygon points="290,30 420,160 160,160" fill="none" stroke="rgba(96,165,250,0.3)" stroke-width="1.5"/><circle cx="290" cy="100" r="4" fill="rgba(96,165,250,0.8)"/></svg>`,
@@ -1131,53 +1141,99 @@ function getLastUserMessage() {
                 gridEl.innerHTML = '<div class="history-empty">No analysis data yet. Start chatting or re-scan to build history.</div>';
             } else {
                 gridEl.innerHTML = trail.map((entry, i) => {
-                    const s = entry.scores || entry;
-                    const mbtiKey = getMBTIKey(s);
-                    const entryArch = ARCHETYPES[mbtiKey] || ARCHETYPES['unknown'];
-                    const tags = entry.reasoning ? extractTagsFromReasoning(entry) : [];
-                    const tagsHTML = tags.map(t => {
-                        const tagColors = {
-                            shadow: '#94a3b8', flame: '#f97316',
-                            reason: '#60a5fa', heart: '#f472b6',
-                            clue: '#34d399', pattern: '#a78bfa',
-                            anchor: '#fbbf24', drift: '#94a3b8'
-                        };
-                        return `<span class="history-tag" style="color:${tagColors[t] || '#d4af37'};border-color:${tagColors[t] || '#d4af37'}40">${t}</span>`;
-                    }).join('');
+                    const chips = buildRatingChips(entry, i);
+                    const chipsHTML = chips.length > 0
+                        ? chips.join('')
+                        : '<span class="history-tag-empty">No change</span>';
 
                     const rowNum = entry.messageIndex !== undefined ? entry.messageIndex : i + 1;
+                    const professorHTML = entry.professor
+                        ? `<div class="history-row-professor">${entry.professor}</div>`
+                        : '';
+
                     return `
                         <div class="history-row">
                             <div class="history-row-num">${rowNum}</div>
-                            <div class="history-row-tags">${tagsHTML || '<span class="history-tag-empty">—</span>'}</div>
-                            <div class="history-row-reasoning">${entry.reasoning || 'No reasoning recorded'}</div>
-                            ${entry.professor ? `<div class="history-row-professor">${entry.professor}</div>` : ''}
+                            <div class="history-row-body">
+                                <div class="history-row-tags">${chipsHTML}</div>
+                                <div class="history-row-reasoning">${entry.reasoning || 'No reasoning recorded'}</div>
+                                ${professorHTML}
+                            </div>
                         </div>
                     `;
                 }).join('');
             }
         }
 
+        renderHistorySummary();
+        renderHistoryLegend();
+
         const overlay = document.getElementById('history-overlay');
         if (overlay) overlay.classList.add('is-open');
     }
 
-    function extractTagsFromReasoning(entry) {
-        if (!entry.scores) return [];
-        const tags = [];
-        const prevEntry = trail[trail.indexOf(entry) - 1];
-        const prevScores = prevEntry ? (prevEntry.scores || prevEntry) : { ie: 0, tf: 0, sn: 0, jp: 0 };
+    // Per-axis delta for one trail entry, falling back to the previous entry's
+    // scores when previousScores is missing (old data).
+    function entryDelta(entry, i) {
+        const before = entry.previousScores && (entry.previousScores.ie !== undefined || entry.previousScores.tf !== undefined)
+            ? { ie: entry.previousScores.ie || 0, tf: entry.previousScores.tf || 0, sn: entry.previousScores.sn || 0, jp: entry.previousScores.jp || 0 }
+            : (() => {
+                const prev = trail[i - 1];
+                const p = prev ? (prev.scores || prev) : {};
+                return { ie: p.ie || 0, tf: p.tf || 0, sn: p.sn || 0, jp: p.jp || 0 };
+            })();
+        const s = entry.scores || entry;
+        return {
+            ie: (s.ie || 0) - before.ie,
+            tf: (s.tf || 0) - before.tf,
+            sn: (s.sn || 0) - before.sn,
+            jp: (s.jp || 0) - before.jp,
+        };
+    }
 
-        if ((entry.scores.ie || 0) > (prevScores.ie || 0)) tags.push('flame');
-        else if ((entry.scores.ie || 0) < (prevScores.ie || 0)) tags.push('shadow');
-        if ((entry.scores.tf || 0) > (prevScores.tf || 0)) tags.push('heart');
-        else if ((entry.scores.tf || 0) < (prevScores.tf || 0)) tags.push('reason');
-        if ((entry.scores.sn || 0) > (prevScores.sn || 0)) tags.push('pattern');
-        else if ((entry.scores.sn || 0) < (prevScores.sn || 0)) tags.push('clue');
-        if ((entry.scores.jp || 0) > (prevScores.jp || 0)) tags.push('drift');
-        else if ((entry.scores.jp || 0) < (prevScores.jp || 0)) tags.push('anchor');
+    // Mask-styled icon like the main panel bars.
+    function ratingIconHTML(meta, color) {
+        return '<div class="mbti-rating-icon" style="-webkit-mask-image:url(\'' + meta.icon + '\');mask-image:url(\'' + meta.icon + '\');background-color:' + color + ';"></div>';
+    }
 
-        return tags;
+    // One chip: icon + signed delta for a non-zero axis.
+    function ratingChipHTML(meta, delta) {
+        const color = delta > 0 ? meta.pos : meta.neg;
+        const text = (delta > 0 ? '+' : '') + delta;
+        return '<span class="mbti-rating-chip" style="color:' + color + ';">' + ratingIconHTML(meta, color) + '<span class="mbti-rating-chip-num">' + text + '</span></span>';
+    }
+
+    // Chips for a single history row (all axes with non-zero delta).
+    function buildRatingChips(entry, i) {
+        const deltas = entryDelta(entry, i);
+        return AXIS_META
+            .filter(m => deltas[m.axis] !== 0)
+            .map(m => ratingChipHTML(m, deltas[m.axis]));
+    }
+
+    // Totals row under the modal header: current score per axis (the same
+    // values that fill the meters) as icon + signed number.
+    function renderHistorySummary() {
+        const el = document.getElementById('history-summary');
+        if (!el) return;
+        el.innerHTML = AXIS_META.map(m => {
+            const val = scores[m.axis] || 0;
+            const color = val > 0 ? m.pos : (val < 0 ? m.neg : 'rgba(212,197,169,0.35)');
+            const text = (val > 0 ? '+' : '') + val;
+            return '<span class="mbti-rating-chip is-summary" style="color:' + color + ';">' + ratingIconHTML(m, color) + '<span class="mbti-rating-chip-num">' + text + '</span></span>';
+        }).join('');
+    }
+
+    // Legend footer: each icon with its positive/negative tag names.
+    function renderHistoryLegend() {
+        const el = document.getElementById('history-legend');
+        if (!el) return;
+        el.innerHTML = AXIS_META.map(m =>
+            '<div class="legend-item">' +
+                ratingIconHTML(m, m.pos) +
+                '<span class="legend-text"><span class="legend-pos" style="color:' + m.pos + ';">' + m.posTag + '</span> <span class="legend-arrow">/</span> <span class="legend-neg" style="color:' + m.neg + ';">' + m.negTag + '</span></span>' +
+            '</div>'
+        ).join('');
     }
 
     function closeHistoryModal() {
@@ -1342,8 +1398,16 @@ function getLastUserMessage() {
                     <div class="history-tagline" id="history-tagline">Start chatting to build your MBTI profile...</div>
                 </div>
                 <div class="history-divider"></div>
+                <div class="history-summary">
+                    <div class="history-summary-label">Total points</div>
+                    <div class="history-summary-chips" id="history-summary"></div>
+                </div>
                 <div class="history-section-label">Analysis History</div>
                 <div class="history-grid" id="history-grid"></div>
+                <div class="history-footer">
+                    <div class="history-footer-title">Legend</div>
+                    <div class="history-legend" id="history-legend"></div>
+                </div>
             </div>
         `;
         document.body.appendChild(historyOverlay);
