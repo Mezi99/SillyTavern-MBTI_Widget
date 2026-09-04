@@ -1376,12 +1376,13 @@ function getLastUserMessage() {
     // reason, pattern, flame, clue, heart, drift, shadow, anchor.
     const RADAR_DOT_COLORS = ['#60a5fa', '#a78bfa', '#f97316', '#34d399', '#f472b6', '#94a3b8', '#94a3b8', '#fbbf24'];
 
-    // Maps each axis's sign to the MBTI letter it pushes toward.
+    // Maps each axis's sign to the MBTI letter it pushes toward, with the
+// full trait name so modal readers understand the single-letter codes.
     const AXIS_LETTERS = {
-        ie: { pos: 'E', neg: 'I' },
-        tf: { pos: 'F', neg: 'T' },
-        sn: { pos: 'N', neg: 'S' },
-        jp: { pos: 'P', neg: 'J' },
+        ie: { pos: { letter: 'E', name: 'Extraverted' }, neg: { letter: 'I', name: 'Introverted' } },
+        tf: { pos: { letter: 'F', name: 'Feeling' }, neg: { letter: 'T', name: 'Thinking' } },
+        sn: { pos: { letter: 'N', name: 'Intuitive' }, neg: { letter: 'S', name: 'Sensing' } },
+        jp: { pos: { letter: 'P', name: 'Perceiving' }, neg: { letter: 'J', name: 'Judging' } },
     };
 
     // Axis tag label for every octagon vertex, placed just outside the
@@ -1415,7 +1416,7 @@ function getLastUserMessage() {
             const s = getEntryScores(entry);
             const tPts = scoresToOctagonPoints(s);
             const a = 0.1 + (i + 1) / trail.length * 0.35;
-            return `<polygon points="${pointsToStr(tPts)}" fill="none" stroke="${hexToRgba(arch.color, a)}" stroke-width="1"/>`;
+            return `<polygon points="${pointsToStr(tPts)}" fill="none" stroke="${hexToRgba(arch.color, a)}" stroke-width="0.5"/>`;
         }).join('');
 
         const dotsHTML = pts.map((p, i) =>
@@ -1424,19 +1425,19 @@ function getLastUserMessage() {
 
         return `<svg id="rm-svg" viewBox="0 0 220 220" class="radar-svg">
             <defs><filter id="rm-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-            <g stroke="rgba(212,197,169,0.10)" stroke-width="1" fill="none">
+            <g stroke="rgba(212,197,169,0.10)" stroke-width="0.5" fill="none">
                 <polygon points="110,18 167,36 202,90 202,130 167,184 110,202 53,184 18,130 18,90 53,36"/>
                 <polygon points="110,38 154,52 181,97 181,123 154,168 110,182 66,168 39,123 39,97 66,52"/>
                 <polygon points="110,58 141,68 160,103 160,117 141,152 110,162 79,152 60,117 60,103 79,68"/>
                 <polygon points="110,78 128,84 139,110 139,110 128,136 110,142 92,136 81,110 81,110 92,84"/>
             </g>
-            <g stroke="rgba(212,197,169,0.10)" stroke-width="1">
+            <g stroke="rgba(212,197,169,0.10)" stroke-width="0.5">
                 <line x1="110" y1="110" x2="110" y2="18"/><line x1="110" y1="110" x2="167" y2="36"/><line x1="110" y1="110" x2="202" y2="110"/>
                 <line x1="110" y1="110" x2="167" y2="184"/><line x1="110" y1="110" x2="110" y2="202"/><line x1="110" y1="110" x2="53" y2="184"/>
                 <line x1="110" y1="110" x2="18" y2="110"/><line x1="110" y1="110" x2="53" y2="36"/>
             </g>
             <g id="rm-trail">${trailHTML}</g>
-            <polygon points="${pointsToStr(pts)}" fill="${hexToRgba(arch.color, fillAlpha)}" stroke="${arch.color}" stroke-opacity="${alpha}" stroke-width="1.5" filter="url(#rm-glow)"/>
+            <polygon points="${pointsToStr(pts)}" fill="${hexToRgba(arch.color, fillAlpha)}" stroke="${arch.color}" stroke-opacity="${alpha}" stroke-width="0.9" filter="url(#rm-glow)"/>
             <g id="rm-dots" filter="url(#rm-glow)" opacity="${hasTrail ? '0.9' : '0'}">${dotsHTML}</g>
             <g id="rm-labels">${radarLabelHTML()}</g>
         </svg>`;
@@ -1457,8 +1458,8 @@ function getLastUserMessage() {
         if (!best || maxAbs === 0) return null;
         const raw = scores[best.axis] || 0;
         const tag = raw >= 0 ? best.posTag : best.negTag;
-        const letter = AXIS_LETTERS[best.axis][raw >= 0 ? 'pos' : 'neg'];
-        return { meta: best, raw: raw, tag: tag, letter: letter };
+        const dir = AXIS_LETTERS[best.axis][raw >= 0 ? 'pos' : 'neg'];
+        return { meta: best, raw: raw, tag: tag, letter: dir.letter, traitName: dir.name };
     }
 
     // Average decisiveness across the four axes, 0-100%.
@@ -1527,7 +1528,7 @@ function getLastUserMessage() {
         if (sig) {
             html += radarStatCard('Signature Axis',
                 '<div class="radar-stat-value">' + iconHTML(sig.meta, sig.tag) + '<span class="radar-stat-num">' + (sig.raw > 0 ? '+' : '') + sig.raw + '</span><span class="radar-stat-tag">' + sig.tag + '</span></div>' +
-                '<div class="radar-stat-caption">Pulls the profile toward <b>' + sig.letter + '</b></div>');
+                '<div class="radar-stat-caption">Pulls the profile toward <b>' + sig.letter + '</b> · <span class="radar-stat-trait">' + sig.traitName + '</span></div>');
         } else {
             html += radarStatCard('Signature Axis',
                 '<div class="radar-stat-value radar-stat-muted">—</div><div class="radar-stat-caption">No dominant signal yet</div>');
@@ -1561,6 +1562,64 @@ function getLastUserMessage() {
         return html;
     }
 
+    // Tag name → hex, for the micro-trend sparkline dots.
+    const TAG_COLORS = {
+        flame: '#f97316', shadow: '#94a3b8', heart: '#f472b6', reason: '#60a5fa',
+        pattern: '#a78bfa', clue: '#34d399', drift: '#94a3b8', anchor: '#fbbf24',
+    };
+
+    // E · Journey depth: how many observations and which chat turns they span.
+    function radarJourneyHTML() {
+        const first = trail[0];
+        const last = trail[trail.length - 1];
+        const firstIdx = first && first.messageIndex !== undefined ? first.messageIndex : 'the first turn';
+        const lastIdx = last && last.messageIndex !== undefined ? 'turn ' + last.messageIndex : 'turn ' + trail.length;
+        return '<div class="radar-journey">' + trail.length + ' observed turns · spans ' + firstIdx + ' → ' + lastIdx + '</div>';
+    }
+
+    // F · Axis Journey: mini start → mid → current sparkline per axis with the
+    // net change from the first observation to now.
+    function radarMicroHTML() {
+        if (trail.length === 0) return '';
+        const mid = trail[Math.floor((trail.length - 1) / 2)];
+        const first = getEntryScores(trail[0]);
+        const midS = getEntryScores(mid);
+        const lastS = getEntryScores(trail[trail.length - 1]);
+        const pct = v => Math.max(2, Math.min(98, (v + MAX_SCORE) / (2 * MAX_SCORE) * 100));
+
+        const rows = AXIS_META.map(m => {
+            const f = first[m.axis] || 0;
+            const md = midS[m.axis] || 0;
+            const now = lastS[m.axis] || 0;
+            const net = now - f;
+            const lastTag = now >= 0 ? m.posTag : m.negTag;
+            const dots = [
+                { v: f, tag: f >= 0 ? m.posTag : m.negTag, cls: 'is-first' },
+                { v: md, tag: md >= 0 ? m.posTag : m.negTag, cls: 'is-mid' },
+                { v: now, tag: lastTag, cls: 'is-last is-now' },
+            ].map(d =>
+                '<span class="radar-micro-dot ' + d.cls + '" style="left:' + pct(d.v) + '%;background-color:' + TAG_COLORS[d.tag] + '"></span>'
+            ).join('');
+
+            const chip = net === 0
+                ? '<span class="radar-micro-net is-flat">±0</span>'
+                : '<span class="radar-micro-net">' + ratingChipHTML(m, net) + '</span>';
+
+            return '<div class="radar-micro-row">' +
+                '<span class="radar-micro-axis"><span class="mbti-tag-' + lastTag + '">' + ratingIconHTML(m) + '</span><span class="radar-micro-axis-name mbti-tag-' + lastTag + '">' + m.axis.toUpperCase() + '</span></span>' +
+                '<span class="radar-micro-track">' + dots + '</span>' +
+                '<span class="radar-micro-vals">' + (f > 0 ? '+' : '') + f + ' → ' + (now > 0 ? '+' : '') + now + '</span>' +
+                chip +
+            '</div>';
+        }).join('');
+
+        return '<div class="radar-footer-title">Axis Journey</div>' + rows;
+    }
+
+    function buildRadarFooter() {
+        return radarJourneyHTML() + '<div class="radar-micro">' + radarMicroHTML() + '</div>';
+    }
+
     function openRadarModal() {
         const key = getMBTIKey(scores);
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
@@ -1579,11 +1638,13 @@ function getLastUserMessage() {
 
         const emptyEl = document.getElementById('radar-empty');
         const statsEl = document.getElementById('radar-stats');
+        const footerEl = document.getElementById('radar-footer');
         const canvasEl = document.getElementById('radar-canvas');
         if (canvasEl) canvasEl.innerHTML = buildRadarSVGHTML();
 
         if (trail.length === 0) {
             if (statsEl) statsEl.innerHTML = '';
+            if (footerEl) footerEl.innerHTML = '';
             if (emptyEl) {
                 emptyEl.textContent = 'No analysis data yet. Start chatting or re-scan to build your profile.';
                 emptyEl.style.display = 'block';
@@ -1591,6 +1652,7 @@ function getLastUserMessage() {
         } else {
             if (emptyEl) emptyEl.style.display = 'none';
             if (statsEl) statsEl.innerHTML = buildRadarStats();
+            if (footerEl) footerEl.innerHTML = buildRadarFooter();
         }
 
         const overlay = document.getElementById('radar-overlay');
@@ -1794,6 +1856,7 @@ function getLastUserMessage() {
                 <div class="radar-divider"></div>
                 <div class="radar-canvas" id="radar-canvas"></div>
                 <div class="radar-stats" id="radar-stats"></div>
+                <div class="radar-footer" id="radar-footer"></div>
                 <div class="radar-empty" id="radar-empty"></div>
             </div>
         `;
