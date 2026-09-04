@@ -148,7 +148,7 @@ async function queryRating(userMessage, context) {
         const ctx = SillyTavern.getContext();
         const response = await ctx.generateRaw({
             prompt: fullPrompt,
-            systemPrompt: RATING_PROMPT,
+            systemPrompt: buildRatingSystemPrompt(),
         });
         return parseRatingResponse(response);
     } catch (error) {
@@ -162,27 +162,13 @@ async function queryRating(userMessage, context) {
 
 ---
 
-#### `RATING_PROMPT` (line 48-63)
-System prompt sent to LLM instructing it to return MBTI tags:
+#### `buildRatingSystemPrompt()` (Prompt builders)
+Builds the system prompt sent for the per-turn rating. The **tag pairs and the JSON schema are fixed and locked**; only the two description lines are filled from the `Prompts` settings:
 
-```javascript
-const RATING_PROMPT = `You are analyzing a character's recent action for MBTI personality profiling.
-Evaluate the character's behavior along 4 axes (8 tags total). Respond with ONLY a JSON object:
-{"tags": ["tag1", "tag2", ...]} - choose 1-3 tags that best describe the character's recent action.
+- `reasoning` line ← `prompts.analysis` (default `Brief 1-2 sentence explanation`)
+- `professor` (commenter) line ← `prompts.commenter.prompt` (default the "psychology professor at a whiteboard" wording)
 
-Tags and their meanings:
-- shadow: Introverted, reflective, guarded response
-- flame: Extroverted, energetic, bold response
-- reason: Logical, analytical, detached decision-making
-- heart: Emotional, empathetic, values-driven decision-making
-- clue: Concrete, practical, focus on real-world facts
-- pattern: Intuitive, theoretical, focus on possibilities
-- anchor: Structured, planned, decisive approach
-- drift: Flexible, spontaneous, adaptable approach
-
-Analyze the character's last message considering the recent conversation context.
-Respond with JSON only, no explanation.`;
-```
+`buildRescanPrompt()` is the re-scan variant: same locked schema, reasoning line injected, and **no** commenter line (re-scan stores no comments). `sanitizePromptText()` collapses whitespace so multiline textarea content cannot corrupt the JSON schema shown to the model. The commenter **name** (`prompts.commenter.name`, default `Psy Professor`) is display-only — it is never sent to the model; it renders as the panel section header via `updatePanel()`.
 
 ---
 
@@ -386,6 +372,7 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 
 ## Version History
 
+- **3.2.0** - New "Prompts" settings section (below LLM Backend): "Latest Analysis" (reasoning instruction) and "Commenter" (Name + Prompt). The rating tags/pairs stay locked; the fixed `RATING_PROMPT`/`RESCAN_PROMPT` strings are replaced by `buildRatingSystemPrompt()` / `buildRescanPrompt()`, which inject the configured wording into the reasoning/commenter JSON-schema description lines. Commenter name is display-only (panel section label, default "Psy Professor", configurable via `prompts.commenter.name`); it is not sent to the model. Re-scan stores no comments, as before.
 - **3.1.2** - History modal reworked: rows now show the msg number plus per-turn rating chips (axis icon + signed point change, colored per the main meters) on their own row, followed by the reasoning and the Psy Professor one-liner on separate rows; added a totals row under the header (current score per axis) and a legend footer for the icons. Shared `AXIS_META` constant drives the icons/colors for the meters and the modal; `extractTagsFromReasoning()` removed in favor of exact per-entry deltas from stored scores/previousScores.
 - **3.1.1** - Response-format errors are surfaced to the user: `parseRatingResponse()` / `parseRescanResponse()` now return an `error` flag on hard failures (empty/malformed response), `reAnalyzeLastTurn()` / `reScanHistory()` show a styled, dismissible error popup with a context-aware **Re-send** button, and a persistent footer status bar (`setStatus()`) reflects busy/done/error/idle states.
 - **3.1.0** - Manual "Re-analyze last turn" button; per-axis point deltas (`+N`/`-N`) on the meters with auto-fade; "Psy Professor" sarcastic one-liner in the analysis output (stored per trail entry, displayed in its own section)

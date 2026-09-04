@@ -59,6 +59,7 @@ When re-scanning a long chat, the extension automatically **guards against excee
 - The **history modal** lists each analyzed message with its point changes as colored icons (fire / heart / lamp / wind), a totals row under the header, and a legend of what each icon means
 - Each meter shows a small colored **+N / -N** for how many points it changed in the last turn
 - A persistent status bar at the bottom of the panel shows what the extension is doing (analyzing, completed, or an error); if a response comes back in an invalid format, a popup explains the issue and lets you **Re-send** the analysis
+- In the extension drawer, the **Prompts** section lets you change the **Latest Analysis** wording and rename/restyle the **Commenter** (the "Psy Professor" one-liner, default name and prompt); the rating tags themselves stay fixed
 
 ## Requirements
 

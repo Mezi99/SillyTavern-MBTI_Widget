@@ -121,6 +121,45 @@
                 </div>
             </details>
 
+            <!-- Prompts (default closed) -->
+            <details class="mbti-set-block">
+                <summary class="mbti-set-header">
+                    <span class="mbti-set-chevron fa-solid fa-chevron-down"></span>
+                    <span>Prompts</span>
+                </summary>
+                <div class="mbti-set-body">
+                    <div class="mbti-set-hint">Customize the analysis wording for the main window. The rating tags (the 4 MBTI scoring pairs) stay fixed under the hood.</div>
+
+                    <details class="mbti-set-block mbti-set-nested" open>
+                        <summary class="mbti-set-header">
+                            <span class="mbti-set-chevron fa-solid fa-chevron-down"></span>
+                            <span>Latest Analysis</span>
+                        </summary>
+                        <div class="mbti-set-body">
+                            <label class="mbti-field-label" for="mbti_prompt_analysis">Analysis instruction</label>
+                            <textarea id="mbti_prompt_analysis" class="mbti-input mbti-textarea" rows="2">Brief 1-2 sentence explanation</textarea>
+                            <div class="mbti-set-hint">Shapes the reasoning text shown under "Latest Analysis". Used by the auto-analysis, re-analyze and re-scan.</div>
+                        </div>
+                    </details>
+
+                    <details class="mbti-set-block mbti-set-nested">
+                        <summary class="mbti-set-header">
+                            <span class="mbti-set-chevron fa-solid fa-chevron-down"></span>
+                            <span>Commenter</span>
+                        </summary>
+                        <div class="mbti-set-body">
+                            <label class="mbti-field-label" for="mbti_commenter_name">Name</label>
+                            <input type="text" id="mbti_commenter_name" class="mbti-input" value="Psy Professor" autocomplete="off">
+                            <div class="mbti-set-hint">Display label in the main window. Not sent to the model — describe the persona in the prompt below.</div>
+                            <label class="mbti-field-label" for="mbti_commenter_prompt">Prompt</label>
+                            <textarea id="mbti_commenter_prompt" class="mbti-input mbti-textarea" rows="3">A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard. Be witty and punchy, keep it short.</textarea>
+                            <div class="mbti-set-hint">Describes the commenter's voice. The one-liner is generated together with the rating (same call).</div>
+                        </div>
+                    </details>
+
+                </div>
+            </details>
+
         </div>
     </div>
 </div>

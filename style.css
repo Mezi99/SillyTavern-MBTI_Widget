@@ -1388,6 +1388,29 @@
     box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
 }
 
+.mbti-textarea {
+    resize: vertical;
+    min-height: 54px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.mbti-set-nested {
+    border: 1px solid rgba(212, 197, 169, 0.1);
+    border-radius: 4px;
+    background: rgba(2, 4, 10, 0.3);
+}
+
+.mbti-set-nested > .mbti-set-header {
+    padding: 10px 12px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+}
+
+.mbti-set-nested > .mbti-set-body {
+    padding: 0 12px 12px;
+}
+
 .mbti-input-row {
     display: flex;
     gap: 6px;

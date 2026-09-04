@@ -75,7 +75,29 @@
         ESFP: { mbti: 'ESFP', name: 'THE STORM', tagline: 'You feel everything fully.', color: '#f97316', traits: [{ label: 'Extroverted', color: '#f97316' }, { label: 'Concrete', color: '#34d399' }, { label: 'Empathic', color: '#f472b6' }, { label: 'Flexible', color: '#94a3b8' }], illustration: 'storm', bullets: ["You're fully present.", "You bring life to any room."], asset: "Authentic energy", risk: "Overwhelm", famous: ['Every final girl'] }
     };
 
-    const RATING_PROMPT = `Analyze the user's last message. For each of the 4 pairs below, choose exactly ONE tag — the one that better describes this specific action. If the action is genuinely neutral on an axis, omit both tags from that pair.
+    // Default wording for the configurable prompt fields (Prompts settings).
+    const DEFAULT_ANALYSIS_PROMPT = 'Brief 1-2 sentence explanation';
+    const DEFAULT_COMMENT_NAME = 'Psy Professor';
+    const DEFAULT_COMMENT_PROMPT = 'A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard. Be witty and punchy, keep it short.';
+
+    // Collapse newlines/whitespace so free-form prompt text can be embedded
+    // safely inside the JSON schema shown to the model.
+    function sanitizePromptText(text) {
+        return String(text || '').trim().replace(/\s+/g, ' ');
+    }
+
+    function getPromptsSettings() {
+        return extension_settings?.mbti_widget?.prompts || {};
+    }
+
+    // Fixed rating schema + tag pairs. The reasoning ("Latest Analysis") and
+    // the commenter ("professor") description lines come from the Prompts
+    // settings; the tags/pairs themselves stay locked.
+    function buildRatingSystemPrompt() {
+        const p = getPromptsSettings();
+        const analysis = sanitizePromptText(p.analysis) || DEFAULT_ANALYSIS_PROMPT;
+        const comment = sanitizePromptText(p.commenter?.prompt) || DEFAULT_COMMENT_PROMPT;
+        return `Analyze the user's last message. For each of the 4 pairs below, choose exactly ONE tag — the one that better describes this specific action. If the action is genuinely neutral on an axis, omit both tags from that pair.
 
 Pair 1 - Social energy: shadow (withdrew, avoided, observed from distance) vs flame (engaged, confronted, inserted themselves)
 Pair 2 - Decision method: reason (used logic, evidence, analysis) vs heart (used emotion, empathy, gut feeling)
@@ -85,11 +107,18 @@ Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs dr
 Respond strictly ONLY with valid JSON:
 {
  "tags": ["tag1", "tag2"],  // Minimum 1 tag, maximum 4 (one per pair).
-"reasoning": "Brief 1-2 sentence explanation",
-"professor": "A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard. Be witty and punchy, keep it short."
+ "reasoning": "${analysis}",
+ "professor": "${comment}"
 }`;
+    }
 
-    const RESCAN_PROMPT = `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
+    // Re-scan prompt: same locked tag schema; reasoning line follows the
+    // configured "Latest Analysis" prompt. No commenter line is requested
+    // (re-scan stores no comments).
+    function buildRescanPrompt() {
+        const p = getPromptsSettings();
+        const analysis = sanitizePromptText(p.analysis) || DEFAULT_ANALYSIS_PROMPT;
+        return `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
 
 For each user message, return an analysis with the message index and applicable tags.
 
@@ -99,7 +128,7 @@ Respond strictly ONLY with valid JSON:
     {
       "messageIndex": 0,
       "tags": ["tag1", "tag2"],
-      "reasoning": "Brief 1-2 sentence explanation"
+      "reasoning": "${analysis}"
     }
   ]
 }
@@ -111,6 +140,7 @@ Pair 3 - Information focus: clue (focused on concrete physical details) vs patte
 Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs drift (kept options open, adapted, stayed flexible)
 
 If a message is genuinely neutral on an axis, omit both tags from that pair.`;
+    }
 
     function getMessageContext(count) {
         const context = SillyTavern.getContext();
@@ -410,13 +440,13 @@ function getLastUserMessage() {
         };
         
         console.log('[MBTI] queryRating - promptData:', JSON.stringify(promptData, null, 2));
-        console.log('[MBTI] queryRating - RATING_PROMPT:', RATING_PROMPT);
+        console.log('[MBTI] queryRating - RATING_PROMPT:', buildRatingSystemPrompt());
         
         try {
             console.log('[MBTI] queryRating - backend:', (extension_settings?.mbti_widget?.backend || 'st'));
             const response = await generateMBTI({
                 prompt: JSON.stringify(promptData, null, 2),
-                systemPrompt: RATING_PROMPT,
+                systemPrompt: buildRatingSystemPrompt(),
             });
             console.log('[MBTI] queryRating - raw response:', response);
             return parseRatingResponse(response);
@@ -628,8 +658,12 @@ function getLastUserMessage() {
 
         const professorEl = document.getElementById('professor-text');
         const professorSection = document.getElementById('professor-section');
+        const professorLabel = document.getElementById('professor-label');
         const lastEntry = trail[trail.length - 1];
         const professor = lastEntry && lastEntry.professor ? lastEntry.professor : '';
+        if (professorLabel) {
+            professorLabel.textContent = getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME;
+        }
         if (professorEl) {
             professorEl.textContent = professor;
         }
@@ -808,7 +842,7 @@ function getLastUserMessage() {
             totalChars += (m.mes || '').length + (m.name || '').length + 5;
         });
 
-        totalChars += RESCAN_PROMPT.length;
+        totalChars += buildRescanPrompt().length;
         return Math.round(totalChars / 4);
     }
 
@@ -819,20 +853,21 @@ function getLastUserMessage() {
         ).join('\n');
     }
 
-    // Count tokens of the full re-scan prompt (RESCAN_PROMPT + chat text) using
+    // Count tokens of the full re-scan prompt (rescan prompt + chat text) using
     // SillyTavern's tokenizer. Falls back to a chars/4 heuristic if unavailable.
     async function countRescanTokens(messages) {
+        const rescanPrompt = buildRescanPrompt();
         try {
             const context = SillyTavern.getContext();
             if (context && typeof context.getTokenCountAsync === 'function') {
                 const text = buildRescanChatText(messages);
-                const promptTokens = await context.getTokenCountAsync(RESCAN_PROMPT + '\n' + text);
+                const promptTokens = await context.getTokenCountAsync(rescanPrompt + '\n' + text);
                 return promptTokens || 0;
             }
         } catch (e) {
             console.warn('MBTI Widget: getTokenCountAsync failed, using heuristic', e);
         }
-        let totalChars = RESCAN_PROMPT.length;
+        let totalChars = rescanPrompt.length;
         messages.forEach(m => {
             totalChars += (m.mes || '').length + (m.name || '').length + 5;
         });
@@ -956,7 +991,7 @@ function getLastUserMessage() {
 
         try {
             // Greedily include messages newest-first until we hit the context budget.
-            // The prompt is RESCAN_PROMPT + the formatted history.
+            // The prompt is the re-scan prompt + the formatted history.
             let includedMsgs = [];
             for (const m of [...messages].reverse()) {
                 const candidateAll = [m, ...includedMsgs];
@@ -993,7 +1028,7 @@ function getLastUserMessage() {
 
             const response = await generateMBTI({
                 prompt: chatText,
-                systemPrompt: RESCAN_PROMPT,
+                systemPrompt: buildRescanPrompt(),
                 maxTokensOverride: outputBudget,
             });
 
@@ -1324,7 +1359,7 @@ function getLastUserMessage() {
                     </div>
                     <div class="reasoning-text" id="reasoning-text">Start chatting to see analysis...</div>
                     <div class="professor-section" id="professor-section">
-                        <div class="professor-label">Psy Professor</div>
+                        <div class="professor-label" id="professor-label">Psy Professor</div>
                         <div class="professor-text" id="professor-text"></div>
                     </div>
                 </div>
@@ -1640,6 +1675,24 @@ function getLastUserMessage() {
             extension_settings.mbti_widget.rescanMessages = 5;
         }
 
+        // Prompt customization (Latest Analysis + Commenter). Keep defaults
+        // backwards-compatible with the classic fixed wording.
+        if (!extension_settings.mbti_widget.prompts) {
+            extension_settings.mbti_widget.prompts = {
+                analysis: DEFAULT_ANALYSIS_PROMPT,
+                commenter: {
+                    name: DEFAULT_COMMENT_NAME,
+                    prompt: DEFAULT_COMMENT_PROMPT,
+                },
+            };
+        } else {
+            const prompts = extension_settings.mbti_widget.prompts;
+            if (!prompts.analysis) prompts.analysis = DEFAULT_ANALYSIS_PROMPT;
+            if (!prompts.commenter) prompts.commenter = {};
+            if (!prompts.commenter.name) prompts.commenter.name = DEFAULT_COMMENT_NAME;
+            if (!prompts.commenter.prompt) prompts.commenter.prompt = DEFAULT_COMMENT_PROMPT;
+        }
+
 
         createFab();
         createPanel();
@@ -1650,6 +1703,8 @@ function getLastUserMessage() {
         jQuery('#mbti_context_messages_value').text(extension_settings.mbti_widget.contextMessages);
 
         initializeBackendSettings();
+
+        initializePromptsSettings();
 
         // Sync quick toggle if present
         if (jQuery('#mbti_enabled_quick').length) {
@@ -1925,6 +1980,35 @@ function getLastUserMessage() {
             } finally {
                 btn.prop('disabled', false).html(orig);
             }
+        });
+    }
+
+    function initializePromptsSettings() {
+        const prompts = extension_settings.mbti_widget.prompts || {};
+
+        const analysisEl = document.getElementById('mbti_prompt_analysis');
+        const commenterNameEl = document.getElementById('mbti_commenter_name');
+        const commenterPromptEl = document.getElementById('mbti_commenter_prompt');
+
+        if (analysisEl) analysisEl.value = prompts.analysis || DEFAULT_ANALYSIS_PROMPT;
+        if (commenterNameEl) commenterNameEl.value = prompts.commenter?.name || DEFAULT_COMMENT_NAME;
+        if (commenterPromptEl) commenterPromptEl.value = prompts.commenter?.prompt || DEFAULT_COMMENT_PROMPT;
+
+        jQuery('#mbti_prompt_analysis').on('input', function() {
+            extension_settings.mbti_widget.prompts.analysis = String(jQuery(this).val());
+            saveSettingsDebounced();
+            updatePanel();
+        });
+
+        jQuery('#mbti_commenter_name').on('input', function() {
+            extension_settings.mbti_widget.prompts.commenter.name = String(jQuery(this).val());
+            saveSettingsDebounced();
+            updatePanel();
+        });
+
+        jQuery('#mbti_commenter_prompt').on('input', function() {
+            extension_settings.mbti_widget.prompts.commenter.prompt = String(jQuery(this).val());
+            saveSettingsDebounced();
         });
     }
 
