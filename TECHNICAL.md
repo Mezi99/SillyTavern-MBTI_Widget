@@ -386,6 +386,8 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 
 ## Version History
 
+- **3.1.0** - Manual "Re-analyze last turn" button; per-axis point deltas (`+N`/`-N`) on the meters with auto-fade; "Psy Professor" sarcastic one-liner in the analysis output (stored per trail entry, displayed in its own section)
+- **3.0.0** - LLM Backend selection (SillyTavern current API vs custom OpenAI-compatible), re-scan context-safety guard, backend dispatcher (`generateMBTI`)
 - **1.0.0** - Per-chat persistence, structured prompt system, trail history with reasoning
 - **0.1.0** - Initial release with LLM-based MBTI tag analysis
 
@@ -413,11 +415,13 @@ This data is stored in the chat file (`.jsonl`) under `chat_metadata`:
   "chat_metadata": {
     "mbti_scores": { "ie": 2, "tf": -1, "sn": 3, "jp": 0 },
     "mbti_trail": [
-      { "scores": { "ie": 1, "tf": 0, "sn": 2, "jp": 0 }, "reasoning": "..." }
+      { "scores": { "ie": 1, "tf": 0, "sn": 2, "jp": 0 }, "reasoning": "...", "professor": "...", "previousScores": { "ie": 0, "tf": 0, "sn": 1, "jp": 0 } }
     ]
   }
 }
 ```
+
+`reasoning` and `professor` are the LLM's analysis and its sarcastic "Psy Professor" one-liner for the turn. `previousScores` is a snapshot of `scores` taken *before* that turn's tags were applied, used to render the per-axis point deltas in the panel. All three are optional for backward compatibility with trails saved before these fields existed.
 
 ---
 
@@ -455,16 +459,18 @@ The LLM returns:
 
 ## Trail System
 
-The `trail` array stores the history of MBTI score changes, including the LLM's reasoning:
+The `trail` array stores the history of MBTI score changes, including the LLM's reasoning and Psy Professor commentary:
 
 ```javascript
 trail = [
     {
         scores: { ie: 1, tf: 0, sn: 2, jp: 0 },
-        reasoning: "User's question showed analytical thinking..."
+        reasoning: "User's question showed analytical thinking...",
+        professor: "A chalkboard that answers questions — how adorably academic.",
+        previousScores: { ie: 0, tf: 0, sn: 1, jp: 0 }
     },
     // ... more entries
 ];
 ```
 
-Each entry is added after each message exchange, capturing how the personality profile evolves over time.
+Each entry is added after each message exchange (auto-trigger) or after a re-scan / manual "Re-analyze last turn", capturing how the personality profile evolves over time. `previousScores` drives the per-axis point deltas (`+N`/`-N`) shown under each meter.

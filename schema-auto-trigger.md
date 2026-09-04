@@ -41,7 +41,8 @@ Pair 4 - Approach to uncertainty: anchor vs drift
 Respond strictly ONLY with valid JSON:
 {
   "tags": ["tag1", "tag2"],
-  "reasoning": "Brief 1-2 sentence explanation"
+  "reasoning": "Brief 1-2 sentence explanation",
+  "professor": "A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard"
 }
 ```
 
@@ -52,7 +53,8 @@ Respond strictly ONLY with valid JSON:
 ```json
 {
   "tags": ["shadow", "reason"],
-  "reasoning": "User withdrew from the confrontation and relied on logical analysis to address the problem."
+  "reasoning": "User withdrew from the confrontation and relied on logical analysis to address the problem.",
+  "professor": "Classic retreat-and-rationalize. The whiteboard writes itself."
 }
 ```
 
@@ -62,6 +64,7 @@ Respond strictly ONLY with valid JSON:
 |-------|------|----------|-------------|
 | `tags` | string[] | Yes | 1-4 tags from the allowed set. One per axis pair at most. |
 | `reasoning` | string | Yes | Brief explanation of why these tags were chosen. |
+| `professor` | string | No | A short, sarcastic one-liner analysis of the moment, in the voice of a psychology professor. Displayed in its own "Psy Professor" section in the panel. |
 
 ### Valid Tags
 
@@ -90,7 +93,8 @@ Respond strictly ONLY with valid JSON:
 ```javascript
 {
   tags: ["shadow", "reason"],      // Filtered, lowercase
-  reasoning: "User withdrew..."    // Trimmed string
+  reasoning: "User withdrew...",   // Trimmed string
+  professor: "Classic retreat..."  // Trimmed string, may be empty
 }
 ```
 

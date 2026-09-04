@@ -244,6 +244,80 @@
     word-wrap: break-word;
 }
 
+#mbti-widget-panel .reasoning-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+#mbti-widget-panel .reasoning-header .reasoning-label {
+    margin-bottom: 0;
+}
+
+#mbti-widget-panel .reanalyze-btn {
+    opacity: 0.35;
+}
+
+#mbti-widget-panel .reanalyze-btn:hover {
+    opacity: 1;
+}
+
+#mbti-widget-panel .reanalyze-icon {
+    width: 13px;
+    height: 13px;
+    background-color: var(--theme-gold);
+    -webkit-mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/play-button-circled.png');
+    mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/play-button-circled.png');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
+/* Axis deltas (point change in last turn) */
+#mbti-widget-panel .axis-delta {
+    height: 11px;
+    line-height: 11px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    opacity: 0.85;
+    text-align: center;
+    transition: opacity 1.5s ease;
+}
+
+#mbti-widget-panel .axis-delta.fade {
+    opacity: 0;
+}
+
+/* Psy Professor commentary */
+#mbti-widget-panel .professor-section {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(212, 197, 169, 0.12);
+}
+
+#mbti-widget-panel .professor-label {
+    font-family: 'Cinzel', serif;
+    font-size: 8px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(212, 175, 55, 0.5);
+    margin-bottom: 3px;
+}
+
+#mbti-widget-panel .professor-text {
+    font-family: 'Roboto', sans-serif;
+    font-size: 10px;
+    font-style: italic;
+    color: rgba(212, 197, 169, 0.55);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
 /* =============================================
    FULL-SCREEN ARCHETYPE MODAL (standalone)
    ============================================= */
@@ -890,6 +964,14 @@
     font-style: normal;
     color: rgba(212, 197, 169, 0.7);
     line-height: 1.5;
+}
+.history-row-professor {
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+    font-style: italic;
+    color: rgba(212, 175, 55, 0.6);
+    line-height: 1.4;
+    margin-top: 4px;
 }
 /* =============================================
    SETTINGS DRAWER (LLM Backend)

@@ -55,6 +55,8 @@ When re-scanning a long chat, the extension automatically **guards against excee
 - Click the toggle in the extensions drawer to show/hide the panel
 - Each chat has its own independent profile
 - The panel shows your trail history - hover over dots to see what triggered changes
+- The **Latest Analysis** section shows the reasoning for the last turn, plus a sarcastic **Psy Professor** one-liner; use the button beside it to **re-analyze the last turn** (re-running the auto-analysis manually)
+- Each meter shows a small colored **+N / -N** for how many points it changed in the last turn
 
 ## Requirements
 

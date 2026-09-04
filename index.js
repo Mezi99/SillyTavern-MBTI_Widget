@@ -75,7 +75,8 @@ Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs dr
 Respond strictly ONLY with valid JSON:
 {
  "tags": ["tag1", "tag2"],  // Minimum 1 tag, maximum 4 (one per pair).
-"reasoning": "Brief 1-2 sentence explanation"
+"reasoning": "Brief 1-2 sentence explanation",
+"professor": "A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard. Be witty and punchy, keep it short."
 }`;
 
     const RESCAN_PROMPT = `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
@@ -414,13 +415,56 @@ function getLastUserMessage() {
             if (isCustomBackend()) {
                 showTestResult(`Analysis failed: ${error.message}`, 'err');
             }
-            return { tags: [], reasoning: '' };
+            return { tags: [], reasoning: '', professor: '' };
+        }
+    }
+
+    // Analyze the most recent turn (last user message) end-to-end and record it.
+    // Shared by the auto-trigger (MESSAGE_RECEIVED) and the manual "re-analyze"
+    // button. Returns true if a new analysis was recorded, false otherwise.
+    async function reAnalyzeLastTurn() {
+        if (isProcessing) return false;
+        const settings = extension_settings?.mbti_widget;
+        if (!settings?.enabled) return false;
+
+        const { userMessage, aiResponse } = getLastUserMessage();
+        if (!userMessage) return false;
+
+        const chatHistory = getMessageContext(settings?.contextMessages || 5);
+        if (!chatHistory) return false;
+
+        isProcessing = true;
+        try {
+            const previousScores = JSON.parse(JSON.stringify(scores));
+            const result = await queryRating(userMessage, aiResponse, chatHistory);
+
+            if (result.tags && result.tags.length > 0) {
+                result.tags.forEach(tag => applyTag(tag));
+                const ctx = SillyTavern.getContext();
+                const chat = ctx.chat;
+                const msgIndex = chat ? chat.length - 1 : trail.length;
+                trail.push({
+                    messageIndex: msgIndex,
+                    scores: JSON.parse(JSON.stringify(scores)),
+                    reasoning: result.reasoning || '',
+                    professor: result.professor || '',
+                    previousScores: previousScores,
+                });
+                await saveToChatMetadata();
+                updatePanel();
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('MBTI Widget: Analysis error', error);
+            return false;
+        } finally {
+            isProcessing = false;
         }
     }
 
     function parseRatingResponse(response) {
         const knownTags = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'anchor', 'drift'];
-        
         try {
             const parsed = JSON.parse(stripMarkdownFences(response));
             if (parsed.tags && Array.isArray(parsed.tags)) {
@@ -429,12 +473,14 @@ function getLastUserMessage() {
                     .filter(t => knownTags.includes(t));
                 
                 const reasoning = (parsed.reasoning || '').toString().trim();
+                const professor = (parsed.professor || '').toString().trim();
                 
                 // Validate: 1-4 tags required
                 if (tags.length >= 1 && tags.length <= 4) {
                     console.log('[MBTI] parseRatingResponse - tags:', tags);
                     console.log('[MBTI] parseRatingResponse - reasoning:', reasoning);
-                    return { tags, reasoning };
+                    console.log('[MBTI] parseRatingResponse - professor:', professor);
+                    return { tags, reasoning, professor };
                 }
             }
         } catch (e) {
@@ -442,7 +488,7 @@ function getLastUserMessage() {
         }
         
 console.error('MBTI Widget: Failed to parse valid JSON response');
-        return { tags: [], reasoning: '' };
+        return { tags: [], reasoning: '', professor: '' };
     }
 
     function applyTag(tag) {
@@ -540,6 +586,8 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
         setBarIcon('icon-sn', scores.sn, '#34d399', '#a78bfa');
         setBarIcon('icon-jp', scores.jp, '#fbbf24', '#94a3b8');
 
+        updateDeltas();
+
         const reasoningEl = document.getElementById('reasoning-text');
         if (reasoningEl) {
             const lastEntry = trail[trail.length - 1];
@@ -552,6 +600,66 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                 reasoningEl.style.color = 'rgba(212, 197, 169, 0.5)';
             }
         }
+
+        const professorEl = document.getElementById('professor-text');
+        const professorSection = document.getElementById('professor-section');
+        const lastEntry = trail[trail.length - 1];
+        const professor = lastEntry && lastEntry.professor ? lastEntry.professor : '';
+        if (professorEl) {
+            professorEl.textContent = professor;
+        }
+        if (professorSection) {
+            professorSection.style.display = professor ? 'block' : 'none';
+        }
+
+        scheduleDeltaFade();
+    }
+
+    // Show the point change for each axis from the previous turn, if any.
+    // deltaEl elements are populated with +N / -N in the axis's direction color.
+    function updateDeltas() {
+        const axes = ['ie', 'tf', 'sn', 'jp'];
+        const lastEntry = trail[trail.length - 1];
+        if (!lastEntry) {
+            axes.forEach(a => {
+                const el = document.getElementById(`delta-${a}`);
+                if (el) { el.textContent = ''; el.classList.remove('fade'); }
+            });
+            return;
+        }
+        const before = lastEntry.previousScores || { ie: 0, tf: 0, sn: 0, jp: 0 };
+        const after = lastEntry.scores || lastEntry;
+        const axisColors = {
+            ie: { neg: '#94a3b8', pos: '#f97316' },
+            tf: { neg: '#60a5fa', pos: '#f472b6' },
+            sn: { neg: '#34d399', pos: '#a78bfa' },
+            jp: { neg: '#fbbf24', pos: '#94a3b8' },
+        };
+        axes.forEach(a => {
+            const el = document.getElementById(`delta-${a}`);
+            if (!el) return;
+            const delta = (after[a] || 0) - (before[a] || 0);
+            if (delta !== 0) {
+                el.textContent = delta > 0 ? `+${delta}` : `${delta}`;
+                el.style.color = delta > 0 ? axisColors[a].pos : axisColors[a].neg;
+                el.classList.remove('fade');
+            } else {
+                el.textContent = '';
+                el.classList.remove('fade');
+            }
+        });
+    }
+
+    // Fade out the delta numbers a while after they are shown.
+    let deltaFadeTimer = null;
+    function scheduleDeltaFade() {
+        if (deltaFadeTimer) clearTimeout(deltaFadeTimer);
+        deltaFadeTimer = setTimeout(() => {
+            ['ie', 'tf', 'sn', 'jp'].forEach(a => {
+                const el = document.getElementById(`delta-${a}`);
+                if (el && el.textContent) el.classList.add('fade');
+            });
+        }, 8000);
     }
 
     function getMBTIKey(s) {
@@ -810,11 +918,14 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
 
             parsed.analyses.forEach(analysis => {
                 if (analysis.tags && analysis.tags.length > 0) {
+                    const previousScores = JSON.parse(JSON.stringify(scores));
                     analysis.tags.forEach(tag => applyTag(tag));
                     trail.push({
                         messageIndex: analysis.messageIndex,
                         scores: JSON.parse(JSON.stringify(scores)),
-                        reasoning: analysis.reasoning || ''
+                        reasoning: analysis.reasoning || '',
+                        professor: '',
+                        previousScores: previousScores,
                     });
                 }
             });
@@ -949,6 +1060,7 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                             <div class="history-row-num">${rowNum}</div>
                             <div class="history-row-tags">${tagsHTML || '<span class="history-tag-empty">—</span>'}</div>
                             <div class="history-row-reasoning">${entry.reasoning || 'No reasoning recorded'}</div>
+                            ${entry.professor ? `<div class="history-row-professor">${entry.professor}</div>` : ''}
                         </div>
                     `;
                 }).join('');
@@ -1051,14 +1163,23 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
                     </svg>
                 </div>
                 <div class="axis-bars-grid">
-                    <div class="axis-bar-item"><div class="axis-track" id="bar-ie"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-ie-left" style="background:#94a3b8;box-shadow:0 0 6px rgba(148,163,184,0.6);width:0%"></div><div class="axis-fill-right" id="bar-ie-right" style="background:#f97316;box-shadow:0 0 6px rgba(249,115,22,0.6);width:0%"></div><div id="icon-ie" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div></div>
-                    <div class="axis-bar-item"><div class="axis-track" id="bar-tf"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-tf-left" style="background:#60a5fa;box-shadow:0 0 6px rgba(96,165,250,0.6);width:0%"></div><div class="axis-fill-right" id="bar-tf-right" style="background:#f472b6;box-shadow:0 0 6px rgba(244,114,182,0.6);width:0%"></div><div id="icon-tf" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div></div>
-                    <div class="axis-bar-item"><div class="axis-track" id="bar-sn"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-sn-left" style="background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.6);width:0%"></div><div class="axis-fill-right" id="bar-sn-right" style="background:#a78bfa;box-shadow:0 0 6px rgba(167,139,250,0.6);width:0%"></div><div id="icon-sn" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div></div>
-                    <div class="axis-bar-item"><div class="axis-track" id="bar-jp"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-jp-left" style="background:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,0.6);width:0%"></div><div class="axis-fill-right" id="bar-jp-right" style="background:#94a3b8;box-shadow:0 0 6px rgba(148,163,184,0.6);width:0%"></div><div id="icon-jp" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div></div>
+                    <div class="axis-bar-item"><div class="axis-track" id="bar-ie"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-ie-left" style="background:#94a3b8;box-shadow:0 0 6px rgba(148,163,184,0.6);width:0%"></div><div class="axis-fill-right" id="bar-ie-right" style="background:#f97316;box-shadow:0 0 6px rgba(249,115,22,0.6);width:0%"></div><div id="icon-ie" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-ie"></div></div>
+                    <div class="axis-bar-item"><div class="axis-track" id="bar-tf"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-tf-left" style="background:#60a5fa;box-shadow:0 0 6px rgba(96,165,250,0.6);width:0%"></div><div class="axis-fill-right" id="bar-tf-right" style="background:#f472b6;box-shadow:0 0 6px rgba(244,114,182,0.6);width:0%"></div><div id="icon-tf" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-tf"></div></div>
+                    <div class="axis-bar-item"><div class="axis-track" id="bar-sn"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-sn-left" style="background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.6);width:0%"></div><div class="axis-fill-right" id="bar-sn-right" style="background:#a78bfa;box-shadow:0 0 6px rgba(167,139,250,0.6);width:0%"></div><div id="icon-sn" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-sn"></div></div>
+                    <div class="axis-bar-item"><div class="axis-track" id="bar-jp"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-jp-left" style="background:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,0.6);width:0%"></div><div class="axis-fill-right" id="bar-jp-right" style="background:#94a3b8;box-shadow:0 0 6px rgba(148,163,184,0.6);width:0%"></div><div id="icon-jp" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-jp"></div></div>
                 </div>
                 <div class="reasoning-display" id="reasoning-display">
-                    <div class="reasoning-label">Latest Analysis</div>
+                    <div class="reasoning-header">
+                        <div class="reasoning-label">Latest Analysis</div>
+                        <button class="magnify-btn reanalyze-btn" id="reanalyze-btn" title="Re-analyze the last turn">
+                            <div class="reanalyze-icon"></div>
+                        </button>
+                    </div>
                     <div class="reasoning-text" id="reasoning-text">Start chatting to see analysis...</div>
+                    <div class="professor-section" id="professor-section">
+                        <div class="professor-label">Psy Professor</div>
+                        <div class="professor-text" id="professor-text"></div>
+                    </div>
                 </div>
             </div>
         `;
@@ -1150,6 +1271,11 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
             extension_settings.mbti_widget.rescanMessages = parseInt(this.value);
             saveSettingsDebounced();
             updateRescanSlider();
+        });
+
+        document.getElementById('reanalyze-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            reAnalyzeLastTurn();
         });
 
         document.getElementById('rescan-go-btn').addEventListener('click', function() {
@@ -1308,58 +1434,8 @@ console.error('MBTI Widget: Failed to parse valid JSON response');
 
         context.eventSource.on(context.event_types.MESSAGE_RECEIVED, async (data) => {
             console.log('[MBTI] MESSAGE_RECEIVED event fired, data:', data);
-            
-            // Use module-level settings
-            const settings = extension_settings?.mbti_widget;
-            console.log('[MBTI] Fresh settings:', settings);
-            console.log('[MBTI] enabled?:', settings?.enabled);
-            console.log('[MBTI] isProcessing?:', isProcessing);
-            
-            if (!settings?.enabled || isProcessing) {
-                console.log('[MBTI] Skipping - not enabled or processing');
-                return;
-            }
-
-            // Get last user message and AI response
-            const { userMessage, aiResponse } = getLastUserMessage();
-            console.log('[MBTI] userMessage:', userMessage);
-            console.log('[MBTI] aiResponse:', aiResponse);
-            if (!userMessage) return;
-
-            // Get chat history for context
-            const contextMsgCount = settings?.contextMessages || 5;
-            console.log('[MBTI] contextMsgCount:', contextMsgCount);
-            const chatHistory = getMessageContext(contextMsgCount);
-            console.log('[MBTI] chatHistory length:', chatHistory?.length);
-            if (!chatHistory) return;
-
-            isProcessing = true;
-            try {
-                console.log('[MBTI] Calling queryRating...');
-                const result = await queryRating(userMessage, aiResponse, chatHistory);
-                console.log('[MBTI] queryRating result:', result);
-                
-                if (result.tags && result.tags.length > 0) {
-                    result.tags.forEach(tag => applyTag(tag));
-                    const ctx = SillyTavern.getContext();
-                    const chat = ctx.chat;
-                    const msgIndex = chat ? chat.length - 1 : trail.length;
-                    trail.push({
-                        messageIndex: msgIndex,
-                        scores: JSON.parse(JSON.stringify(scores)),
-                        reasoning: result.reasoning || ''
-                    });
-                    await saveToChatMetadata();
-                    updatePanel();
-                    console.log('[MBTI] Panel updated with tags:', result.tags);
-                } else {
-                    console.log('[MBTI] No tags returned!');
-                }
-            } catch (error) {
-                console.error('MBTI Widget: Rating error', error);
-            } finally {
-                isProcessing = false;
-            }
+            const analyzed = await reAnalyzeLastTurn();
+            console.log('[MBTI] reAnalyzeLastTurn analyzed:', analyzed);
         });
 
         extension_settings.mbti_widget = extension_settings.mbti_widget || {
