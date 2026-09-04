@@ -499,6 +499,7 @@ function getLastUserMessage() {
                     scores: JSON.parse(JSON.stringify(scores)),
                     reasoning: result.reasoning || '',
                     professor: result.professor || '',
+                    professorName: getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME,
                     previousScores: previousScores,
                 });
                 await saveToChatMetadata();
@@ -1189,8 +1190,9 @@ function getLastUserMessage() {
                         : '<span class="history-tag-empty">No change</span>';
 
                     const rowNum = entry.messageIndex !== undefined ? entry.messageIndex : i + 1;
+                    const professorName = entry.professorName || (getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME);
                     const professorHTML = entry.professor
-                        ? `<div class="history-row-professor">${entry.professor}</div>`
+                        ? `<div class="history-row-professor"><span class="history-row-professor-name">${professorName}:</span> ${entry.professor}</div>`
                         : '';
 
                     return `
