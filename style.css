@@ -163,6 +163,30 @@
     margin: 0 auto 14px;
 }
 
+#mbti-widget-panel .radar-zoom-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 1px solid rgba(212, 197, 169, 0.2);
+    border-radius: 4px;
+    background: rgba(2, 4, 10, 0.55);
+    color: rgba(212, 197, 169, 0.55);
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+
+#mbti-widget-panel .radar-zoom-btn:hover {
+    color: #d4af37;
+    background: rgba(2, 4, 10, 0.85);
+    border-color: rgba(212, 175, 55, 0.5);
+}
+
 /* Axis Bars Grid */
 #mbti-widget-panel .axis-bars-grid {
     display: grid;
@@ -1571,5 +1595,217 @@
 }
 
 .mbti-model-item.hidden {
+    display: none;
+}
+
+/* =============================================
+   RADAR ZOOM MODAL
+   ============================================= */
+.radar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(2, 4, 10, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    padding: 40px;
+}
+
+.radar-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.radar-modal {
+    width: 100%;
+    max-width: 720px;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 8px;
+    overflow: hidden;
+    transform: scale(0.96);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    background: #02040a;
+    overflow-y: auto;
+}
+
+.radar-overlay.is-open .radar-modal {
+    transform: scale(1);
+}
+
+.radar-header {
+    padding: 24px 32px 16px;
+    text-align: center;
+    position: relative;
+}
+
+.radar-close {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    z-index: 10;
+    background: rgba(2, 4, 10, 0.7);
+    border: 1px solid rgba(212, 197, 169, 0.2);
+    border-radius: 4px;
+    color: rgba(212, 197, 169, 0.6);
+    font-size: 23px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 10px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.radar-close:hover {
+    color: #ef4444;
+    background: rgba(185, 28, 28, 0.3);
+}
+
+.radar-mbti-code {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 6px;
+    color: rgba(212, 175, 55, 0.5);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.radar-archetype-name {
+    font-family: 'Cinzel', serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+}
+
+.radar-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.25), transparent);
+    margin: 0 32px;
+}
+
+.radar-canvas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 32px;
+}
+
+#radar-modal .radar-svg {
+    width: min(100%, 460px);
+    height: auto;
+    display: block;
+    overflow: visible;
+}
+
+#radar-modal .radar-axis-label {
+    font-family: 'Raleway', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    fill: currentColor;
+    opacity: 0.9;
+}
+
+.radar-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 4px 32px 26px;
+}
+
+.radar-stat {
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 6px;
+    background: rgba(212, 175, 55, 0.03);
+    padding: 11px 14px;
+}
+
+.radar-stat-title {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.42);
+    margin-bottom: 7px;
+}
+
+.radar-stat-value {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Raleway', sans-serif;
+    margin-bottom: 6px;
+}
+
+.radar-stat-value .mbti-rating-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.radar-stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 19px;
+    font-weight: 700;
+    color: rgba(212, 197, 169, 0.95);
+    line-height: 1;
+}
+
+.radar-stat-tag {
+    font-family: 'Raleway', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.55);
+}
+
+.radar-stat-caption {
+    font-family: 'Raleway', sans-serif;
+    font-size: 11px;
+    color: rgba(212, 197, 169, 0.55);
+    line-height: 1.5;
+}
+
+.radar-stat-caption b {
+    font-weight: 700;
+    color: rgba(212, 197, 169, 0.8);
+}
+
+.radar-stat-muted {
+    color: rgba(212, 197, 169, 0.3);
+    font-family: 'Playfair Display', serif;
+    font-size: 19px;
+}
+
+.radar-conviction-track {
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(212, 197, 169, 0.1);
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.radar-conviction-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(to right, rgba(212, 175, 55, 0.5), #d4af37);
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.radar-empty {
+    font-family: 'Raleway', sans-serif;
+    font-size: 13px;
+    color: rgba(212, 197, 169, 0.45);
+    text-align: center;
+    padding: 10px 32px 30px;
     display: none;
 }

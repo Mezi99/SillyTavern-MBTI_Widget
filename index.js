@@ -1372,6 +1372,236 @@ function getLastUserMessage() {
         if (overlay) overlay.classList.remove('is-open');
     }
 
+    // Ray colors for the expanded radar dots, in scoresToOctagonPoints order:
+    // reason, pattern, flame, clue, heart, drift, shadow, anchor.
+    const RADAR_DOT_COLORS = ['#60a5fa', '#a78bfa', '#f97316', '#34d399', '#f472b6', '#94a3b8', '#94a3b8', '#fbbf24'];
+
+    // Maps each axis's sign to the MBTI letter it pushes toward.
+    const AXIS_LETTERS = {
+        ie: { pos: 'E', neg: 'I' },
+        tf: { pos: 'F', neg: 'T' },
+        sn: { pos: 'N', neg: 'S' },
+        jp: { pos: 'P', neg: 'J' },
+    };
+
+    // Axis tag label for every octagon vertex, placed just outside the
+    // maximum ring, colored by its tag.
+    function radarLabelHTML() {
+        const R = 104;
+        const names = ['reason', 'pattern', 'flame', 'clue', 'heart', 'drift', 'shadow', 'anchor'];
+        return names.map((n, i) => {
+            const v = VERTICES[i];
+            const dx = v.x - CENTER.x;
+            const dy = v.y - CENTER.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const px = (CENTER.x + dx * R / dist).toFixed(1);
+            const py = (CENTER.y + dy * R / dist).toFixed(1);
+            return `<text x="${px}" y="${py}" class="radar-axis-label mbti-tag-${n}" text-anchor="middle" dominant-baseline="middle">${n}</text>`;
+        }).join('');
+    }
+
+    // Same coordinate space as the panel radar (0-220), displayed larger via
+    // CSS. Layers: grid rings + spokes, trail snapshots, current state, dots.
+    function buildRadarSVGHTML() {
+        const key = getMBTIKey(scores);
+        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
+
+        const pts = scoresToOctagonPoints(scores);
+        const hasTrail = trail.length > 0;
+        const alpha = hasTrail ? 0.65 : 0;
+        const fillAlpha = hasTrail ? 0.12 : 0;
+
+        const trailHTML = trail.map((entry, i) => {
+            const s = getEntryScores(entry);
+            const tPts = scoresToOctagonPoints(s);
+            const a = 0.1 + (i + 1) / trail.length * 0.35;
+            return `<polygon points="${pointsToStr(tPts)}" fill="none" stroke="${hexToRgba(arch.color, a)}" stroke-width="1"/>`;
+        }).join('');
+
+        const dotsHTML = pts.map((p, i) =>
+            `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${RADAR_DOT_COLORS[i]}" opacity="0.9"/>`
+        ).join('');
+
+        return `<svg id="rm-svg" viewBox="0 0 220 220" class="radar-svg">
+            <defs><filter id="rm-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <g stroke="rgba(212,197,169,0.10)" stroke-width="1" fill="none">
+                <polygon points="110,18 167,36 202,90 202,130 167,184 110,202 53,184 18,130 18,90 53,36"/>
+                <polygon points="110,38 154,52 181,97 181,123 154,168 110,182 66,168 39,123 39,97 66,52"/>
+                <polygon points="110,58 141,68 160,103 160,117 141,152 110,162 79,152 60,117 60,103 79,68"/>
+                <polygon points="110,78 128,84 139,110 139,110 128,136 110,142 92,136 81,110 81,110 92,84"/>
+            </g>
+            <g stroke="rgba(212,197,169,0.10)" stroke-width="1">
+                <line x1="110" y1="110" x2="110" y2="18"/><line x1="110" y1="110" x2="167" y2="36"/><line x1="110" y1="110" x2="202" y2="110"/>
+                <line x1="110" y1="110" x2="167" y2="184"/><line x1="110" y1="110" x2="110" y2="202"/><line x1="110" y1="110" x2="53" y2="184"/>
+                <line x1="110" y1="110" x2="18" y2="110"/><line x1="110" y1="110" x2="53" y2="36"/>
+            </g>
+            <g id="rm-trail">${trailHTML}</g>
+            <polygon points="${pointsToStr(pts)}" fill="${hexToRgba(arch.color, fillAlpha)}" stroke="${arch.color}" stroke-opacity="${alpha}" stroke-width="1.5" filter="url(#rm-glow)"/>
+            <g id="rm-dots" filter="url(#rm-glow)" opacity="${hasTrail ? '0.9' : '0'}">${dotsHTML}</g>
+            <g id="rm-labels">${radarLabelHTML()}</g>
+        </svg>`;
+    }
+
+    function radarStatCard(title, bodyHTML) {
+        return '<div class="radar-stat"><div class="radar-stat-title">' + title + '</div>' + bodyHTML + '</div>';
+    }
+
+    // Strongest axis by absolute value (nil when everything is neutral).
+    function radarSignatureValue() {
+        let maxAbs = 0;
+        let best = null;
+        AXIS_META.forEach(m => {
+            const v = scores[m.axis] || 0;
+            if (Math.abs(v) > maxAbs) { maxAbs = Math.abs(v); best = m; }
+        });
+        if (!best || maxAbs === 0) return null;
+        const raw = scores[best.axis] || 0;
+        const tag = raw >= 0 ? best.posTag : best.negTag;
+        const letter = AXIS_LETTERS[best.axis][raw >= 0 ? 'pos' : 'neg'];
+        return { meta: best, raw: raw, tag: tag, letter: letter };
+    }
+
+    // Average decisiveness across the four axes, 0-100%.
+    function radarConvictionValue() {
+        const sum = ['ie', 'tf', 'sn', 'jp'].reduce((acc, a) => acc + Math.abs(scores[a] || 0), 0);
+        const pct = Math.min(100, Math.round(sum / (4 * MAX_SCORE) * 100));
+        let label = 'Building';
+        if (pct >= 75) label = 'Set';
+        else if (pct >= 50) label = 'Firm';
+        else if (pct >= 25) label = 'Emerging';
+        return { pct: pct, label: label };
+    }
+
+    // Largest single-turn change across the trail.
+    function radarBiggestPivotValue() {
+        if (trail.length < 2) return null;
+        let best = null;
+        for (let i = 1; i < trail.length; i++) {
+            const d = entryDelta(trail[i], i);
+            AXIS_META.forEach(m => {
+                const dv = d[m.axis];
+                if (dv !== 0 && (!best || Math.abs(dv) > Math.abs(best.delta))) {
+                    best = { meta: m, delta: dv, rowId: trail[i].messageIndex !== undefined ? trail[i].messageIndex : i + 1 };
+                }
+            });
+        }
+        if (!best) return null;
+        best.tag = best.delta > 0 ? best.meta.posTag : best.meta.negTag;
+        return best;
+    }
+
+    // Polarity sign flips per axis across consecutive snapshots.
+    function radarVolatilityValue() {
+        if (trail.length < 2) return null;
+        const flips = { ie: 0, tf: 0, sn: 0, jp: 0 };
+        for (let i = 1; i < trail.length; i++) {
+            const prev = getEntryScores(trail[i - 1]);
+            const cur = getEntryScores(trail[i]);
+            ['ie', 'tf', 'sn', 'jp'].forEach(a => {
+                const p = prev[a] || 0;
+                const c = cur[a] || 0;
+                if ((p > 0 && c <= 0) || (p < 0 && c >= 0) || (p === 0 && c !== 0)) flips[a] += 1;
+            });
+        }
+        let most = null;
+        let least = null;
+        AXIS_META.forEach(m => {
+            if (!most || flips[m.axis] > flips[most.axis]) most = m;
+            if (!least || flips[m.axis] < flips[least.axis]) least = m;
+        });
+        return { flips: flips, most: most, least: least };
+    }
+
+    function iconHTML(meta, colorTag) {
+        return '<span class="mbti-tag-' + (colorTag || meta.posTag) + '">' + ratingIconHTML(meta) + '</span>';
+    }
+
+    function buildRadarStats() {
+        const sig = radarSignatureValue();
+        const conv = radarConvictionValue();
+        const pivot = radarBiggestPivotValue();
+        const vol = radarVolatilityValue();
+
+        let html = '';
+
+        if (sig) {
+            html += radarStatCard('Signature Axis',
+                '<div class="radar-stat-value">' + iconHTML(sig.meta, sig.tag) + '<span class="radar-stat-num">' + (sig.raw > 0 ? '+' : '') + sig.raw + '</span><span class="radar-stat-tag">' + sig.tag + '</span></div>' +
+                '<div class="radar-stat-caption">Pulls the profile toward <b>' + sig.letter + '</b></div>');
+        } else {
+            html += radarStatCard('Signature Axis',
+                '<div class="radar-stat-value radar-stat-muted">—</div><div class="radar-stat-caption">No dominant signal yet</div>');
+        }
+
+        html += radarStatCard('Conviction',
+            '<div class="radar-stat-value"><span class="radar-stat-num">' + conv.pct + '%</span><span class="radar-stat-tag">' + conv.label + '</span></div>' +
+            '<div class="radar-conviction-track"><div class="radar-conviction-fill" style="width:' + conv.pct + '%"></div></div>');
+
+        if (pivot) {
+            html += radarStatCard('Biggest Turnaround',
+                '<div class="radar-stat-value">' + iconHTML(pivot.meta, pivot.tag) + '<span class="radar-stat-num">' + (pivot.delta > 0 ? '+' : '') + pivot.delta + '</span><span class="radar-stat-tag">' + pivot.tag + '</span></div>' +
+                '<div class="radar-stat-caption">Single biggest shift · turn <b>' + pivot.rowId + '</b></div>');
+        } else {
+            html += radarStatCard('Biggest Turnaround',
+                '<div class="radar-stat-value radar-stat-muted">—</div><div class="radar-stat-caption">Not enough history yet</div>');
+        }
+
+        if (vol) {
+            const total = vol.flips.ie + vol.flips.tf + vol.flips.sn + vol.flips.jp;
+            const mostLabel = vol.most ? vol.most.posTag : '—';
+            const leastLabel = vol.least ? vol.least.posTag : '—';
+            html += radarStatCard('Volatility',
+                '<div class="radar-stat-value"><span class="radar-stat-num">' + total + '</span><span class="radar-stat-tag">flips</span></div>' +
+                '<div class="radar-stat-caption">Most shifting: <b class="mbti-tag-' + mostLabel + '">' + mostLabel + '</b> · Anchored: <b class="mbti-tag-' + leastLabel + '">' + leastLabel + '</b></div>');
+        } else {
+            html += radarStatCard('Volatility',
+                '<div class="radar-stat-value radar-stat-muted">—</div><div class="radar-stat-caption">Not enough history yet</div>');
+        }
+
+        return html;
+    }
+
+    function openRadarModal() {
+        const key = getMBTIKey(scores);
+        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
+
+        const codeEl = document.getElementById('radar-mbti-code');
+        if (codeEl) {
+            codeEl.textContent = arch.mbti;
+            codeEl.style.color = arch.color;
+        }
+
+        const nameEl = document.getElementById('radar-archetype-name');
+        if (nameEl) {
+            nameEl.textContent = arch.name;
+            nameEl.style.color = arch.color;
+        }
+
+        const emptyEl = document.getElementById('radar-empty');
+        const statsEl = document.getElementById('radar-stats');
+        const canvasEl = document.getElementById('radar-canvas');
+        if (canvasEl) canvasEl.innerHTML = buildRadarSVGHTML();
+
+        if (trail.length === 0) {
+            if (statsEl) statsEl.innerHTML = '';
+            if (emptyEl) {
+                emptyEl.textContent = 'No analysis data yet. Start chatting or re-scan to build your profile.';
+                emptyEl.style.display = 'block';
+            }
+        } else {
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (statsEl) statsEl.innerHTML = buildRadarStats();
+        }
+
+        const overlay = document.getElementById('radar-overlay');
+        if (overlay) overlay.classList.add('is-open');
+    }
+
+    function closeRadarModal() {
+        const overlay = document.getElementById('radar-overlay');
+        if (overlay) overlay.classList.remove('is-open');
+    }
+
     window.MBTI_Widget = {
         closeFullArchModal: function() {
             const overlay = document.getElementById('mbti-full-arch-overlay');
@@ -1379,6 +1609,9 @@ function getLastUserMessage() {
         },
         closeHistoryModal: function() {
             closeHistoryModal();
+        },
+        closeRadarModal: function() {
+            closeRadarModal();
         }
     };
 
@@ -1439,6 +1672,11 @@ function getLastUserMessage() {
                             <circle id="dot-shadow" cx="110" cy="110" r="2.5" fill="#94a3b8" opacity="0"/><circle id="dot-anchor" cx="110" cy="110" r="2.5" fill="#fbbf24" opacity="0"/>
                         </g>
                     </svg>
+                    <button class="radar-zoom-btn" id="radar-zoom-btn" title="Expand radar chart">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 3h6v6M10 14l11-11M21 15v6h-6M3 9V3h6M14 10l-11 11M3 15v6h6"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="axis-bars-grid">
                     <div class="axis-bar-item"><div class="axis-track" id="bar-ie"><div class="axis-center-mark"></div><div class="axis-fill-left bar-fill-ie-neg" id="bar-ie-left" style="width:0%"></div><div class="axis-fill-right bar-fill-ie-pos" id="bar-ie-right" style="width:0%"></div><div id="icon-ie" class="axis-track-icon" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-ie"></div></div>
@@ -1542,6 +1780,37 @@ function getLastUserMessage() {
             </div>
         `;
         document.body.appendChild(historyOverlay);
+
+        const radarOverlay = document.createElement('div');
+        radarOverlay.id = 'radar-overlay';
+        radarOverlay.className = 'radar-overlay';
+        radarOverlay.innerHTML = `
+            <div class="radar-modal" id="radar-modal">
+                <div class="radar-header">
+                    <button class="radar-close" id="radar-close">×</button>
+                    <div class="radar-mbti-code" id="radar-mbti-code">????</div>
+                    <div class="radar-archetype-name" id="radar-archetype-name">THE UNKNOWN</div>
+                </div>
+                <div class="radar-divider"></div>
+                <div class="radar-canvas" id="radar-canvas"></div>
+                <div class="radar-stats" id="radar-stats"></div>
+                <div class="radar-empty" id="radar-empty"></div>
+            </div>
+        `;
+        document.body.appendChild(radarOverlay);
+
+        document.getElementById('radar-zoom-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            openRadarModal();
+        });
+
+        document.getElementById('radar-close').addEventListener('click', function() {
+            closeRadarModal();
+        });
+
+        document.getElementById('radar-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeRadarModal();
+        });
 
         fullArchOverlay.addEventListener('click', function(e) {
             if (e.target === this) window.MBTI_Widget.closeFullArchModal();
