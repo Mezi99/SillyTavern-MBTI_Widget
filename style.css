@@ -80,7 +80,7 @@
 
 #mbti-widget-panel .mbti-code {
     font-family: 'Cinzel', serif;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 4px;
     color: rgba(212, 197, 169, 0.35);
     text-transform: uppercase;
@@ -123,7 +123,7 @@
 
 #mbti-widget-panel .profile-eyebrow {
     font-family: 'Cinzel', serif;
-    font-size: 9px;
+    font-size: 10px;
     letter-spacing: 5px;
     text-transform: uppercase;
     color: rgba(212, 197, 169, 0.3);
@@ -133,7 +133,7 @@
 
 #mbti-widget-panel .archetype-name {
     font-family: 'Cinzel', serif;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -144,7 +144,7 @@
 
 #mbti-widget-panel .archetype-desc {
     font-family: 'Playfair Display', serif;
-    font-size: 11px;
+    font-size: 12px;
     font-style: italic;
     color: rgba(212, 197, 169, 0.5);
     text-align: center;
@@ -219,6 +219,16 @@
     z-index: 1;
 }
 
+/* Bar fill colors (left = negative direction, right = positive direction) */
+#mbti-widget-panel .bar-fill-ie-neg { background: #94a3b8; box-shadow: 0 0 6px rgba(148, 163, 184, 0.6); }
+#mbti-widget-panel .bar-fill-ie-pos { background: #f97316; box-shadow: 0 0 6px rgba(249, 115, 22, 0.6); }
+#mbti-widget-panel .bar-fill-tf-neg { background: #60a5fa; box-shadow: 0 0 6px rgba(96, 165, 250, 0.6); }
+#mbti-widget-panel .bar-fill-tf-pos { background: #f472b6; box-shadow: 0 0 6px rgba(244, 114, 182, 0.6); }
+#mbti-widget-panel .bar-fill-sn-neg { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.6); }
+#mbti-widget-panel .bar-fill-sn-pos { background: #a78bfa; box-shadow: 0 0 6px rgba(167, 139, 250, 0.6); }
+#mbti-widget-panel .bar-fill-jp-neg { background: #fbbf24; box-shadow: 0 0 6px rgba(251, 191, 36, 0.6); }
+#mbti-widget-panel .bar-fill-jp-pos { background: #94a3b8; box-shadow: 0 0 6px rgba(148, 163, 184, 0.6); }
+
 /* Reasoning Display */
 #mbti-widget-panel .reasoning-display {
     padding: 10px 8px 8px;
@@ -228,16 +238,17 @@
 
 #mbti-widget-panel .reasoning-label {
     font-family: 'Cinzel', serif;
-    font-size: 9px;
+    font-size: 10px;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: rgba(212, 197, 169, 0.35);
     margin-bottom: 6px;
 }
 
-#mbti-widget-panel .reasoning-text {
+#mbti-widget-panel .reasoning-text,
+#mbti-widget-panel .professor-text {
     font-family: 'Roboto', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     font-style: normal;
     color: rgba(212, 197, 169, 0.65);
     line-height: 1.5;
@@ -282,7 +293,7 @@
     height: 11px;
     line-height: 11px;
     font-family: 'Roboto', sans-serif;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
     opacity: 0.85;
     text-align: center;
@@ -302,20 +313,11 @@
 
 #mbti-widget-panel .professor-label {
     font-family: 'Cinzel', serif;
-    font-size: 8px;
+    font-size: 9px;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: rgba(212, 175, 55, 0.5);
     margin-bottom: 3px;
-}
-
-#mbti-widget-panel .professor-text {
-    font-family: 'Roboto', sans-serif;
-    font-size: 10px;
-    font-style: italic;
-    color: rgba(212, 197, 169, 0.55);
-    line-height: 1.4;
-    word-wrap: break-word;
 }
 
 /* =============================================
@@ -401,7 +403,7 @@
     border: 1px solid rgba(212, 197, 169, 0.2);
     border-radius: 4px;
     color: rgba(212, 197, 169, 0.6);
-    font-size: 22px;
+    font-size: 23px;
     line-height: 1;
     cursor: pointer;
     padding: 4px 10px;
@@ -429,7 +431,7 @@
 }
 
 #mbti-full-arch-body p {
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.7;
     color: rgba(212, 197, 169, 0.82);
 }
@@ -437,7 +439,7 @@
 #mbti-full-arch-body .full-arch-bullet::before {
     content: '◈';
     color: #d4af37;
-    font-size: 10px;
+    font-size: 11px;
     flex-shrink: 0;
     margin-top: 4px;
     opacity: 0.7;
@@ -445,7 +447,7 @@
 
 .full-arch-mbti-badge {
     font-family: 'Cinzel', serif;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 4px;
     color: rgba(212, 175, 55, 0.6);
     text-transform: uppercase;
@@ -454,7 +456,7 @@
 
 .full-arch-title {
     font-family: 'Cinzel', serif;
-    font-size: 28px;
+    font-size: 29px;
     font-weight: 700;
     letter-spacing: 5px;
     text-transform: uppercase;
@@ -464,7 +466,7 @@
 
 .full-arch-tagline {
     font-family: 'Playfair Display', serif;
-    font-size: 15px;
+    font-size: 16px;
     font-style: italic;
     color: rgba(212, 197, 169, 0.65);
     line-height: 1.6;
@@ -482,7 +484,7 @@
 
 .full-arch-trait {
     font-family: 'Cinzel', serif;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 2px;
     text-transform: uppercase;
     padding: 5px 12px;
@@ -492,7 +494,7 @@
 
 .full-arch-section-label {
     font-family: 'Cinzel', serif;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 3px;
     text-transform: uppercase;
     color: rgba(212, 197, 169, 0.4);
@@ -514,7 +516,7 @@
     display: flex;
     gap: 12px;
     align-items: flex-start;
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.6;
     color: rgba(212, 197, 169, 0.75);
 }
@@ -535,7 +537,7 @@
 
 .full-arch-col-label {
     font-family: 'Cinzel', serif;
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 3px;
     text-transform: uppercase;
     margin-bottom: 8px;
@@ -550,7 +552,7 @@
 }
 
 .full-arch-col p {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.6;
     color: rgba(212, 197, 169, 0.72);
 }
@@ -564,7 +566,7 @@
 
 .full-arch-famous-name {
     font-family: 'Cinzel', serif;
-    font-size: 12px;
+    font-size: 13px;
     letter-spacing: 1px;
     color: rgba(212, 175, 55, 0.75);
     border: 1px solid rgba(212, 175, 55, 0.25);
@@ -624,7 +626,7 @@
 
 .rescan-title {
     font-family: 'Playfair Display', serif;
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(212, 175, 55, 0.9);
     margin-bottom: 12px;
     letter-spacing: 0.5px;
@@ -672,7 +674,7 @@
 
 .rescan-count {
     font-family: 'Raleway', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(212, 197, 169, 0.8);
     min-width: 70px;
     text-align: right;
@@ -688,7 +690,7 @@
 .rescan-user-count,
 .rescan-tokens {
     font-family: 'Raleway', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     color: rgba(212, 197, 169, 0.5);
 }
 
@@ -699,7 +701,7 @@
     border: 1px solid rgba(251, 191, 36, 0.3);
     border-radius: 4px;
     font-family: 'Raleway', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1.4;
     color: rgba(251, 191, 36, 0.9);
 }
@@ -712,7 +714,7 @@
     border-radius: 4px;
     color: rgba(212, 175, 55, 0.9);
     font-family: 'Raleway', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 1px;
     cursor: pointer;
@@ -755,7 +757,7 @@
 
 .rescan-progress-text {
     font-family: 'Raleway', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     color: rgba(212, 175, 55, 0.7);
 }
 
@@ -788,7 +790,7 @@
 
 .mbti-error-title {
     font-family: 'Playfair Display', serif;
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(248, 113, 113, 0.95);
     margin-bottom: 8px;
     letter-spacing: 0.5px;
@@ -797,7 +799,7 @@
 
 .mbti-error-message {
     font-family: 'Raleway', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1.4;
     color: rgba(248, 197, 197, 0.85);
     margin-bottom: 12px;
@@ -817,7 +819,7 @@
     border-radius: 4px;
     color: rgba(248, 113, 113, 0.9);
     font-family: 'Raleway', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.8px;
     cursor: pointer;
@@ -858,7 +860,7 @@
 
 .mbti-footer-text {
     font-family: 'Raleway', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     color: rgba(212, 197, 169, 0.45);
     letter-spacing: 0.3px;
     white-space: nowrap;
@@ -956,7 +958,7 @@
     border: 1px solid rgba(212, 197, 169, 0.2);
     border-radius: 4px;
     color: rgba(212, 197, 169, 0.6);
-    font-size: 22px;
+    font-size: 23px;
     line-height: 1;
     cursor: pointer;
     padding: 4px 10px;
@@ -970,7 +972,7 @@
 
 .history-mbti-code {
     font-family: 'Cinzel', serif;
-    font-size: 12px;
+    font-size: 13px;
     letter-spacing: 6px;
     color: rgba(212, 175, 55, 0.5);
     text-transform: uppercase;
@@ -979,7 +981,7 @@
 
 .history-archetype-name {
     font-family: 'Cinzel', serif;
-    font-size: 24px;
+    font-size: 25px;
     font-weight: 700;
     letter-spacing: 4px;
     text-transform: uppercase;
@@ -988,7 +990,7 @@
 
 .history-tagline {
     font-family: 'Playfair Display', serif;
-    font-size: 14px;
+    font-size: 15px;
     font-style: italic;
     color: rgba(212, 197, 169, 0.6);
     line-height: 1.5;
@@ -1002,7 +1004,7 @@
 
 .history-section-label {
     font-family: 'Cinzel', serif;
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 3px;
     text-transform: uppercase;
     color: rgba(212, 197, 169, 0.4);
@@ -1027,7 +1029,7 @@
 .history-empty {
     text-align: center;
     font-family: 'Playfair Display', serif;
-    font-size: 13px;
+    font-size: 14px;
     font-style: italic;
     color: rgba(212, 197, 169, 0.4);
     padding: 32px 16px;
@@ -1045,7 +1047,7 @@
 
 .history-summary-label {
     font-family: 'Cinzel', serif;
-    font-size: 9px;
+    font-size: 10px;
     letter-spacing: 2.5px;
     text-transform: uppercase;
     color: rgba(212, 197, 169, 0.35);
@@ -1064,13 +1066,13 @@
     align-items: center;
     gap: 5px;
     font-family: 'Raleway', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     line-height: 1;
 }
 
 .mbti-rating-chip.is-summary {
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .mbti-rating-icon {
@@ -1084,6 +1086,45 @@
     -webkit-mask-position: center;
     mask-position: center;
 }
+
+/* Sign-driven tag colors. JS picks one class per axis by the sign of the
+   rating (positive/negative tag names); it colors the element text and any
+   child icon. Shared by the main meters, history chips, totals and legend. */
+.mbti-tag-flame { color: #f97316; }
+.mbti-tag-flame .mbti-rating-icon,
+.mbti-tag-flame.axis-track-icon { background-color: #f97316; }
+
+.mbti-tag-shadow { color: #94a3b8; }
+.mbti-tag-shadow .mbti-rating-icon,
+.mbti-tag-shadow.axis-track-icon { background-color: #94a3b8; }
+
+.mbti-tag-heart { color: #f472b6; }
+.mbti-tag-heart .mbti-rating-icon,
+.mbti-tag-heart.axis-track-icon { background-color: #f472b6; }
+
+.mbti-tag-reason { color: #60a5fa; }
+.mbti-tag-reason .mbti-rating-icon,
+.mbti-tag-reason.axis-track-icon { background-color: #60a5fa; }
+
+.mbti-tag-pattern { color: #a78bfa; }
+.mbti-tag-pattern .mbti-rating-icon,
+.mbti-tag-pattern.axis-track-icon { background-color: #a78bfa; }
+
+.mbti-tag-clue { color: #34d399; }
+.mbti-tag-clue .mbti-rating-icon,
+.mbti-tag-clue.axis-track-icon { background-color: #34d399; }
+
+.mbti-tag-drift { color: #94a3b8; }
+.mbti-tag-drift .mbti-rating-icon,
+.mbti-tag-drift.axis-track-icon { background-color: #94a3b8; }
+
+.mbti-tag-anchor { color: #fbbf24; }
+.mbti-tag-anchor .mbti-rating-icon,
+.mbti-tag-anchor.axis-track-icon { background-color: #fbbf24; }
+
+.mbti-tag-neutral { color: rgba(212, 197, 169, 0.35); }
+.mbti-tag-neutral .mbti-rating-icon,
+.mbti-tag-neutral.axis-track-icon { background-color: rgba(212, 197, 169, 0.3); }
 
 .history-row {
     display: grid;
@@ -1100,7 +1141,7 @@
 
 .history-row-num {
     font-family: 'Cinzel', serif;
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(212, 175, 55, 0.4);
     text-align: center;
     padding-top: 2px;
@@ -1121,25 +1162,21 @@
 }
 
 .history-tag-empty {
-    font-size: 11px;
+    font-size: 12px;
     font-style: italic;
     color: rgba(212, 197, 169, 0.25);
 }
 
-.history-row-reasoning {
+.history-row-reasoning,
+.history-row-professor {
     font-family: 'Roboto', sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     font-style: normal;
     color: rgba(212, 197, 169, 0.7);
     line-height: 1.5;
 }
 
 .history-row-professor {
-    font-family: 'Roboto', sans-serif;
-    font-size: 11px;
-    font-style: italic;
-    color: rgba(212, 175, 55, 0.6);
-    line-height: 1.4;
     margin-top: 2px;
 }
 
@@ -1152,7 +1189,7 @@
 
 .history-footer-title {
     font-family: 'Cinzel', serif;
-    font-size: 9px;
+    font-size: 10px;
     letter-spacing: 2.5px;
     text-transform: uppercase;
     color: rgba(212, 197, 169, 0.35);
@@ -1175,7 +1212,7 @@
 
 .legend-text {
     font-family: 'Raleway', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     line-height: 1;
 }
@@ -1211,7 +1248,7 @@
     cursor: pointer;
     user-select: none;
     font-family: 'Cinzel', serif;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -1224,7 +1261,7 @@
 
 .mbti-set-chevron {
     color: #d4af37;
-    font-size: 11px;
+    font-size: 12px;
     transition: transform 0.2s ease;
     flex-shrink: 0;
 }
@@ -1254,14 +1291,14 @@
 
 .mbti-toggle-label {
     font-family: 'Roboto', sans-serif;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: rgba(212, 197, 169, 0.9);
 }
 
 .mbti-set-hint {
     font-family: 'Roboto', sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.5;
     color: rgba(212, 197, 169, 0.5);
 }
@@ -1282,7 +1319,7 @@
     min-width: 28px;
     text-align: right;
     font-family: 'Roboto', sans-serif;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #d4af37;
 }
@@ -1330,14 +1367,14 @@
 
 .mbti-radio-title {
     font-family: 'Roboto', sans-serif;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: rgba(212, 197, 169, 0.9);
 }
 
 .mbti-radio-sub {
     font-family: 'Roboto', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(212, 197, 169, 0.45);
 }
 
@@ -1364,7 +1401,7 @@
 
 .mbti-field-label {
     font-family: 'Roboto', sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: rgba(212, 197, 169, 0.85);
 }
@@ -1373,7 +1410,7 @@
     width: 100%;
     padding: 8px 10px;
     font-family: 'Roboto', sans-serif;
-    font-size: 13px;
+    font-size: 14px;
     color: rgba(212, 197, 169, 0.9);
     background: rgba(2, 4, 10, 0.6);
     border: 1px solid rgba(212, 197, 169, 0.2);
@@ -1391,7 +1428,7 @@
 .mbti-textarea {
     resize: vertical;
     min-height: 54px;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.5;
 }
 
@@ -1403,7 +1440,7 @@
 
 .mbti-set-nested > .mbti-set-header {
     padding: 10px 12px;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 1.5px;
 }
 
@@ -1421,7 +1458,7 @@
 .mbti-btn {
     padding: 8px 12px;
     font-family: 'Roboto', sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: rgba(212, 197, 169, 0.9);
     background: rgba(212, 197, 169, 0.08);
@@ -1468,7 +1505,7 @@
 
 .mbti-test-result {
     font-family: 'Roboto', sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     flex: 1;
 }
@@ -1486,7 +1523,7 @@
 
 .mbti-model-count {
     font-family: 'Roboto', sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(212, 175, 55, 0.7);
     white-space: nowrap;
 }
@@ -1511,7 +1548,7 @@
 .mbti-model-item {
     padding: 7px 10px;
     font-family: 'Roboto', monospace;
-    font-size: 12px;
+    font-size: 13px;
     color: rgba(212, 197, 169, 0.85);
     cursor: pointer;
     transition: background 0.12s;

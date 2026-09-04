@@ -23,6 +23,9 @@
         { axis: 'jp', icon: 'https://img.icons8.com/ios-filled/50/ffffff/wind.png', pos: '#94a3b8', neg: '#fbbf24', posTag: 'drift', negTag: 'anchor' },
     ];
 
+    // Quick lookup by axis name (ie/tf/sn/jp).
+    const AXIS_BY_NAME = Object.fromEntries(AXIS_META.map(m => [m.axis, m]));
+
     const ILLUSTRATIONS = {
         unknown: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020508"/><circle cx="290" cy="100" r="120" fill="none" stroke="rgba(212,175,55,0.06)" stroke-width="1"/><circle cx="290" cy="100" r="80" fill="none" stroke="rgba(212,175,55,0.08)" stroke-width="1"/><circle cx="290" cy="100" r="40" fill="none" stroke="rgba(212,175,55,0.12)" stroke-width="1"/><text x="290" y="115" text-anchor="middle" font-family="Cinzel,serif" font-size="56" font-weight="700" fill="rgba(212,175,55,0.08)" letter-spacing="8">????</text></svg>`,
         architect: `<svg viewBox="0 0 580 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><rect width="580" height="200" fill="#020a18"/><g stroke="rgba(96,165,250,0.12)" stroke-width="0.75" fill="none"><line x1="0" y1="40" x2="580" y2="40"/><line x1="0" y1="80" x2="580" y2="80"/><line x1="0" y1="120" x2="580" y2="120"/><line x1="0" y1="160" x2="580" y2="160"/></g><polygon points="290,30 420,160 160,160" fill="none" stroke="rgba(96,165,250,0.3)" stroke-width="1.5"/><circle cx="290" cy="100" r="4" fill="rgba(96,165,250,0.8)"/></svg>`,
@@ -636,10 +639,10 @@ function getLastUserMessage() {
         updateBar('sn', scores.sn, MAX_SCORE);
         updateBar('jp', scores.jp, MAX_SCORE);
 
-        setBarIcon('icon-ie', scores.ie, '#94a3b8', '#f97316');
-        setBarIcon('icon-tf', scores.tf, '#60a5fa', '#f472b6');
-        setBarIcon('icon-sn', scores.sn, '#34d399', '#a78bfa');
-        setBarIcon('icon-jp', scores.jp, '#fbbf24', '#94a3b8');
+        setBarIcon('icon-ie', scores.ie, AXIS_BY_NAME.ie);
+        setBarIcon('icon-tf', scores.tf, AXIS_BY_NAME.tf);
+        setBarIcon('icon-sn', scores.sn, AXIS_BY_NAME.sn);
+        setBarIcon('icon-jp', scores.jp, AXIS_BY_NAME.jp);
 
         updateDeltas();
 
@@ -666,6 +669,7 @@ function getLastUserMessage() {
         }
         if (professorEl) {
             professorEl.textContent = professor;
+            professorEl.style.color = 'rgba(212, 197, 169, 0.8)';
         }
         if (professorSection) {
             professorSection.style.display = professor ? 'block' : 'none';
@@ -674,8 +678,16 @@ function getLastUserMessage() {
         scheduleDeltaFade();
     }
 
-    // Show the point change for each axis from the previous turn, if any.
-    // deltaEl elements are populated with +N / -N in the axis's direction color.
+    // Swap the mbti-tag-* color class on an element to the given tag while
+    // preserving any other classes (e.g. the delta 'fade').
+    function applyTagClass(el, tag) {
+        if (!el) return;
+        [...el.classList].forEach((name) => {
+            if (name.startsWith('mbti-tag-')) el.classList.remove(name);
+        });
+        el.classList.add('mbti-tag-' + tag);
+    }
+
     function updateDeltas() {
         const axes = ['ie', 'tf', 'sn', 'jp'];
         const lastEntry = trail[trail.length - 1];
@@ -688,19 +700,14 @@ function getLastUserMessage() {
         }
         const before = lastEntry.previousScores || { ie: 0, tf: 0, sn: 0, jp: 0 };
         const after = lastEntry.scores || lastEntry;
-        const axisColors = {
-            ie: { neg: '#94a3b8', pos: '#f97316' },
-            tf: { neg: '#60a5fa', pos: '#f472b6' },
-            sn: { neg: '#34d399', pos: '#a78bfa' },
-            jp: { neg: '#fbbf24', pos: '#94a3b8' },
-        };
         axes.forEach(a => {
             const el = document.getElementById(`delta-${a}`);
             if (!el) return;
             const delta = (after[a] || 0) - (before[a] || 0);
             if (delta !== 0) {
+                const meta = AXIS_BY_NAME[a];
                 el.textContent = delta > 0 ? `+${delta}` : `${delta}`;
-                el.style.color = delta > 0 ? axisColors[a].pos : axisColors[a].neg;
+                applyTagClass(el, delta > 0 ? meta.posTag : meta.negTag);
                 el.classList.remove('fade');
             } else {
                 el.textContent = '';
@@ -1109,12 +1116,12 @@ function getLastUserMessage() {
         }
     }
 
-    function setBarIcon(id, val, negColor, posColor) {
+    function setBarIcon(id, val, meta) {
         const el = document.getElementById(id);
         if (!el) return;
-        if (val < 0) el.style.backgroundColor = negColor;
-        else if (val > 0) el.style.backgroundColor = posColor;
-        else el.style.backgroundColor = 'rgba(212,197,169,0.3)';
+        if (val < 0) applyTagClass(el, meta.negTag);
+        else if (val > 0) applyTagClass(el, meta.posTag);
+        else applyTagClass(el, 'neutral');
     }
 
     function openFullArchModal() {
@@ -1226,16 +1233,17 @@ function getLastUserMessage() {
         };
     }
 
-    // Mask-styled icon like the main panel bars.
-    function ratingIconHTML(meta, color) {
-        return '<div class="mbti-rating-icon" style="-webkit-mask-image:url(\'' + meta.icon + '\');mask-image:url(\'' + meta.icon + '\');background-color:' + color + ';"></div>';
+    // Mask-styled icon like the main panel bars. Its color comes from the
+    // parent's mbti-tag-* class.
+    function ratingIconHTML(meta) {
+        return '<div class="mbti-rating-icon" style="-webkit-mask-image:url(\'' + meta.icon + '\');mask-image:url(\'' + meta.icon + '\');"></div>';
     }
 
     // One chip: icon + signed delta for a non-zero axis.
     function ratingChipHTML(meta, delta) {
-        const color = delta > 0 ? meta.pos : meta.neg;
+        const tag = delta > 0 ? meta.posTag : meta.negTag;
         const text = (delta > 0 ? '+' : '') + delta;
-        return '<span class="mbti-rating-chip" style="color:' + color + ';">' + ratingIconHTML(meta, color) + '<span class="mbti-rating-chip-num">' + text + '</span></span>';
+        return '<span class="mbti-rating-chip mbti-tag-' + tag + '">' + ratingIconHTML(meta) + '<span class="mbti-rating-chip-num">' + text + '</span></span>';
     }
 
     // Chips for a single history row (all axes with non-zero delta).
@@ -1253,9 +1261,9 @@ function getLastUserMessage() {
         if (!el) return;
         el.innerHTML = AXIS_META.map(m => {
             const val = scores[m.axis] || 0;
-            const color = val > 0 ? m.pos : (val < 0 ? m.neg : 'rgba(212,197,169,0.35)');
+            const tag = val > 0 ? m.posTag : (val < 0 ? m.negTag : 'neutral');
             const text = (val > 0 ? '+' : '') + val;
-            return '<span class="mbti-rating-chip is-summary" style="color:' + color + ';">' + ratingIconHTML(m, color) + '<span class="mbti-rating-chip-num">' + text + '</span></span>';
+            return '<span class="mbti-rating-chip is-summary mbti-tag-' + tag + '">' + ratingIconHTML(m) + '<span class="mbti-rating-chip-num">' + text + '</span></span>';
         }).join('');
     }
 
@@ -1264,9 +1272,9 @@ function getLastUserMessage() {
         const el = document.getElementById('history-legend');
         if (!el) return;
         el.innerHTML = AXIS_META.map(m =>
-            '<div class="legend-item">' +
-                ratingIconHTML(m, m.pos) +
-                '<span class="legend-text"><span class="legend-pos" style="color:' + m.pos + ';">' + m.posTag + '</span> <span class="legend-arrow">/</span> <span class="legend-neg" style="color:' + m.neg + ';">' + m.negTag + '</span></span>' +
+            '<div class="legend-item mbti-tag-' + m.posTag + '">' +
+                ratingIconHTML(m) +
+                '<span class="legend-text"><span class="legend-pos mbti-tag-' + m.posTag + '">' + m.posTag + '</span> <span class="legend-arrow">/</span> <span class="legend-neg mbti-tag-' + m.negTag + '">' + m.negTag + '</span></span>' +
             '</div>'
         ).join('');
     }
@@ -1345,10 +1353,10 @@ function getLastUserMessage() {
                     </svg>
                 </div>
                 <div class="axis-bars-grid">
-                    <div class="axis-bar-item"><div class="axis-track" id="bar-ie"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-ie-left" style="background:#94a3b8;box-shadow:0 0 6px rgba(148,163,184,0.6);width:0%"></div><div class="axis-fill-right" id="bar-ie-right" style="background:#f97316;box-shadow:0 0 6px rgba(249,115,22,0.6);width:0%"></div><div id="icon-ie" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-ie"></div></div>
-                    <div class="axis-bar-item"><div class="axis-track" id="bar-tf"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-tf-left" style="background:#60a5fa;box-shadow:0 0 6px rgba(96,165,250,0.6);width:0%"></div><div class="axis-fill-right" id="bar-tf-right" style="background:#f472b6;box-shadow:0 0 6px rgba(244,114,182,0.6);width:0%"></div><div id="icon-tf" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-tf"></div></div>
-                    <div class="axis-bar-item"><div class="axis-track" id="bar-sn"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-sn-left" style="background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.6);width:0%"></div><div class="axis-fill-right" id="bar-sn-right" style="background:#a78bfa;box-shadow:0 0 6px rgba(167,139,250,0.6);width:0%"></div><div id="icon-sn" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-sn"></div></div>
-                    <div class="axis-bar-item"><div class="axis-track" id="bar-jp"><div class="axis-center-mark"></div><div class="axis-fill-left" id="bar-jp-left" style="background:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,0.6);width:0%"></div><div class="axis-fill-right" id="bar-jp-right" style="background:#94a3b8;box-shadow:0 0 6px rgba(148,163,184,0.6);width:0%"></div><div id="icon-jp" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;background-color:#94a3b8;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-jp"></div></div>
+                    <div class="axis-bar-item"><div class="axis-track" id="bar-ie"><div class="axis-center-mark"></div><div class="axis-fill-left bar-fill-ie-neg" id="bar-ie-left" style="width:0%"></div><div class="axis-fill-right bar-fill-ie-pos" id="bar-ie-right" style="width:0%"></div><div id="icon-ie" class="axis-track-icon" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-ie"></div></div>
+                    <div class="axis-bar-item"><div class="axis-track" id="bar-tf"><div class="axis-center-mark"></div><div class="axis-fill-left bar-fill-tf-neg" id="bar-tf-left" style="width:0%"></div><div class="axis-fill-right bar-fill-tf-pos" id="bar-tf-right" style="width:0%"></div><div id="icon-tf" class="axis-track-icon" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/like--v1.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-tf"></div></div>
+                    <div class="axis-bar-item"><div class="axis-track" id="bar-sn"><div class="axis-center-mark"></div><div class="axis-fill-left bar-fill-sn-neg" id="bar-sn-left" style="width:0%"></div><div class="axis-fill-right bar-fill-sn-pos" id="bar-sn-right" style="width:0%"></div><div id="icon-sn" class="axis-track-icon" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/idea.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-sn"></div></div>
+                    <div class="axis-bar-item"><div class="axis-track" id="bar-jp"><div class="axis-center-mark"></div><div class="axis-fill-left bar-fill-jp-neg" id="bar-jp-left" style="width:0%"></div><div class="axis-fill-right bar-fill-jp-pos" id="bar-jp-right" style="width:0%"></div><div id="icon-jp" class="axis-track-icon" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/wind.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-jp"></div></div>
                 </div>
                 <div class="reasoning-display" id="reasoning-display">
                     <div class="reasoning-header">
