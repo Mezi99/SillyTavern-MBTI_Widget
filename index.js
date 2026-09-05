@@ -257,11 +257,6 @@ function getLastUserMessage() {
         return { userMessage, aiResponse, userIdx, userMsgObj, aiMsgObj };
     }
     
-    function getLastUserMessage_text() {
-        const { userMessage } = getLastUserMessage();
-        return userMessage;
-    }
-
     /* ============================================
        LLM Backend abstraction (ST API or custom)
        ============================================ */
@@ -577,16 +572,12 @@ function getLastUserMessage() {
             last_ai_response: lastAiResponse
         };
         
-        console.log('[MBTI] queryRating - promptData:', JSON.stringify(promptData, null, 2));
-        console.log('[MBTI] queryRating - RATING_PROMPT:', buildRatingSystemPrompt());
-        
+        console.log('[MBTI] queryRating - backend:', (extension_settings?.mbti_widget?.backend || 'st'));
         try {
-            console.log('[MBTI] queryRating - backend:', (extension_settings?.mbti_widget?.backend || 'st'));
             const response = await generateMBTI({
                 prompt: JSON.stringify(promptData, null, 2),
                 systemPrompt: buildRatingSystemPrompt(),
             });
-            console.log('[MBTI] queryRating - raw response:', response);
             return parseRatingResponse(response);
         } catch (error) {
             console.error('MBTI Widget: Rating query failed', error);
@@ -686,9 +677,6 @@ function getLastUserMessage() {
                 
                 // Validate: 1-4 tags required
                 if (tags.length >= 1 && tags.length <= 4) {
-                    console.log('[MBTI] parseRatingResponse - tags:', tags);
-                    console.log('[MBTI] parseRatingResponse - reasoning:', reasoning);
-                    console.log('[MBTI] parseRatingResponse - professor:', professor);
                     return { tags, reasoning, professor, error: false };
                 }
             }
@@ -1430,8 +1418,6 @@ function getLastUserMessage() {
                 systemPrompt: buildRescanPrompt(),
                 maxTokensOverride: outputBudget,
             });
-
-            console.log('[MBTI] Re-scan response:', response);
 
             const parsed = parseRescanResponse(response);
             console.log('[MBTI] Parsed analyses:', parsed.analyses.length);
@@ -2385,10 +2371,6 @@ function getLastUserMessage() {
         extension_settings = ctx.extension_settings || ctx.extensionSettings;
         saveSettingsDebounced = ctx.saveSettingsDebounced;
         
-        console.log('[MBTI] Context keys:', Object.keys(ctx).slice(0, 20));
-        console.log('[MBTI] extension_settings:', extension_settings);
-        console.log('[MBTI] mbti_widget:', extension_settings?.mbti_widget);
-
         // Register settings with extension panel
         try {
             const resp = await fetch(`${BASE_URL}/settings.html`);
@@ -2402,10 +2384,6 @@ function getLastUserMessage() {
 
         // Register event handlers
         const context = SillyTavern.getContext();
-        
-        // Debug: check what events are available
-        console.log('[MBTI] event_types:', context.event_types);
-        console.log('[MBTI] MESSAGE_RECEIVED:', context.event_types?.MESSAGE_RECEIVED);
         
         context.eventSource.on(context.event_types.CHAT_LOADED, async () => {
             console.log('[MBTI] CHAT_LOADED event fired');
@@ -2537,7 +2515,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget loaded');
+        console.log('MBTI Widget v3.4.5 loaded');
     }
 
     function showTestResult(message, type) {
