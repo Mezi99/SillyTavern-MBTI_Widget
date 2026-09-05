@@ -2015,9 +2015,25 @@ function getLastUserMessage() {
         panel.className = 'mbti-panel';
         panel.innerHTML = `
             <div class="profile-shell" id="profile-shell">
+                <div class="profile-header">
+                    <div class="mbti-code" id="mbti-code">????</div>
+                    <div class="header-actions" id="header-actions">
+                        <button class="header-action-btn magnify-btn" id="magnify-btn" title="MBTI Type Encyclopedia">
+                            <div class="magnify-icon"></div>
+                        </button>
+                        <button class="header-action-btn radar-zoom-btn" id="radar-zoom-btn" title="Expand radar chart">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="7"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                        </button>
+                        <button class="header-action-btn stats-btn" id="stats-btn" title="Stats">
+                            <div class="stats-icon"></div>
+                        </button>
+                    </div>
+                </div>
                 <div class="profile-eyebrow">Your Nature</div>
                 <div class="archetype-name" id="archetype-name" style="color: var(--theme-gold)">THE UNKNOWN</div>
-                <div class="mbti-code" id="mbti-code">????</div>
                 <div class="archetype-desc" id="archetype-desc">Start chatting to build your MBTI profile...</div>
                 <div class="octagon-wrapper">
                     <svg id="octagon-svg" viewBox="0 0 220 220" width="100%" style="display:block;overflow:visible;position:relative;z-index:2;">
@@ -2042,20 +2058,6 @@ function getLastUserMessage() {
                             <circle id="dot-shadow" cx="110" cy="110" r="2.5" fill="#94a3b8" opacity="0"/><circle id="dot-anchor" cx="110" cy="110" r="2.5" fill="#fbbf24" opacity="0"/>
                         </g>
                     </svg>
-                    <div class="octagon-tools" id="octagon-tools">
-                        <button class="magnify-btn" id="magnify-btn" title="MBTI Type Encyclopedia">
-                            <div class="magnify-icon"></div>
-                        </button>
-                        <button class="radar-zoom-btn" id="radar-zoom-btn" title="Expand radar chart">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="11" cy="11" r="7"/>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                            </svg>
-                        </button>
-                        <button class="stats-btn" id="stats-btn" title="Stats">
-                            <div class="stats-icon"></div>
-                        </button>
-                    </div>
                 </div>
                 <div class="axis-bars-grid">
                     <div class="axis-bar-item"><div class="axis-track" id="bar-ie"><div class="axis-center-mark"></div><div class="axis-fill-left bar-fill-ie-neg" id="bar-ie-left" style="width:0%"></div><div class="axis-fill-right bar-fill-ie-pos" id="bar-ie-right" style="width:0%"></div><div id="icon-ie" class="axis-track-icon" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-ie"></div></div>
@@ -2520,7 +2522,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.4.6 loaded');
+        console.log('MBTI Widget v3.4.7 loaded');
     }
 
     function showTestResult(message, type) {

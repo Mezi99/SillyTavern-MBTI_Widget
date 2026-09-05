@@ -71,30 +71,56 @@
     position: relative;
 }
 
+#mbti-widget-panel .profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
 #mbti-widget-panel .mbti-code {
     font-family: 'Cinzel', serif;
-    font-size: 20px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 6px;
-    color: rgba(212, 175, 55, 0.55);
+    letter-spacing: 4px;
+    color: rgba(212, 197, 169, 0.45);
     text-transform: uppercase;
-    text-align: center;
-    margin: 2px 0 0;
     transition: color 0.5s ease;
 }
 
 #mbti-widget-panel .mbti-code.is-known {
-    color: rgba(212, 175, 55, 0.95);
+    color: rgba(212, 175, 55, 0.8);
+}
+
+#mbti-widget-panel .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+#mbti-widget-panel .header-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 4px;
+    background: rgba(212, 175, 55, 0.05);
+    color: rgba(212, 175, 55, 0.6);
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+#mbti-widget-panel .header-action-btn:hover {
+    background: rgba(212, 175, 55, 0.12);
+    border-color: rgba(212, 175, 55, 0.4);
+    color: rgba(212, 175, 55, 0.9);
 }
 
 #mbti-widget-panel .magnify-btn {
     padding: 0;
-    opacity: 0.65;
-    transition: opacity 0.2s;
-}
-
-#mbti-widget-panel .magnify-btn:hover {
-    opacity: 1;
 }
 
 #mbti-widget-panel .magnify-icon {
@@ -165,37 +191,6 @@
     width: 100%;
     max-width: 220px;
     margin: 0 auto 14px;
-}
-
-#mbti-widget-panel .octagon-tools {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-#mbti-widget-panel .octagon-tools button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border: 1px solid rgba(212, 197, 169, 0.2);
-    border-radius: 4px;
-    background: rgba(2, 4, 10, 0.55);
-    color: rgba(212, 197, 169, 0.55);
-    cursor: pointer;
-    padding: 0;
-    transition: color 0.2s, background 0.2s, border-color 0.2s;
-}
-
-#mbti-widget-panel .octagon-tools button:hover {
-    color: #d4af37;
-    background: rgba(2, 4, 10, 0.85);
-    border-color: rgba(212, 175, 55, 0.5);
 }
 
 /* Axis Bars Grid */
