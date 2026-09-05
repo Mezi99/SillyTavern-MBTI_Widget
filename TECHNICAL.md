@@ -235,21 +235,28 @@ function saveToChatMetadata() {
 
 ---
 
-#### `loadFromChatMetadata()` (line 137-146)
-Loads scores when chat opens:
+#### `loadFromChatMetadata()` (line 829)
+Loads scores when a chat opens, then prunes stale records for branched/shortened chats.
 
 ```javascript
-function loadFromChatMetadata() {
+async function loadFromChatMetadata() {
     const context = SillyTavern.getContext();
-    if (context.chat?.metadata?.mbti_scores) {
-        scores = context.chat.metadata.mbti_scores;
-        trail = context.chat.metadata.mbti_trail || [];
+    const metadata = context.chatMetadata;
+    if (metadata?.mbti_scores) {
+        scores = metadata.mbti_scores;
+        trail = metadata.mbti_trail || [];
     } else {
         scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
         trail = [];
     }
+    if (pruneStaleTrailEntries()) {   // branched/shortened chat?
+        await saveToChatMetadata();    // persist the pruned state
+        updatePanel();
+    }
 }
 ```
+
+**Branch handling:** ST's "branch from message N" copies the chat metadata but truncates the chat file. `pruneStaleTrailEntries()` (called on every chat load) keeps only trail records whose `messageIndex` still maps to a real `is_user` message in the current chat, dedupes last-wins, and rebuilds the cumulative chain from each record's own tag contribution (`scores − previousScores`). Stale tail records (referencing messages that no longer exist) and legacy AI-indexed rows are dropped, so the auto-trigger guard (`userIdx <= lastRecordIdx`) can fire again on the branched chat's next user message and the history modal only shows the valid prefix.
 
 ---
 
@@ -383,6 +390,8 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 ---
 
 ## Version History
+
+- **3.4.3** - Branch-aware metadata pruning. ST's "branch from message N" copies chat metadata into a truncated chat file; `pruneStaleTrailEntries()` now runs on every chat load and drops any trail record whose `messageIndex` no longer maps to a real `is_user` message in the current chat (stale tail beyond the branch point, plus legacy AI-indexed rows), dedupes last-wins, and rebuilds the cumulative `scores` chain from each record's own tag contribution before persisting. Without it, a branched chat's `lastRecordIdx` (e.g. 61 from a 63-message chat) silently blocked the new-user auto-trigger until the branch outgrew that index. Normal chats are untouched (all records map cleanly → no change, no write); `loadFromChatMetadata()` became async.
 
 - **3.4.2** - Auto-trigger only on user inputs. `reAnalyzeLastTurn()` now keys every auto-analysis record to the **user message's chat index** (via an extended `getLastUserMessage()` returning `userIdx`) instead of `chat.length - 1`, so records carry the chat-file message number and collide correctly with re-scan entries. The trigger is guarded: analysis runs on `MESSAGE_RECEIVED` only when a **new** `is_user` message exists (its index is greater than the last trail record's), so ST's Continue / regenerate / swipe — which append an AI message with no new user input — no longer fire or spam history with duplicates (the "last message is assistant yet the extension fired" case). The manual Re-analyze button and error-popup Re-send pass `force: true` to analyze the current turn regardless; the `busy` status is set only after the guard passes. Backfills: legacy records keyed to AI indexes are cleared by the next re-scan rebuild (v3.4.1 semantics).
 

@@ -826,7 +826,55 @@ function getLastUserMessage() {
         await context.saveMetadata();
     }
 
-    function loadFromChatMetadata() {
+    // When a chat is branched from an earlier point (ST copies the metadata but
+    // truncates the chat file), trail records referencing messages that no
+    // longer exist would keep the auto-trigger guard from firing (last record
+    // index > chat length). Prune the trail to the current chat: keep only
+    // records whose messageIndex maps to a real is_user message, dedupe
+    // last-wins, then rebuild the cumulative chain from each record's own tag
+    // contribution. Returns true when anything changed (caller persists).
+    function pruneStaleTrailEntries() {
+        const context = SillyTavern.getContext();
+        const chat = context?.chat;
+        if (!chat || trail.length === 0) return false;
+
+        let changed = false;
+        const valid = new Map();
+        for (const entry of trail) {
+            const idx = entry.messageIndex;
+            const m = idx >= 0 ? chat[idx] : undefined;
+            if (m && m.is_user) {
+                valid.set(idx, entry);
+            } else {
+                changed = true;
+            }
+        }
+        if (valid.size !== trail.length) changed = true;
+
+        if (!changed) return false;
+
+        const kept = [...valid.values()].sort((a, b) => a.messageIndex - b.messageIndex);
+        trail = [];
+        let base = { ie: 0, tf: 0, sn: 0, jp: 0 };
+        for (const entry of kept) {
+            const prev = JSON.parse(JSON.stringify(base));
+            const next = JSON.parse(JSON.stringify(prev));
+            const oldPrev = entry.previousScores;
+            const oldScores = getEntryScores(entry);
+            ['ie', 'tf', 'sn', 'jp'].forEach(a => {
+                const contribution = oldPrev && oldScores ? (oldScores[a] || 0) - (oldPrev[a] || 0) : 0;
+                next[a] += contribution;
+            });
+            trail.push({ ...entry, previousScores: prev, scores: next });
+            base = next;
+        }
+        syncScoresFromTrail();
+
+        console.warn(`[MBTI] Pruned stale trail record(s): chat has ${chat.length} message(s) but stored metadata referenced a longer history (branch/shortened chat). ${trail.length} valid record(s) kept.`);
+        return true;
+    }
+
+    async function loadFromChatMetadata() {
         const context = SillyTavern.getContext();
         const metadata = context.chatMetadata;
         if (metadata?.mbti_scores) {
@@ -836,6 +884,12 @@ function getLastUserMessage() {
         } else {
             scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
             trail = [];
+            updatePanel();
+        }
+        // Branched/shortened chats must not retain stale tail records — prune
+        // and persist so the auto-trigger guard and history stay consistent.
+        if (pruneStaleTrailEntries()) {
+            await saveToChatMetadata();
             updatePanel();
         }
     }
@@ -2348,9 +2402,9 @@ function getLastUserMessage() {
         console.log('[MBTI] event_types:', context.event_types);
         console.log('[MBTI] MESSAGE_RECEIVED:', context.event_types?.MESSAGE_RECEIVED);
         
-        context.eventSource.on(context.event_types.CHAT_LOADED, () => {
+        context.eventSource.on(context.event_types.CHAT_LOADED, async () => {
             console.log('[MBTI] CHAT_LOADED event fired');
-            loadFromChatMetadata();
+            await loadFromChatMetadata();
             if (panelCreated) updatePanel();
         });
 
