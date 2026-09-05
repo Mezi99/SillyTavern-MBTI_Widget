@@ -145,12 +145,80 @@ Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs dr
 If a message is genuinely neutral on an axis, omit both tags from that pair.`;
     }
 
-    function getMessageContext(count) {
+    // --- Regex script cleaning (mirrors ST's main-chat / ST-Copilot behavior) ---
+    //
+    // SillyTavern strips "Regex Scripts" content (CYOA option markers, tracker
+    // dumps, ...) from messages before they reach the model. ST-Copilot applies
+    // the same engine via a dynamic import of /scripts/extensions/regex/engine.js.
+    // Our extension sends message text directly (custom backend, re-scan, auto
+    // analysis), so we must run the same engine: the model sees the clean story,
+    // and the token estimate matches the actual payload. Every failure path
+    // returns the original text so regex issues can never break the extension.
+
+    let _regexEngineModule = false;
+
+    async function loadRegexEngine() {
+        if (_regexEngineModule !== false) return _regexEngineModule;
+        try {
+            const mod = await import('/scripts/extensions/regex/engine.js');
+            _regexEngineModule =
+                mod && typeof mod.getRegexedString === 'function' ? mod : null;
+        } catch (e) {
+            _regexEngineModule = null;
+        }
+        return _regexEngineModule;
+    }
+
+    // Apply the active regex scripts for a message's role placement, mirroring
+    // ST-Copilot's applyRegexIfEnabled exactly (placements USER_INPUT for user
+    // messages, AI_OUTPUT otherwise; depth = messages from the newest entry).
+    async function applyRegexScripts(text, isUser, depth) {
+        if (typeof text !== 'string' || !text) return text;
+        try {
+            const mod = await loadRegexEngine();
+            if (!mod) return text;
+            const placement = isUser
+                ? (mod.regex_placement?.USER_INPUT ?? 2)
+                : (mod.regex_placement?.AI_OUTPUT ?? 1);
+            const params = { isPrompt: true, depth: depth || 0 };
+            const result = mod.getRegexedString(text, placement, params);
+            const resolved = (result instanceof Promise) ? await result : result;
+            return (typeof resolved === 'string') ? resolved : text;
+        } catch (e) {
+            return text;
+        }
+    }
+
+    // Clean a chat message through the regex engine once, cached by message
+    // object identity (invalidated when m.mes changes, e.g. after an edit).
+    // Keyed on the raw text so the greedy re-scan loop never re-runs regexes.
+    const _cleanCache = new Map();
+
+    async function cleanMessageText(m) {
+        if (!m || typeof m.mes !== 'string') return m ? m.mes : '';
+        const cached = _cleanCache.get(m);
+        if (cached && cached.src === m.mes) return cached.cleaned;
+        const context = SillyTavern.getContext();
+        const chat = context?.chat || [];
+        const idx = chat.indexOf(m);
+        const depth = idx >= 0 ? chat.length - 1 - idx : 0;
+        const cleaned = await applyRegexScripts(m.mes, !!m.is_user, depth);
+        if (_cleanCache.size > 4000) _cleanCache.clear();
+        _cleanCache.set(m, { src: m.mes, cleaned });
+        return cleaned;
+    }
+
+    async function getMessageContext(count) {
         const context = SillyTavern.getContext();
         if (!context.chat) return '';
         const chat = context.chat;  // chat IS the array (not chat.messages)
         const recent = chat.slice(-count).filter(m => !m.is_system);
-        return recent.map(m => `${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${m.mes}`).join('\n');  // .mes, not .msg
+        const lines = [];
+        for (const m of recent) {
+            const text = await cleanMessageText(m);
+            lines.push(`${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${text}`);
+        }
+        return lines.join('\n');
     }
 
 function getLastUserMessage() {
@@ -195,9 +263,47 @@ function getLastUserMessage() {
             model: cfg.model || '',
             maxTokens: cfg.maxTokens ?? 8192,
             temperature: cfg.temperature ?? 0.7,
-            contextLength: cfg.contextLength ?? 0,
+            // User-managed context window (in tokens). Defaults to 64,000; a
+            // provider-reported real limit (learnedContextLength) is informational
+            // only and never overrides this value.
+            contextLength: cfg.contextLength ?? 64000,
+            learnedContextLength: cfg.learnedContextLength || 0,
             apiKey: apiKey,
         };
+    }
+
+    // Learn the provider's real context limit from error messages that report
+    // it (e.g. NanoGPT's "Max context tokens: 64000"). Informational only: the
+    // user's configured "Context size (tokens)" always wins for budgeting. Never
+    // throws — this runs on already-failing requests.
+    function learnContextLimitFromError(errorText, baseUrl) {
+        try {
+            const customApi = extension_settings?.mbti_widget?.customApi;
+            if (!customApi || typeof errorText !== 'string') return;
+            const patterns = [
+                /max\s+context\s+tokens[:=]?\s*(\d[\d,]*)/i,
+                /maximum\s+context\s+(?:length|size|tokens?)[^0-9]{0,12}(\d[\d,]*)/i,
+                /context\s+length\s+(?:of|is|exceeds?)[^0-9]{0,12}(\d[\d,]*)/i,
+                /context_length[^0-9]{0,12}(\d[\d,]*)/i,
+            ];
+            let limit = 0;
+            for (const re of patterns) {
+                const match = errorText.match(re);
+                if (match) {
+                    limit = parseInt(match[1].replace(/[^\d]/g, ''), 10);
+                    if (limit > 0) break;
+                }
+            }
+            if (limit <= 0) return;
+            const prev = customApi.learnedContextLength || 0;
+            if (prev !== limit) {
+                customApi.learnedContextLength = limit;
+                saveSettingsDebounced();
+            }
+            console.warn(`[MBTI] API reports a real context limit of ${limit} tokens (${baseUrl}). If "Context size (tokens)" differs, adjust it in the extension settings to match.`);
+        } catch (e) {
+            // never break the error path
+        }
     }
 
     function isCustomBackend() {
@@ -297,8 +403,8 @@ function getLastUserMessage() {
             headers['Authorization'] = `Bearer ${apiKey.trim()}`;
         }
 
-        try {
-            const response = await fetch(endpoint, {
+        const trySend = async (requestedMaxTokens) => {
+            return await fetch(endpoint, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify({
@@ -307,10 +413,25 @@ function getLastUserMessage() {
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: prompt },
                     ],
-                    max_tokens: maxTokensOverride || maxTokens || 2048,
+                    max_tokens: requestedMaxTokens,
                     temperature: temperature ?? 0.7,
                 }),
             });
+        };
+
+        try {
+            const requestedMaxTokens = maxTokensOverride || maxTokens || 2048;
+            let response = await trySend(requestedMaxTokens);
+
+            // Some providers reject max_tokens values above the model's output
+            // ceiling. Retry once with the configured value when that happens.
+            if (!response.ok) {
+                const firstText = await response.clone().text();
+                const tooLarge = /max_tokens|maximum\s+(output|response)|too\s+large|is\s+less\s+than/i.test(firstText);
+                if (tooLarge && requestedMaxTokens > (maxTokens || 2048)) {
+                    response = await trySend(maxTokens || 2048);
+                }
+            }
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -325,6 +446,7 @@ function getLastUserMessage() {
                         errorMessage = `Custom API error: ${errorText}`;
                     }
                 }
+                learnContextLimitFromError(errorText, normalizedBaseUrl);
                 throw new Error(errorMessage);
             }
 
@@ -473,7 +595,7 @@ function getLastUserMessage() {
         const { userMessage, aiResponse } = getLastUserMessage();
         if (!userMessage) return false;
 
-        const chatHistory = getMessageContext(settings?.contextMessages || 5);
+        const chatHistory = await getMessageContext(settings?.contextMessages || 5);
         if (!chatHistory) return false;
 
         isProcessing = true;
@@ -938,36 +1060,40 @@ function getLastUserMessage() {
     }
 
     // Build the text representation of messages for the re-scan payload/sizing.
-    function buildRescanChatText(messages) {
+    // Message content runs through the regex engine (cleanMessageText) so the
+    // model sees the clean story and the estimate matches the sent payload.
+    async function buildRescanChatText(messages) {
         // Number messages with their global chat index so the LLM's returned
         // messageIndex matches the auto-analysis records (which use the chat
         // array position), keeping one record per reply across both paths.
         const context = SillyTavern.getContext();
         const chat = context ? context.chat : null;
-        return messages.map(m => {
+        const parts = [];
+        for (const m of messages) {
             const idx = chat ? chat.indexOf(m) : -1;
-            return `[${idx}] ${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${m.mes}`;
-        }).join('\n');
+            const text = await cleanMessageText(m);
+            parts.push(`[${idx}] ${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${text}`);
+        }
+        return parts.join('\n');
     }
 
-    // Count tokens of the full re-scan prompt (rescan prompt + chat text) using
-    // SillyTavern's tokenizer. Falls back to a chars/4 heuristic if unavailable.
+    // Count tokens of the full re-scan prompt (rescan prompt + clean chat text)
+    // using SillyTavern's tokenizer. Falls back to a chars/4 heuristic if
+    // unavailable. Always counts the same cleaned text the payload will carry.
     async function countRescanTokens(messages) {
         const rescanPrompt = buildRescanPrompt();
         try {
             const context = SillyTavern.getContext();
             if (context && typeof context.getTokenCountAsync === 'function') {
-                const text = buildRescanChatText(messages);
+                const text = await buildRescanChatText(messages);
                 const promptTokens = await context.getTokenCountAsync(rescanPrompt + '\n' + text);
                 return promptTokens || 0;
             }
         } catch (e) {
             console.warn('MBTI Widget: getTokenCountAsync failed, using heuristic', e);
         }
-        let totalChars = rescanPrompt.length;
-        messages.forEach(m => {
-            totalChars += (m.mes || '').length + (m.name || '').length + 5;
-        });
+        const text = await buildRescanChatText(messages);
+        const totalChars = rescanPrompt.length + text.length + messages.length * 12;
         return Math.round(totalChars / 4);
     }
 
@@ -989,8 +1115,14 @@ function getLastUserMessage() {
 
         if (!isVisible) {
             const slider = document.getElementById('rescan-slider');
-            if (slider && extension_settings?.mbti_widget?.rescanMessages) {
-                slider.value = extension_settings.mbti_widget.rescanMessages;
+            const saved = extension_settings?.mbti_widget?.rescanMessages;
+            if (slider) {
+                // 0 / unset = scan the full chat (new-install default), which
+                // includes message 0, matching ST-Copilot's full window.
+                const chatLen = SillyTavern.getContext()?.chat?.length;
+                slider.value = (saved === undefined || saved === 0) && chatLen
+                    ? chatLen
+                    : (saved || 5);
             }
             updateRescanSlider();
         }
@@ -1006,6 +1138,8 @@ function getLastUserMessage() {
         const countEl = document.getElementById('rescan-count');
         const userCountEl = document.getElementById('rescan-user-count');
         const tokensEl = document.getElementById('rescan-tokens');
+        const budgetEl = document.getElementById('rescan-budget');
+        const warnEl = document.getElementById('rescan-warning');
 
         if (!slider) return;
 
@@ -1028,7 +1162,54 @@ function getLastUserMessage() {
 
         const messages = chat ? chat.slice(-messageCount) : [];
         const tokens = await countRescanTokens(messages);
-        tokensEl.textContent = `~${tokens.toLocaleString()} tokens`;
+        const budget = await getContextBudget();
+
+        if (budget > 0) {
+            const outputBudget = getRescanOutputBudget(userCount, tokens, budget);
+            const over = tokens + outputBudget > budget;
+            tokensEl.textContent = `~${tokens.toLocaleString()} in · ~${outputBudget.toLocaleString()} out`;
+            tokensEl.classList.toggle('is-over', over);
+            const learned = extension_settings?.mbti_widget?.customApi?.learnedContextLength || 0;
+            const learnedNote = learned > 0 && learned !== budget
+                ? ` (API reports real limit ${learned.toLocaleString()})`
+                : '';
+            if (budgetEl) {
+                budgetEl.textContent = `context ${budget.toLocaleString()}${learnedNote}`;
+            }
+            if (warnEl) {
+                if (over) {
+                    const fit = await countFittingMessages(chat, messageCount, budget);
+                    warnEl.style.display = 'block';
+                    warnEl.textContent = `Exceeds the context window (~${budget.toLocaleString()} tokens incl. output room) — the scan will analyze the newest ${fit} message(s).`;
+                } else {
+                    warnEl.style.display = 'none';
+                }
+            }
+        } else {
+            tokensEl.textContent = `~${tokens.toLocaleString()} tokens`;
+            tokensEl.classList.remove('is-over');
+            if (budgetEl) budgetEl.textContent = 'context unknown';
+            if (warnEl) warnEl.style.display = 'none';
+        }
+    }
+
+    // How many newest non-system messages fit (input + output) inside the budget.
+    // Mirrors the truncation logic in reScanHistory so the popup preview and the
+    // actual scan agree.
+    async function countFittingMessages(chat, wantedCount, budget) {
+        if (!chat || typeof wantedCount !== 'number') return 0;
+        const messages = chat.slice(-wantedCount).filter(m => !m.is_system);
+        let included = [];
+        for (const m of [...messages].reverse()) {
+            const candidate = [m, ...included];
+            const est = await countRescanTokens(candidate);
+            const userCount = candidate.filter(mm => mm.is_user).length;
+            if (budget > 0 && est + getRescanOutputBudget(userCount, est, budget) > budget) {
+                break;
+            }
+            included = candidate;
+        }
+        return included.length;
     }
 
     function parseRescanResponse(response) {
@@ -1052,13 +1233,20 @@ function getLastUserMessage() {
         return { analyses: [], error: true };
     }
 
-    // Compute output token budget for re-scan: scale by user message count so
-    // long chats aren't truncated, capped to avoid wasteful allocation.
-    function getRescanOutputBudget(userMessageCount) {
-        const configured = getCustomApiSettings().maxTokens;
-        const estimated = userMessageCount * 120;
-        const MAX_OUTPUT = 32768;
-        return Math.min(Math.max(configured, estimated), MAX_OUTPUT);
+    // Compute output token budget for re-scan so the analysis isn't truncated:
+    // floor at max(configured Max Tokens, scaled by user message count), capped
+    // by whatever room remains in the context window after the input estimate,
+    // so input + requested output always fit together. Never the fixed 32768 cap.
+    function getRescanOutputBudget(userMessageCount, inputEstimate, contextBudget) {
+        const configured = getCustomApiSettings().maxTokens || 8192;
+        const estimated = Math.max(configured, userMessageCount * 160);
+        const MIN_OUTPUT = 1024;
+        if (!(contextBudget > 0)) {
+            // Unknown context window: rely on the configured/scaled output only.
+            return Math.min(estimated, 131072);
+        }
+        const maxFit = Math.max(MIN_OUTPUT, contextBudget - inputEstimate);
+        return Math.min(estimated, maxFit);
     }
 
     async function reScanHistory(messageCount) {
@@ -1084,13 +1272,14 @@ function getLastUserMessage() {
         let overflowing = false;
 
         try {
-            // Greedily include messages newest-first until we hit the context budget.
-            // The prompt is the re-scan prompt + the formatted history.
+            // Greedily include messages newest-first until input plus the output
+            // we'd request for them would overflow the context budget.
             let includedMsgs = [];
             for (const m of [...messages].reverse()) {
                 const candidateAll = [m, ...includedMsgs];
                 const est = await countRescanTokens(candidateAll);
-                if (budget > 0 && est > budget) {
+                const userCount = candidateAll.filter(mm => mm.is_user).length;
+                if (budget > 0 && est + getRescanOutputBudget(userCount, est, budget) > budget) {
                     overflowing = true;
                     break;
                 }
@@ -1099,7 +1288,7 @@ function getLastUserMessage() {
             // includedMsgs is newest-first; keep it chronological for the prompt.
             includedMsgs = includedMsgs.reverse();
 
-            let chatText = buildRescanChatText(includedMsgs);
+            let chatText = await buildRescanChatText(includedMsgs);
             if (overflowing && includedMsgs.length < messages.length) {
                 const omitted = messages.length - includedMsgs.length;
                 chatText = `[NOTE: ${omitted} earlier message(s) omitted to fit the model context window.]\n${chatText}`;
@@ -1111,14 +1300,19 @@ function getLastUserMessage() {
                 warnEl.style.display = overflowing ? 'block' : 'none';
                 if (overflowing) {
                     const omittedTotal = messages.length - includedMsgs.length;
-                    warnEl.textContent = `Chat exceeds the model context (~${budget.toLocaleString()} tokens) — analyzing the newest ${includedMsgs.length} messages. ${omittedTotal} earlier message(s) omitted.`;
+                    warnEl.textContent = `Chat exceeds the model context (~${budget.toLocaleString()} tokens incl. output room) — analyzing the newest ${includedMsgs.length} messages. ${omittedTotal} earlier message(s) omitted.`;
                 }
             }
 
-            // Re-scan output grows linearly with user messages (one analysis entry
-            // each: tags + reasoning). Scale output tokens to prevent truncation.
+            // Re-scan output grows with user messages (one analysis entry each).
+            // Request the largest output the remaining context allows so the
+            // analysis (incl. reasoning-model thinking) is never truncated.
             const includedUserCount = includedMsgs.filter(m => m.is_user).length;
-            const outputBudget = getRescanOutputBudget(includedUserCount);
+            const outputBudget = getRescanOutputBudget(
+                includedUserCount,
+                await countRescanTokens(includedMsgs),
+                budget,
+            );
 
             const response = await generateMBTI({
                 prompt: chatText,
@@ -1781,6 +1975,7 @@ function getLastUserMessage() {
                 <span id="rescan-user-count" class="rescan-user-count">~3 user messages</span>
                 <span id="rescan-tokens" class="rescan-tokens">~1,500 tokens</span>
             </div>
+            <div class="rescan-budget" id="rescan-budget"></div>
             <div class="rescan-warning" id="rescan-warning" style="display:none;"></div>
             <button class="rescan-go-btn" id="rescan-go-btn">Re-scan</button>
             <div class="rescan-progress" id="rescan-progress" style="display:none;">
@@ -2091,16 +2286,25 @@ function getLastUserMessage() {
                 model: '',
                 maxTokens: 8192,
                 temperature: 0.7,
-                contextLength: 0,
+                contextLength: 64000,
+                learnedContextLength: 0,
             };
         }
-        // Migrate existing settings that predate contextLength
-        if (extension_settings.mbti_widget.customApi.contextLength === undefined) {
-            extension_settings.mbti_widget.customApi.contextLength = 0;
+        // Migrate existing settings that predate contextLength or used the old
+        // 0 ("fall back to SillyTavern") default: 0 now means "use the 64k
+        // default and auto-learn from API errors" — see getContextBudget.
+        if (extension_settings.mbti_widget.customApi.contextLength === undefined ||
+            extension_settings.mbti_widget.customApi.contextLength === 0) {
+            extension_settings.mbti_widget.customApi.contextLength = 64000;
         }
-        // Persisted re-scan depth (default 5)
+        if (extension_settings.mbti_widget.customApi.learnedContextLength === undefined) {
+            extension_settings.mbti_widget.customApi.learnedContextLength = 0;
+        }
+        // Persisted re-scan depth. 0 = full chat (new-install default) so the
+        // whole history including message 0 is scanned; existing saved depths
+        // are preserved.
         if (extension_settings.mbti_widget.rescanMessages === undefined) {
-            extension_settings.mbti_widget.rescanMessages = 5;
+            extension_settings.mbti_widget.rescanMessages = 0;
         }
 
         // Prompt customization (Latest Analysis + Commenter). Keep defaults
@@ -2229,7 +2433,7 @@ function getLastUserMessage() {
         }
         if (maxTokensEl) maxTokensEl.value = customApi.maxTokens ?? 8192;
         if (tempEl) tempEl.value = customApi.temperature ?? 0.7;
-        if (contextLenEl) contextLenEl.value = customApi.contextLength || 0;
+        if (contextLenEl) contextLenEl.value = customApi.contextLength ?? 64000;
 
         // --- Event handlers ---
 

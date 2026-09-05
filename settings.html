@@ -108,8 +108,8 @@
 
                         <div class="mbti-field">
                             <label class="mbti-field-label" for="mbti_custom_context_length">Context size (tokens)</label>
-                            <input type="number" id="mbti_custom_context_length" class="mbti-input" value="0" min="0" step="1024">
-                            <div class="mbti-set-hint">Model's max context window. Auto-filled when fetching models. Used to guard against overflow on re-scan. Leave 0 to fall back to SillyTavern's setting.</div>
+                            <input type="number" id="mbti_custom_context_length" class="mbti-input" value="64000" min="0" step="1024">
+                            <div class="mbti-set-hint">Model's max context window. Defaults to 64,000; auto-filled when fetching models, or the API's real limit may be learned from error messages. Used to guard against overflow on re-scan.</div>
                         </div>
 
                         <div class="mbti-field mbti-test-row">

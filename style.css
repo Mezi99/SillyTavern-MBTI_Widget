@@ -712,10 +712,22 @@
 }
 
 .rescan-user-count,
-.rescan-tokens {
+.rescan-tokens,
+.rescan-budget {
     font-family: 'Raleway', sans-serif;
     font-size: 11px;
     color: rgba(212, 197, 169, 0.5);
+}
+
+.rescan-budget {
+    margin-bottom: 8px;
+    text-align: right;
+    padding: 0 2px;
+}
+
+.rescan-tokens.is-over {
+    color: rgba(251, 113, 133, 0.95);
+    font-weight: 700;
 }
 
 .rescan-warning {
