@@ -123,7 +123,11 @@ Respond strictly ONLY with valid JSON:
         const analysis = sanitizePromptText(p.analysis) || DEFAULT_ANALYSIS_PROMPT;
         return `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
 
-For each user message, return an analysis with the message index shown in the history and the applicable tags.
+Message numbering rules (CRITICAL):
+- Every line in the history is numbered with its exact index in the chat file, shown in square brackets before the role marker, e.g. \`[12] [user] Name: text\` and \`[13] [ai] Name: text\`.
+- Indices are consecutive and 0-based; they depend ONLY on position in the chat file, not on the role. Consecutive assistant messages still get consecutive indices, and there is no skipping.
+- For each user message, copy that line's bracket number VERBATIM into the returned "messageIndex". Never renumber, shift, count, or guess the index.
+- Return EXACTLY ONE analysis object per [user] line, in chronological order.
 
 Respond strictly ONLY with valid JSON:
 {
@@ -768,6 +772,29 @@ function getLastUserMessage() {
         syncScoresFromTrail();
     }
 
+    // Re-scan is authoritative: clear the whole trail and rebuild it fresh from
+    // the resolved analyses so stale/duplicate records disappear. Entries are
+    // written in chronological order with a fresh cumulative previousScores
+    // chain (applyTagsTo clamps at MAX_SCORE), then scores reflects the tail.
+    function rebuildTrailFromAnalyses(analyses) {
+        trail = [];
+        let base = { ie: 0, tf: 0, sn: 0, jp: 0 };
+        analyses.forEach(analysis => {
+            const prev = JSON.parse(JSON.stringify(base));
+            const next = JSON.parse(JSON.stringify(prev));
+            applyTagsTo(next, analysis.tags);
+            trail.push({
+                messageIndex: analysis.messageIndex,
+                scores: next,
+                previousScores: prev,
+                reasoning: analysis.reasoning || '',
+                professor: '',
+            });
+            base = next;
+        });
+        syncScoresFromTrail();
+    }
+
     async function saveToChatMetadata() {
         const context = SillyTavern.getContext();
         const metadata = context.chatMetadata;
@@ -1233,20 +1260,23 @@ function getLastUserMessage() {
         return { analyses: [], error: true };
     }
 
-    // Compute output token budget for re-scan so the analysis isn't truncated:
-    // floor at max(configured Max Tokens, scaled by user message count), capped
-    // by whatever room remains in the context window after the input estimate,
-    // so input + requested output always fit together. Never the fixed 32768 cap.
+    // Compute output token budget for re-scan so the analysis isn't truncated.
+    // Always request the largest output the remaining context allows (floored at
+    // MIN, capped at MAX_SCAN_OUTPUT) so reasoning-model thinking is never cut
+    // short. When the context window is unknown, fall back to the configured or
+    // scaled estimate. generateWithCustomOpenAI retries once at the configured
+    // max_tokens if the provider rejects a too-large request.
     function getRescanOutputBudget(userMessageCount, inputEstimate, contextBudget) {
         const configured = getCustomApiSettings().maxTokens || 8192;
         const estimated = Math.max(configured, userMessageCount * 160);
-        const MIN_OUTPUT = 1024;
+        const MIN_SCAN_OUTPUT = 1024;
+        const MAX_SCAN_OUTPUT = 32768;
         if (!(contextBudget > 0)) {
             // Unknown context window: rely on the configured/scaled output only.
-            return Math.min(estimated, 131072);
+            return Math.min(estimated, MAX_SCAN_OUTPUT);
         }
-        const maxFit = Math.max(MIN_OUTPUT, contextBudget - inputEstimate);
-        return Math.min(estimated, maxFit);
+        const remaining = Math.max(MIN_SCAN_OUTPUT, contextBudget - inputEstimate);
+        return Math.min(MAX_SCAN_OUTPUT, remaining);
     }
 
     async function reScanHistory(messageCount) {
@@ -1332,25 +1362,63 @@ function getLastUserMessage() {
                 return;
             }
 
-            // Dedupe by messageIndex (last occurrence wins) and process in
-            // chronological order so the cumulative chain stays consistent.
+            // Resolve each returned messageIndex against the actual user messages
+            // in the scanned window: accept exact hits, snap ±1 for off-by-one /
+            // shifted mis-numbering, drop anything unresolvable (last-wins dedupe).
+            const userIndexSet = new Set();
+            for (const m of includedMsgs) {
+                if (m.is_user) userIndexSet.add(chat.indexOf(m));
+            }
+            let corrected = 0;
+            let dropped = 0;
+            const resolved = {};
+            for (const a of parsed.analyses) {
+                let idx = a.messageIndex;
+                if (userIndexSet.has(idx)) {
+                    // exact match
+                } else if (userIndexSet.has(idx - 1)) {
+                    idx = idx - 1;
+                    corrected++;
+                } else if (userIndexSet.has(idx + 1)) {
+                    idx = idx + 1;
+                    corrected++;
+                } else {
+                    dropped++;
+                    continue;
+                }
+                resolved[idx] = a;
+            }
+            const resolvedList = Object.keys(resolved)
+                .map(Number)
+                .sort((x, y) => x - y)
+                .map(idx => ({ ...resolved[idx], messageIndex: idx }));
+
             if (parsed.analyses.length === 0 && response.trim()) {
                 console.warn('[MBTI] Re-scan: response parsed but contained no valid analyses.');
             }
-            const byIndex = new Map();
-            parsed.analyses.forEach(a => byIndex.set(a.messageIndex, a));
-            const ordered = [...byIndex.values()].sort((a, b) => a.messageIndex - b.messageIndex);
-            ordered.forEach(analysis => {
-                upsertTrailEntry(analysis.messageIndex, {
-                    tags: analysis.tags,
-                    reasoning: analysis.reasoning || '',
-                    professor: '',
-                });
-            });
+            if (parsed.analyses.length > 0 && resolvedList.length === 0) {
+                // Every analysis was unresolvable — don't wipe the existing
+                // trail on a bad result; surface it so it can be re-sent.
+                console.error('[MBTI] Re-scan: no analyzed message index maps to a user message in this chat.');
+                setStatus('error', 'Re-scan message indices unmapped');
+                errorResendHandler = () => reScanHistory(lastScanCount);
+                showErrorPopup('The re-scan returned message numbers that do not match any user message in this chat. Re-send to try again.');
+                return;
+            }
+            if (corrected > 0 || dropped > 0) {
+                console.warn(`[MBTI] Re-scan index fix: corrected ${corrected}, dropped ${dropped} of ${parsed.analyses.length} analyses.`);
+            }
+
+            // Re-scan is authoritative: wipe the trail and rebuild it fresh
+            // from the resolved analyses (chronological, one record per reply),
+            // eliminating stale/duplicate records from older scans.
+            rebuildTrailFromAnalyses(resolvedList);
 
             await saveToChatMetadata();
             updatePanel();
-            setStatus('done', 'Re-scan complete');
+            setStatus('done', corrected > 0 || dropped > 0
+                ? `Re-scan complete (${corrected} corrected${dropped > 0 ? `, ${dropped} dropped` : ''})`
+                : 'Re-scan complete');
 
             console.log('[MBTI] Re-scan complete. Final scores:', scores);
 
@@ -1980,7 +2048,7 @@ function getLastUserMessage() {
             <button class="rescan-go-btn" id="rescan-go-btn">Re-scan</button>
             <div class="rescan-progress" id="rescan-progress" style="display:none;">
                 <div class="rescan-spinner"></div>
-                <span id="rescan-progress-text">Analyzing chat history...</span>
+                <span id="rescan-progress-text" class="rescan-progress-text">Analyzing chat history...</span>
             </div>
         `;
         panel.appendChild(rescanPopup);
