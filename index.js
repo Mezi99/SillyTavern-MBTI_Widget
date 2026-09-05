@@ -2044,6 +2044,27 @@ function getLastUserMessage() {
             '<div class="stats-legend">' + legend + '</div>';
     }
 
+    // H · Axis Key: always-visible reference explaining the four axis initials
+    // (which letter each pole maps to and what the axis measures). Static copy.
+    function buildAxisKeyHTML() {
+        const rows = [
+            { axis: 'ie', letters: 'IE', poles: 'I/E', words: 'Introverted / Extraverted', desc: 'Where you draw energy: the inner world (I) or people and the world around you (E).' },
+            { axis: 'tf', letters: 'TF', poles: 'T/F', words: 'Thinking / Feeling', desc: 'How you decide: by logic and consistency (T) or by values and empathy (F).' },
+            { axis: 'sn', letters: 'SN', poles: 'S/N', words: 'Sensing / Intuitive', desc: 'How you take in information: concrete facts (S) or patterns and possibilities (N).' },
+            { axis: 'jp', letters: 'JP', poles: 'J/P', words: 'Judging / Perceiving', desc: 'How you live: planned and structured (J) or flexible and open (P).' },
+        ];
+        const html = AXIS_META.map(meta => {
+            const r = rows.find(x => x.axis === meta.axis);
+            return '<div class="stats-axis-key-row">' +
+                '<div class="stats-axis-key-line"><span class="stats-axis-letters" style="color:' + meta.pos + '">' + r.letters + '</span>' +
+                '<span class="stats-axis-poles">' + r.poles + '</span>' +
+                '<span class="stats-axis-words">' + r.words + '</span></div>' +
+                '<div class="stats-axis-key-desc">' + r.desc + '</div>' +
+            '</div>';
+        }).join('');
+        return '<div class="stats-section-title">Axis Key</div>' + '<div class="radar-micro">' + html + '</div>';
+    }
+
     function openStatsModal() {
         const key = getMBTIKey(scores);
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
@@ -2063,6 +2084,8 @@ function getLastUserMessage() {
         const emptyEl = document.getElementById('stats-empty');
         const journeyEl = document.getElementById('stats-journey');
         const chartEl = document.getElementById('stats-chart');
+        const keyEl = document.getElementById('stats-key');
+        if (keyEl) keyEl.innerHTML = buildAxisKeyHTML();
         if (trail.length === 0) {
             if (journeyEl) journeyEl.innerHTML = '';
             if (chartEl) chartEl.innerHTML = '';
@@ -2362,6 +2385,7 @@ function getLastUserMessage() {
                     <div class="stats-journey" id="stats-journey"></div>
                     <div class="stats-chart" id="stats-chart"></div>
                     <div class="stats-empty" id="stats-empty"></div>
+                    <div class="stats-key" id="stats-key"></div>
                 </div>
             </div>
         `;
@@ -2689,7 +2713,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.4.9 loaded');
+        console.log('MBTI Widget v3.5.0 loaded');
     }
 
     function showTestResult(message, type) {

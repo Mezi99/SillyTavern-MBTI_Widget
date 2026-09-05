@@ -2112,3 +2112,50 @@
     padding: 10px 0 20px;
     display: none;
 }
+
+.stats-axis-key-row {
+    padding: 7px 0;
+}
+
+.stats-axis-key-row + .stats-axis-key-row {
+    border-top: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.stats-axis-key-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.stats-axis-letters {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    flex-shrink: 0;
+}
+
+.stats-axis-poles {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: rgba(212, 197, 169, 0.55);
+    flex-shrink: 0;
+}
+
+.stats-axis-words {
+    font-family: 'Raleway', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: rgba(212, 197, 169, 0.8);
+}
+
+.stats-axis-key-desc {
+    font-family: 'Raleway', sans-serif;
+    font-size: 11px;
+    font-style: italic;
+    color: rgba(212, 197, 169, 0.5);
+    line-height: 1.4;
+}
