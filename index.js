@@ -1906,9 +1906,10 @@ function getLastUserMessage() {
         return '<div class="radar-journey">' + trail.length + ' observed turns · spans ' + firstIdx + ' → ' + lastIdx + '</div>';
     }
 
-    // F · Axis Journey: mini start → mid → current sparkline per axis with the
-    // net change from the first observation to now.
-    function radarMicroHTML() {
+    // F · Axis Journey (stats modal): mini start → mid → current sparkline per
+    // axis with the net change from the first observation to now. Moved out of
+    // the radar modal so that window only keeps the radar + stat cards.
+    function buildStatsJourneyHTML() {
         if (trail.length === 0) return '';
         const mid = trail[Math.floor((trail.length - 1) / 2)];
         const first = getEntryScores(trail[0]);
@@ -1942,11 +1943,146 @@ function getLastUserMessage() {
             '</div>';
         }).join('');
 
-        return '<div class="radar-footer-title">Axis Journey</div>' + rows;
+        return '<div class="radar-footer-title">Axis Journey</div>' + '<div class="radar-micro">' + rows + '</div>';
     }
 
     function buildRadarFooter() {
-        return radarJourneyHTML() + '<div class="radar-micro">' + radarMicroHTML() + '</div>';
+        return radarJourneyHTML();
+    }
+
+    // G · Score Trajectory: per-axis line chart of cumulative scores across the
+    // observed turns (x = turn, y = score). Fixed ±MAX_SCORE domain so the zero
+    // line always sits at true center. Flip ticks mark zero-crossings; a gold
+    // ring marks the single biggest single-turn delta.
+    function buildTrajectoryHTML() {
+        if (trail.length === 0) return '';
+        const W = 600, H = 240, L = 34, R = 18, T = 12, B = 26;
+        const pw = W - L - R, ph = H - T - B;
+        const m = MAX_SCORE;
+        const n = trail.length;
+        const x = i => (n === 1 ? L + pw / 2 : L + pw * (i / (n - 1)));
+        const y = v => T + ph * (0.5 - v / (2 * m));
+        const turnOf = i => {
+            const idx = trail[i] && trail[i].messageIndex !== undefined ? trail[i].messageIndex : i + 1;
+            return idx;
+        };
+        const val = (i, axis) => getEntryScores(trail[i])[axis] || 0;
+
+        let grid = '';
+        grid += '<line x1="' + L + '" y1="' + y(0).toFixed(1) + '" x2="' + (W - R) + '" y2="' + y(0).toFixed(1) + '" stroke="rgba(212,175,55,0.35)" stroke-width="1"/>';
+        grid += '<line x1="' + L + '" y1="' + y(m / 2).toFixed(1) + '" x2="' + (W - R) + '" y2="' + y(m / 2).toFixed(1) + '" stroke="rgba(212,197,169,0.10)" stroke-width="0.5"/>';
+        grid += '<line x1="' + L + '" y1="' + y(-m / 2).toFixed(1) + '" x2="' + (W - R) + '" y2="' + y(-m / 2).toFixed(1) + '" stroke="rgba(212,197,169,0.10)" stroke-width="0.5"/>';
+        const ticks = Math.min(n, 8);
+        for (let k = 0; k < ticks; k++) {
+            const i = Math.round((n - 1) * k / (ticks - 1));
+            grid += '<line x1="' + x(i).toFixed(1) + '" y1="' + T + '" x2="' + x(i).toFixed(1) + '" y2="' + (H - B) + '" stroke="rgba(212,197,169,0.06)" stroke-width="0.5"/>';
+        }
+        [m, 0, -m].forEach(v => {
+            grid += '<text x="' + (L - 6) + '" y="' + (y(v) + 3) + '" text-anchor="end" font-family="Raleway,sans-serif" font-size="8" fill="rgba(212,197,169,0.4)">' + v + '</text>';
+        });
+        grid += '<text x="' + L + '" y="' + (H - 10) + '" font-family="Raleway,sans-serif" font-size="8" fill="rgba(212,197,169,0.4)">turn ' + turnOf(0) + '</text>';
+        grid += '<text x="' + (W - R) + '" y="' + (H - 10) + '" text-anchor="end" font-family="Raleway,sans-serif" font-size="8" fill="rgba(212,197,169,0.4)">turn ' + turnOf(n - 1) + '</text>';
+
+        let lines = '';
+        let dots = '';
+        let endLabels = '';
+        AXIS_META.forEach(meta => {
+            const pts = (() => {
+                const p = trail.map((e, i) => x(i).toFixed(1) + ',' + y(val(i, meta.axis)).toFixed(1)).join(' ');
+                return n === 1 ? p + ' ' + p : p;
+            })();
+            lines += '<polyline points="' + pts + '" fill="none" stroke="' + meta.pos + '" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>';
+            if (n <= 40) {
+                trail.forEach((e, i) => {
+                    const v = val(i, meta.axis);
+                    dots += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="2.4" fill="' + meta.pos + '" opacity="0.85"><title>Turn ' + turnOf(i) + ' · ' + meta.axis.toUpperCase() + ' ' + (v > 0 ? '+' : '') + v + '</title></circle>';
+                });
+            }
+            const lv = val(n - 1, meta.axis);
+            endLabels += '<text x="' + (x(n - 1) + 5) + '" y="' + (y(lv) + 3) + '" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="' + meta.pos + '">' + (lv > 0 ? '+' : '') + lv + '</text>';
+        });
+
+        // Flip ticks: mark where an axis crossed zero between consecutive turns.
+        let flips = '';
+        for (let i = 1; i < n; i++) {
+            AXIS_META.forEach(meta => {
+                const p = val(i - 1, meta.axis);
+                const c = val(i, meta.axis);
+                if ((p > 0 && c <= 0) || (p < 0 && c >= 0) || (p === 0 && c !== 0)) {
+                    flips += '<line x1="' + x(i).toFixed(1) + '" y1="' + (y(0) - 3) + '" x2="' + x(i).toFixed(1) + '" y2="' + (y(0) + 3) + '" stroke="' + meta.pos + '" stroke-width="1.5" opacity="0.95"><title>' + meta.axis.toUpperCase() + ' crossed zero · turn ' + turnOf(i) + '</title></line>';
+                }
+            });
+        }
+
+        // Gold ring around the single biggest single-turn delta.
+        let pivot = '';
+        if (n >= 2) {
+            let best = null;
+            for (let i = 1; i < n; i++) {
+                const d = entryDelta(trail[i], i);
+                AXIS_META.forEach(meta => {
+                    const dv = d[meta.axis];
+                    if (dv !== 0 && (!best || Math.abs(dv) > Math.abs(best.delta))) {
+                        best = { meta: meta, delta: dv, idx: i };
+                    }
+                });
+            }
+            if (best) {
+                const bv = val(best.idx, best.meta.axis);
+                pivot = '<circle cx="' + x(best.idx).toFixed(1) + '" cy="' + y(bv).toFixed(1) + '" r="5.5" fill="none" stroke="rgba(212,175,55,0.95)" stroke-width="1.5"><title>Biggest turnaround · turn ' + turnOf(best.idx) + ' · ' + best.meta.axis.toUpperCase() + ' ' + (best.delta > 0 ? '+' : '') + best.delta + '</title></circle>';
+            }
+        }
+
+        const legend = AXIS_META.map(meta =>
+            '<span class="stats-legend-item"><span class="stats-legend-line" style="background:' + meta.pos + '"></span>' + meta.axis.toUpperCase() + '</span>'
+        ).join('');
+
+        return '<div class="stats-section-title">Score Trajectory</div>' +
+            '<svg viewBox="0 0 600 240" class="stats-chart-svg">' +
+                grid + lines + (n > 40 ? '' : dots) + flips + pivot + endLabels +
+            '</svg>' +
+            '<div class="stats-legend">' + legend + '</div>';
+    }
+
+    function openStatsModal() {
+        const key = getMBTIKey(scores);
+        const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
+
+        const codeEl = document.getElementById('stats-mbti-code');
+        if (codeEl) {
+            codeEl.textContent = arch.mbti;
+            codeEl.style.color = arch.color;
+        }
+
+        const nameEl = document.getElementById('stats-archetype-name');
+        if (nameEl) {
+            nameEl.textContent = arch.name;
+            nameEl.style.color = arch.color;
+        }
+
+        const emptyEl = document.getElementById('stats-empty');
+        const journeyEl = document.getElementById('stats-journey');
+        const chartEl = document.getElementById('stats-chart');
+        if (trail.length === 0) {
+            if (journeyEl) journeyEl.innerHTML = '';
+            if (chartEl) chartEl.innerHTML = '';
+            if (emptyEl) {
+                emptyEl.textContent = 'No analysis data yet. Start chatting or re-scan to build your profile.';
+                emptyEl.style.display = 'block';
+            }
+        } else {
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (journeyEl) journeyEl.innerHTML = buildStatsJourneyHTML();
+            if (chartEl) chartEl.innerHTML = buildTrajectoryHTML();
+        }
+
+        const overlay = document.getElementById('stats-overlay');
+        if (overlay) overlay.classList.add('is-open');
+    }
+
+    function closeStatsModal() {
+        const overlay = document.getElementById('stats-overlay');
+        if (overlay) overlay.classList.remove('is-open');
     }
 
     function openRadarModal() {
@@ -2209,6 +2345,37 @@ function getLastUserMessage() {
 
         document.getElementById('radar-overlay').addEventListener('click', function(e) {
             if (e.target === this) closeRadarModal();
+        });
+
+        const statsOverlay = document.createElement('div');
+        statsOverlay.id = 'stats-overlay';
+        statsOverlay.className = 'stats-overlay';
+        statsOverlay.innerHTML = `
+            <div class="stats-modal" id="stats-modal">
+                <div class="stats-header">
+                    <button class="stats-close" id="stats-close">×</button>
+                    <div class="stats-mbti-code" id="stats-mbti-code">????</div>
+                    <div class="stats-archetype-name" id="stats-archetype-name">THE UNKNOWN</div>
+                </div>
+                <div class="stats-divider"></div>
+                <div class="stats-body" id="stats-body">
+                    <div class="stats-journey" id="stats-journey"></div>
+                    <div class="stats-chart" id="stats-chart"></div>
+                    <div class="stats-empty" id="stats-empty"></div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(statsOverlay);
+
+        document.getElementById('stats-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            openStatsModal();
+        });
+        document.getElementById('stats-close').addEventListener('click', function() {
+            closeStatsModal();
+        });
+        document.getElementById('stats-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeStatsModal();
         });
 
         fullArchOverlay.addEventListener('click', function(e) {
@@ -2522,7 +2689,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.4.8 loaded');
+        console.log('MBTI Widget v3.4.9 loaded');
     }
 
     function showTestResult(message, type) {
