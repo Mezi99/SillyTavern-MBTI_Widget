@@ -128,49 +128,57 @@ function getMessageContext(count) {
 ---
 
 #### `getLastUserMessage()` (line 228)
-Finds the user's most recent message by scanning backward (skipping `is_system`), and returns the message text plus its chat index and the object, so callers can key records to the user message's number.
+Finds the user's most recent message by scanning backward (skipping `is_system`), and returns the message text plus its chat index, the user message object, and the AI response object — so callers can key records to the user message's number and regex-clean both texts before sending.
 
 ```javascript
 function getLastUserMessage() {
     const context = SillyTavern.getContext();
-    if (!context.chat) return { userMessage: null, aiResponse: null, userIdx: -1, userMsgObj: null };
+    if (!context.chat) return { userMessage: null, aiResponse: null, userIdx: -1, userMsgObj: null, aiMsgObj: null };
     const chat = context.chat;
-    let userMessage = null, userMsgObj = null, userIdx = -1, aiResponse = null;
+    let userMessage = null, userMsgObj = null, userIdx = -1, aiResponse = null, aiMsgObj = null;
     for (let i = chat.length - 1; i >= 0; i--) {
         if (!userMessage && chat[i].is_user && !chat[i].is_system) {
             userMessage = chat[i].mes; userMsgObj = chat[i]; userIdx = i;
         } else if (!aiResponse && !chat[i].is_user && !chat[i].is_system) {
-            aiResponse = chat[i].mes;
+            aiResponse = chat[i].mes; aiMsgObj = chat[i];
         }
         if (userMessage && aiResponse) break;
     }
-    return { userMessage, aiResponse, userIdx, userMsgObj };
+    return { userMessage, aiResponse, userIdx, userMsgObj, aiMsgObj };
 }
 ```
 
 ---
 
-#### `queryRating(userMessage, context)` (line 85-102)
-Sends message to LLM for MBTI tag analysis.
+#### `queryRating(lastUserMessage, lastAiResponse, chatHistory)` (line 571)
+Sends the cleaned last turn plus the recent chat-history block to the LLM for MBTI tag analysis.
 
 ```javascript
-async function queryRating(userMessage, context) {
-    const fullPrompt = `Recent context:\n${context}\n\nCharacter's action: "${userMessage}"`;
+async function queryRating(lastUserMessage, lastAiResponse, chatHistory) {
+    const promptData = {
+        chat_history: chatHistory,
+        last_user_message: lastUserMessage,
+        last_ai_response: lastAiResponse
+    };
     try {
-        const ctx = SillyTavern.getContext();
-        const response = await ctx.generateRaw({
-            prompt: fullPrompt,
+        const response = await generateMBTI({
+            prompt: JSON.stringify(promptData, null, 2),
             systemPrompt: buildRatingSystemPrompt(),
         });
         return parseRatingResponse(response);
     } catch (error) {
         console.error('MBTI Widget: Rating query failed', error);
-        return [];
+        if (isCustomBackend()) showTestResult(`Analysis failed: ${error.message}`, 'err');
+        return { tags: [], reasoning: '', professor: '', error: true };
     }
 }
 ```
 
-**Note:** Uses `SillyTavern.getContext().generateRaw()` - the same API SillyTavern uses for AI generation.
+**Prompt payload:** `chat_history` comes from `getMessageContext()` (each message regex-cleaned), and `last_user_message` / `last_ai_response` are cleaned via `cleanMessageText()` on the message objects before this call — so the whole on-the-wire payload is stripped (grading markers, CYOA syntax, trailing whitespace) exactly like the re-scan path. `cleanMessageText` never throws; a regex-engine import failure falls back to raw text.
+
+**Failure semantics:** both a parse failure (`parseRatingResponse` → `error: true`) and a transport/generation exception now return `error: true`. `reAnalyzeLastTurn()` treats either as "no write": it shows the error plus a Re-send popup and never calls `upsertTrailEntry`/`saveToChatMetadata`, so failed requests cannot remove or append garbage in the metadata. A successful response (`error: false`, guaranteed 1–4 valid tags) is the only path that records — replacement or append, per `upsertTrailEntry`.
+
+**Note:** Uses the same `generateMBTI()` backend abstraction as the rest of the extension.
 
 ---
 
@@ -390,6 +398,8 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 ---
 
 ## Version History
+
+- **3.4.4** - Auto-trigger token correctness + shared failure semantics. `reAnalyzeLastTurn()` now regex-cleans both the last user message and the last AI response (`cleanMessageText()` on the message objects, same engine as the re-scan path) before sending, closing the last raw-text gap in the per-turn payload (`chat_history` was already cleaned). `queryRating()`'s transport catch now returns `error: true` consistently with parse failures, so a network/generation failure is never mistaken for a successful "no tags" analysis — before this fix such a failure deleted the message's record (empty-tags-removes path) and saved garbage to metadata. Any failed request now writes nothing and surfaces the Re-send popup. `reAnalyzeLastTurn()` remains the single shared path for the auto-trigger, the manual Re-analyze button, and the error Re-send: auto appends (always a new user message); force re-evaluates the current turn via `upsertTrailEntry`, which replaces the record in place if one exists (Regenerate) or appends if the failed run wrote nothing. `getLastUserMessage()` additionally returns `aiMsgObj` for the cleaning step.
 
 - **3.4.3** - Branch-aware metadata pruning. ST's "branch from message N" copies chat metadata into a truncated chat file; `pruneStaleTrailEntries()` now runs on every chat load and drops any trail record whose `messageIndex` no longer maps to a real `is_user` message in the current chat (stale tail beyond the branch point, plus legacy AI-indexed rows), dedupes last-wins, and rebuilds the cumulative `scores` chain from each record's own tag contribution before persisting. Without it, a branched chat's `lastRecordIdx` (e.g. 61 from a 63-message chat) silently blocked the new-user auto-trigger until the branch outgrew that index. Normal chats are untouched (all records map cleanly → no change, no write); `loadFromChatMetadata()` became async.
 

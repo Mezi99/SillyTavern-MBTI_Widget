@@ -240,6 +240,7 @@ function getLastUserMessage() {
         let userMsgObj = null;
         let userIdx = -1;
         let aiResponse = null;
+        let aiMsgObj = null;
         
         for (let i = len - 1; i >= 0; i--) {
             if (!userMessage && chat[i].is_user && !chat[i].is_system) {
@@ -248,11 +249,12 @@ function getLastUserMessage() {
                 userIdx = i;
             } else if (!aiResponse && !chat[i].is_user && !chat[i].is_system) {
                 aiResponse = chat[i].mes;
+                aiMsgObj = chat[i];
             }
             if (userMessage && aiResponse) break;
         }
         
-        return { userMessage, aiResponse, userIdx, userMsgObj };
+        return { userMessage, aiResponse, userIdx, userMsgObj, aiMsgObj };
     }
     
     function getLastUserMessage_text() {
@@ -591,7 +593,7 @@ function getLastUserMessage() {
             if (isCustomBackend()) {
                 showTestResult(`Analysis failed: ${error.message}`, 'err');
             }
-            return { tags: [], reasoning: '', professor: '', error: false };
+            return { tags: [], reasoning: '', professor: '', error: true };
         }
     }
 
@@ -603,7 +605,7 @@ function getLastUserMessage() {
         const settings = extension_settings?.mbti_widget;
         if (!settings?.enabled) return false;
 
-        const { userMessage, aiResponse, userIdx } = getLastUserMessage();
+        const { userMessage, aiResponse, userIdx, userMsgObj, aiMsgObj } = getLastUserMessage();
         if (!userMessage || userIdx < 0) return false;
 
         // Auto-trigger path (MESSAGE_RECEIVED): analyze only when a genuinely NEW
@@ -623,10 +625,17 @@ function getLastUserMessage() {
         const chatHistory = await getMessageContext(settings?.contextMessages || 5);
         if (!chatHistory) return false;
 
+        // Regex-clean both message texts before sending (same engine as the
+        // re-scan path) so grading markers / CYOA syntax trimming / whitespace
+        // don't inflate the payload. cleanMessageText never throws, so a regex
+        // engine import failure falls back to the raw text.
+        const cleanUser = await cleanMessageText(userMsgObj);
+        const cleanAi = aiMsgObj ? await cleanMessageText(aiMsgObj) : (aiResponse || '');
+
         isProcessing = true;
         setStatus('busy', 'Analyzing the last turn...');
         try {
-            const result = await queryRating(userMessage, aiResponse, chatHistory);
+            const result = await queryRating(cleanUser, cleanAi, chatHistory);
 
             if (result.error) {
                 setStatus('error', 'Response format error');
@@ -650,12 +659,8 @@ function getLastUserMessage() {
 
             await saveToChatMetadata();
             updatePanel();
-            if (result.tags && result.tags.length > 0) {
-                setStatus('done', 'Analysis complete');
-            } else {
-                setStatus('done', 'No tags detected');
-            }
-            return result.tags && result.tags.length > 0;
+            setStatus('done', 'Analysis complete');
+            return true;
         } catch (error) {
             console.error('MBTI Widget: Analysis error', error);
             setStatus('error', 'Analysis failed');
