@@ -71,35 +71,25 @@
     position: relative;
 }
 
-#mbti-widget-panel .profile-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4px;
-}
-
 #mbti-widget-panel .mbti-code {
     font-family: 'Cinzel', serif;
-    font-size: 12px;
-    letter-spacing: 4px;
-    color: rgba(212, 197, 169, 0.35);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    color: rgba(212, 175, 55, 0.55);
     text-transform: uppercase;
+    text-align: center;
+    margin: 2px 0 0;
     transition: color 0.5s ease;
 }
 
 #mbti-widget-panel .mbti-code.is-known {
-    color: rgba(212, 175, 55, 0.6);
+    color: rgba(212, 175, 55, 0.95);
 }
 
 #mbti-widget-panel .magnify-btn {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.4;
+    padding: 0;
+    opacity: 0.65;
     transition: opacity 0.2s;
 }
 
@@ -110,9 +100,23 @@
 #mbti-widget-panel .magnify-icon {
     width: 14px;
     height: 14px;
-    background-color: var(--theme-gold);
-    -webkit-mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/search--v1.png');
-    mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/search--v1.png');
+    background-color: currentColor;
+    -webkit-mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/book.png');
+    mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/book.png');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
+#mbti-widget-panel .stats-icon {
+    width: 14px;
+    height: 14px;
+    background-color: currentColor;
+    -webkit-mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/statistics.png');
+    mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/statistics.png');
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -163,11 +167,17 @@
     margin: 0 auto 14px;
 }
 
-#mbti-widget-panel .radar-zoom-btn {
+#mbti-widget-panel .octagon-tools {
     position: absolute;
     top: 2px;
     right: 2px;
     z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+#mbti-widget-panel .octagon-tools button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -178,10 +188,11 @@
     background: rgba(2, 4, 10, 0.55);
     color: rgba(212, 197, 169, 0.55);
     cursor: pointer;
+    padding: 0;
     transition: color 0.2s, background 0.2s, border-color 0.2s;
 }
 
-#mbti-widget-panel .radar-zoom-btn:hover {
+#mbti-widget-panel .octagon-tools button:hover {
     color: #d4af37;
     background: rgba(2, 4, 10, 0.85);
     border-color: rgba(212, 175, 55, 0.5);
@@ -302,8 +313,8 @@
     width: 13px;
     height: 13px;
     background-color: var(--theme-gold);
-    -webkit-mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/play-button-circled.png');
-    mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/play-button-circled.png');
+    -webkit-mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/redo.png');
+    mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/redo.png');
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -607,12 +618,6 @@
 /* =============================================
    RE-SCAN UI
    ============================================= */
-.header-buttons {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
 .rescan-btn {
     width: 24px;
     height: 24px;
@@ -637,7 +642,8 @@
 .rescan-popup {
     display: none;
     position: absolute;
-    top: 50px;
+    top: auto;
+    bottom: 76px;
     right: 10px;
     width: 220px;
     padding: 12px;
@@ -870,6 +876,19 @@
 .mbti-error-btn.is-primary {
     background: rgba(248, 113, 113, 0.16);
     border-color: rgba(248, 113, 113, 0.5);
+}
+
+/* =============================================
+   PANEL ACTIONS (footer menu row)
+   ============================================= */
+.mbti-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-top: 1px solid rgba(212, 175, 55, 0.12);
+    background: rgba(5, 10, 18, 0.25);
 }
 
 /* =============================================

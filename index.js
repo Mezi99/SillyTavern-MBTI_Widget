@@ -2015,30 +2015,9 @@ function getLastUserMessage() {
         panel.className = 'mbti-panel';
         panel.innerHTML = `
             <div class="profile-shell" id="profile-shell">
-                <div class="profile-header">
-                    <div class="mbti-code" id="mbti-code">????</div>
-                    <div class="header-buttons">
-                        <button class="history-btn" id="history-btn" title="View analysis history">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
-                            </svg>
-                        </button>
-                        <button class="rescan-btn" id="rescan-btn" title="Re-scan chat history">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 4v6h6M23 20v-6h-6"/>
-                                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
-                            </svg>
-                        </button>
-                        <button class="magnify-btn" id="magnify-btn">
-                            <div class="magnify-icon"></div>
-                        </button>
-                    </div>
-                </div>
                 <div class="profile-eyebrow">Your Nature</div>
                 <div class="archetype-name" id="archetype-name" style="color: var(--theme-gold)">THE UNKNOWN</div>
+                <div class="mbti-code" id="mbti-code">????</div>
                 <div class="archetype-desc" id="archetype-desc">Start chatting to build your MBTI profile...</div>
                 <div class="octagon-wrapper">
                     <svg id="octagon-svg" viewBox="0 0 220 220" width="100%" style="display:block;overflow:visible;position:relative;z-index:2;">
@@ -2063,11 +2042,20 @@ function getLastUserMessage() {
                             <circle id="dot-shadow" cx="110" cy="110" r="2.5" fill="#94a3b8" opacity="0"/><circle id="dot-anchor" cx="110" cy="110" r="2.5" fill="#fbbf24" opacity="0"/>
                         </g>
                     </svg>
-                    <button class="radar-zoom-btn" id="radar-zoom-btn" title="Expand radar chart">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M15 3h6v6M10 14l11-11M21 15v6h-6M3 9V3h6M14 10l-11 11M3 15v6h6"/>
-                        </svg>
-                    </button>
+                    <div class="octagon-tools" id="octagon-tools">
+                        <button class="magnify-btn" id="magnify-btn" title="MBTI Type Encyclopedia">
+                            <div class="magnify-icon"></div>
+                        </button>
+                        <button class="radar-zoom-btn" id="radar-zoom-btn" title="Expand radar chart">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="7"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                        </button>
+                        <button class="stats-btn" id="stats-btn" title="Stats">
+                            <div class="stats-icon"></div>
+                        </button>
+                    </div>
                 </div>
                 <div class="axis-bars-grid">
                     <div class="axis-bar-item"><div class="axis-track" id="bar-ie"><div class="axis-center-mark"></div><div class="axis-fill-left bar-fill-ie-neg" id="bar-ie-left" style="width:0%"></div><div class="axis-fill-right bar-fill-ie-pos" id="bar-ie-right" style="width:0%"></div><div id="icon-ie" class="axis-track-icon" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:12px;height:12px;-webkit-mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');mask-image:url('https://img.icons8.com/ios-filled/50/ffffff/fire-element.png');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;transition:background-color 0.5s ease;"></div></div><div class="axis-delta" id="delta-ie"></div></div>
@@ -2087,6 +2075,22 @@ function getLastUserMessage() {
                         <div class="professor-label" id="professor-label">Psy Professor</div>
                         <div class="professor-text" id="professor-text"></div>
                     </div>
+                </div>
+                <div class="mbti-actions" id="mbti-actions">
+                    <button class="history-btn" id="history-btn" title="View analysis history">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </button>
+                    <button class="rescan-btn" id="rescan-btn" title="Re-scan chat history">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 4v6h6M23 20v-6h-6"/>
+                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="mbti-footer" id="mbti-footer">
                     <div class="mbti-footer-spinner" id="mbti-footer-spinner" style="display:none;"></div>
@@ -2261,12 +2265,13 @@ function getLastUserMessage() {
             }
         });
 
-        // Make panel draggable via header
-        const header = panel.querySelector('.profile-header');
+        // Make panel draggable via shell (except interactive elements)
+        const shell = panel.querySelector('.profile-shell');
         let isDraggingPanel = false;
         let panelStartX, panelStartY, panelInitialX, panelInitialY;
 
-        header.addEventListener('mousedown', (e) => {
+        shell.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button, input, a')) return;
             isDraggingPanel = true;
             panelStartX = e.clientX;
             panelStartY = e.clientY;
@@ -2293,7 +2298,7 @@ function getLastUserMessage() {
             }
         });
 
-        header.style.cursor = 'grab';
+        shell.style.cursor = 'grab';
 
         updatePanel();
         panelCreated = true;
@@ -2515,7 +2520,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.4.5 loaded');
+        console.log('MBTI Widget v3.4.6 loaded');
     }
 
     function showTestResult(message, type) {
