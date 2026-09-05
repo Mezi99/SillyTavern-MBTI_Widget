@@ -296,14 +296,6 @@
     margin-bottom: 0;
 }
 
-#mbti-widget-panel .reanalyze-btn {
-    opacity: 0.35;
-}
-
-#mbti-widget-panel .reanalyze-btn:hover {
-    opacity: 1;
-}
-
 #mbti-widget-panel .reanalyze-icon {
     width: 13px;
     height: 13px;

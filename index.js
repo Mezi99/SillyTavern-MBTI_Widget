@@ -2068,7 +2068,7 @@ function getLastUserMessage() {
                 <div class="reasoning-display" id="reasoning-display">
                     <div class="reasoning-header">
                         <div class="reasoning-label">Latest Analysis</div>
-                        <button class="magnify-btn reanalyze-btn" id="reanalyze-btn" title="Re-analyze the last turn">
+                        <button class="header-action-btn magnify-btn reanalyze-btn" id="reanalyze-btn" title="Re-analyze the last turn">
                             <div class="reanalyze-icon"></div>
                         </button>
                     </div>
@@ -2522,7 +2522,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.4.7 loaded');
+        console.log('MBTI Widget v3.4.8 loaded');
     }
 
     function showTestResult(message, type) {
