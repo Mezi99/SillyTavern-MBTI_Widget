@@ -227,25 +227,32 @@ If a message is genuinely neutral on an axis, omit both tags from that pair.`;
 
 function getLastUserMessage() {
         const context = SillyTavern.getContext();
-        if (!context.chat) return { userMessage: null, aiResponse: null };
+        if (!context.chat) return { userMessage: null, aiResponse: null, userIdx: -1, userMsgObj: null };
         const chat = context.chat;
         const len = chat.length;
-        if (len === 0) return { userMessage: null, aiResponse: null };
+        if (len === 0) return { userMessage: null, aiResponse: null, userIdx: -1, userMsgObj: null };
         
-        // Find last user message and last AI response (most recent messages at end)
+        // Find last user message and last AI response (most recent messages at end).
+        // Also return the chat index of the user message so auto-trigger records
+        // are keyed to the user's message number (matching the chat file and the
+        // re-scan entries), never the AI reply's index.
         let userMessage = null;
+        let userMsgObj = null;
+        let userIdx = -1;
         let aiResponse = null;
         
         for (let i = len - 1; i >= 0; i--) {
-            if (!userMessage && chat[i].is_user) {
+            if (!userMessage && chat[i].is_user && !chat[i].is_system) {
                 userMessage = chat[i].mes;
-            } else if (!aiResponse && !chat[i].is_user) {
+                userMsgObj = chat[i];
+                userIdx = i;
+            } else if (!aiResponse && !chat[i].is_user && !chat[i].is_system) {
                 aiResponse = chat[i].mes;
             }
             if (userMessage && aiResponse) break;
         }
         
-        return { userMessage, aiResponse };
+        return { userMessage, aiResponse, userIdx, userMsgObj };
     }
     
     function getLastUserMessage_text() {
@@ -591,13 +598,27 @@ function getLastUserMessage() {
     // Analyze the most recent turn (last user message) end-to-end and record it.
     // Shared by the auto-trigger (MESSAGE_RECEIVED) and the manual "re-analyze"
     // button. Returns true if a new analysis was recorded, false otherwise.
-    async function reAnalyzeLastTurn() {
+    async function reAnalyzeLastTurn(opts = {}) {
         if (isProcessing) return false;
         const settings = extension_settings?.mbti_widget;
         if (!settings?.enabled) return false;
 
-        const { userMessage, aiResponse } = getLastUserMessage();
-        if (!userMessage) return false;
+        const { userMessage, aiResponse, userIdx } = getLastUserMessage();
+        if (!userMessage || userIdx < 0) return false;
+
+        // Auto-trigger path (MESSAGE_RECEIVED): analyze only when a genuinely NEW
+        // user message arrived — i.e. the latest is_user line is newer than the
+        // last recorded analysis. ST's "Continue" / regenerate / swipe append an
+        // AI message with NO new user input, so they must not fire. The manual
+        // Re-analyze button and the error popup's Re-send pass force:true to
+        // analyze the current turn regardless.
+        if (!opts.force) {
+            const lastRecordIdx = trail.length > 0 ? trail[trail.length - 1].messageIndex : -1;
+            if (userIdx <= lastRecordIdx) {
+                console.log('[MBTI] Skip: no new user message (idx ' + userIdx + ' <= last analyzed ' + lastRecordIdx + ')');
+                return false;
+            }
+        }
 
         const chatHistory = await getMessageContext(settings?.contextMessages || 5);
         if (!chatHistory) return false;
@@ -609,14 +630,15 @@ function getLastUserMessage() {
 
             if (result.error) {
                 setStatus('error', 'Response format error');
-                errorResendHandler = reAnalyzeLastTurn;
+                errorResendHandler = () => reAnalyzeLastTurn({ force: true });
                 showErrorPopup('The analysis returned an invalid response format. Re-send to try again.');
                 return false;
             }
 
-            const ctx = SillyTavern.getContext();
-            const chat = ctx.chat;
-            const msgIndex = chat ? chat.length - 1 : trail.length;
+            // Key the record to the USER message's chat index so it matches the
+            // chat-file numbering and the re-scan entries (which analyze user
+            // messages). Never the AI reply's index (the old chat.length - 1).
+            const msgIndex = userIdx >= 0 ? userIdx : trail.length;
             const professorName = getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME;
 
             upsertTrailEntry(msgIndex, {
@@ -637,7 +659,7 @@ function getLastUserMessage() {
         } catch (error) {
             console.error('MBTI Widget: Analysis error', error);
             setStatus('error', 'Analysis failed');
-            errorResendHandler = reAnalyzeLastTurn;
+            errorResendHandler = () => reAnalyzeLastTurn({ force: true });
             showErrorPopup('The analysis failed. Re-send to try again.');
             return false;
         } finally {
@@ -2173,7 +2195,7 @@ function getLastUserMessage() {
 
         document.getElementById('reanalyze-btn').addEventListener('click', function(e) {
             e.stopPropagation();
-            reAnalyzeLastTurn();
+            reAnalyzeLastTurn({ force: true });
         });
 
         bindErrorPopup();
@@ -2334,7 +2356,6 @@ function getLastUserMessage() {
 
         context.eventSource.on(context.event_types.MESSAGE_RECEIVED, async (data) => {
             console.log('[MBTI] MESSAGE_RECEIVED event fired, data:', data);
-            setStatus('busy', 'New message received — analyzing...');
             const analyzed = await reAnalyzeLastTurn();
             console.log('[MBTI] reAnalyzeLastTurn analyzed:', analyzed);
         });

@@ -43,7 +43,12 @@ The extension uses SillyTavern's global pattern (NOT ES6 imports):
 ```
 User sends message → AI responds → MESSAGE_RECEIVED fires
     ↓
-getLastUserMessage()     → Get user's latest message from context.chat
+reAnalyzeLastTurn()        → Skips unless a NEW user message (is_user) arrived
+                             since the last record (Continue/regenerate/swipe
+                             add no user input and never fire). Records are keyed
+                             to the user message's chat index.
+    ↓
+getLastUserMessage()     → Get user's latest message + its chat index from context.chat
     ↓
 getMessageContext(n)    → Get n recent messages for LLM context
     ↓
@@ -84,7 +89,7 @@ The re-scan request can include a large slice of the chat, so it is guarded agai
 
 If the `script.js` dynamic import is unavailable (path/export differences across ST versions), `getContextBudget()` falls back to reading `context.chatCompletionSettings.openai_max_context` (OpenAI) or `context.maxContext` (local/text-generation backends), and finally `0` (no cap). Because the import is dynamic and wrapped in try/catch, a failure can never prevent the extension from loading.
 
-Message packing is **newest-first greedy**: `reScanHistory()` adds the newest messages until the estimated prompt **plus the requested output** would exceed the budget (`input + output ≤ context`), which reserves room for the analysis reply. `countRescanTokens()` uses `context.getTokenCountAsync()` (SillyTavern's tokenizer) with a `chars/4` heuristic fallback. If older messages are dropped, a note line is prepended to the prompt and a non-blocking warning is shown in the re-scan popup (which also previews the fit count live via `countFittingMessages()`). The auto-trigger (`queryRating`) is **not** capped — it only rates the newest reply with a bounded `contextMessages` window.
+Message packing is **newest-first greedy**: `reScanHistory()` adds the newest messages until the estimated prompt **plus the requested output** would exceed the budget (`input + output ≤ context`), which reserves room for the analysis reply. `countRescanTokens()` uses `context.getTokenCountAsync()` (SillyTavern's tokenizer) with a `chars/4` heuristic fallback. If older messages are dropped, a note line is prepended to the prompt and a non-blocking warning is shown in the re-scan popup (which also previews the fit count live via `countFittingMessages()`). The auto-trigger (`reAnalyzeLastTurn()`) is **not** token-capped — it only rates the newest user input with a bounded `contextMessages` window. It fires on `MESSAGE_RECEIVED` **only when a genuinely new user message arrived**: the latest `is_user` chat index must be greater than the last trail record's `messageIndex`. ST's **Continue**, regenerate, and swipe append an AI message with no new user input, so they never fire; consecutive-AI chats are handled because the check is purely index-based (record indices are the user messages' chat-file numbers, matching the re-scan). The manual **Re-analyze** button and the error popup's **Re-send** pass `force: true` to analyze the current turn regardless.
 
 **Regex cleaning (foundational):** SillyTavern's main prompt path and ST-Copilot run ST's **Regex Scripts** engine over message content (stripping CYOA option markers, tracker dumps, etc.) before it reaches the model. This extension sends message text directly, so it mirrors that behavior: `cleanMessageText()` applies the active regex engine via a guarded dynamic `import('/scripts/extensions/regex/engine.js')` (placements `USER_INPUT` for user messages, `AI_OUTPUT` otherwise; `depth` = messages-from-the-end), cached per message. Both `buildRescanChatText()` and `getMessageContext()` run cleaned text, so the model sees the clean story **and** the token estimate matches the payload that is actually sent (previously the raw history over-counted by ~40k tokens of regex-strippable content).
 
@@ -122,20 +127,24 @@ function getMessageContext(count) {
 
 ---
 
-#### `getLastUserMessage()` (line 73-83)
-Finds the user's most recent message by scanning backward.
+#### `getLastUserMessage()` (line 228)
+Finds the user's most recent message by scanning backward (skipping `is_system`), and returns the message text plus its chat index and the object, so callers can key records to the user message's number.
 
 ```javascript
 function getLastUserMessage() {
     const context = SillyTavern.getContext();
-    if (!context.chat) return null;
+    if (!context.chat) return { userMessage: null, aiResponse: null, userIdx: -1, userMsgObj: null };
     const chat = context.chat;
+    let userMessage = null, userMsgObj = null, userIdx = -1, aiResponse = null;
     for (let i = chat.length - 1; i >= 0; i--) {
-        if (chat[i].is_user) {
-            return chat[i].mes;
+        if (!userMessage && chat[i].is_user && !chat[i].is_system) {
+            userMessage = chat[i].mes; userMsgObj = chat[i]; userIdx = i;
+        } else if (!aiResponse && !chat[i].is_user && !chat[i].is_system) {
+            aiResponse = chat[i].mes;
         }
+        if (userMessage && aiResponse) break;
     }
-    return null;
+    return { userMessage, aiResponse, userIdx, userMsgObj };
 }
 ```
 
@@ -374,6 +383,8 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 ---
 
 ## Version History
+
+- **3.4.2** - Auto-trigger only on user inputs. `reAnalyzeLastTurn()` now keys every auto-analysis record to the **user message's chat index** (via an extended `getLastUserMessage()` returning `userIdx`) instead of `chat.length - 1`, so records carry the chat-file message number and collide correctly with re-scan entries. The trigger is guarded: analysis runs on `MESSAGE_RECEIVED` only when a **new** `is_user` message exists (its index is greater than the last trail record's), so ST's Continue / regenerate / swipe — which append an AI message with no new user input — no longer fire or spam history with duplicates (the "last message is assistant yet the extension fired" case). The manual Re-analyze button and error-popup Re-send pass `force: true` to analyze the current turn regardless; the `busy` status is set only after the guard passes. Backfills: legacy records keyed to AI indexes are cleared by the next re-scan rebuild (v3.4.1 semantics).
 
 - **3.4.1** - Re-scan correctness: (1) `getRescanOutputBudget()` now requests the **remaining context** (≥1024, ≤32,768) instead of a configured-output floor, so the re-scan genuinely asks the model for as much output as fits (retry-once at the configured `max_tokens` covers low-output-cap providers). (2) **Prompt hardening**: the re-scan system prompt now states every history line is numbered with its exact chat-file index in brackets, that `messageIndex` must copy that number verbatim, that indices are consecutive regardless of role, and that exactly one analysis is returned per `[user]` line. (3) **Index validation & snap**: after parsing, each returned `messageIndex` is validated against the actual scanned user-message indexes — exact matches are kept, `±1` off-by-one/shifted numbers are snapped (counter in the completion status), and unresolvable ones are dropped; if every analysis is unresolvable the trail is **not** wiped (popup prompts a re-send). (4) **Authoritative rebuild**: a successful re-scan now clears the trail and rebuilds it fresh from the resolved analyses (chronological `previousScores`/`scores` chain via `applyTagsTo`), so stale/duplicate records from older scans can no longer accumulate ("message 67 ×4" is gone). (5) Fixed the re-scan progress text span to carry `class="rescan-progress-text"` so the intended CSS applies.
 
