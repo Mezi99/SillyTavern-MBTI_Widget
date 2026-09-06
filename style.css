@@ -369,6 +369,7 @@
 #mbti-full-arch-modal {
     width: 100%;
     max-width: 580px;
+    height: 680px;
     max-height: 95vh;
     display: flex;
     flex-direction: column;
@@ -389,7 +390,7 @@
    ============================================= */
 #mbti-full-arch-illustration {
     width: 100%;
-    height: 220px;
+    height: 170px;
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
@@ -411,7 +412,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 90px;
+    height: 70px;
     background: linear-gradient(to top, #02040a 0%, transparent 100%);
     z-index: 2;
 }
@@ -438,7 +439,7 @@
 }
 
 #mbti-full-arch-body {
-    padding: 28px 32px 32px;
+    padding: 16px 24px 22px;
     overflow-y: auto;
     flex: 1 1 auto;
 }
@@ -2158,4 +2159,408 @@
     font-style: italic;
     color: rgba(212, 197, 169, 0.5);
     line-height: 1.4;
+}
+
+/* =============================================
+   TABBED WIKI MODAL (prototype design, v3.5.2)
+   Every selector is scoped under #mbti-full-arch-modal so panel/radar/
+   stats/history styles can never collide and future archetype panes from
+   MBTI_WIKI.txt can be pasted verbatim.
+   ============================================= */
+#mbti-full-arch-identity {
+    padding: 14px 24px 10px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(212, 197, 169, 0.08);
+}
+
+#mbti-full-arch-modal .identity-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+#mbti-full-arch-modal .mbti-badge {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(251, 191, 36, 0.65);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+
+#mbti-full-arch-modal .title {
+    font-family: 'Cinzel', serif;
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    line-height: 1.25;
+}
+
+#mbti-full-arch-modal .tagline {
+    font-family: 'Playfair Display', serif;
+    font-size: 12.5px;
+    font-style: italic;
+    color: rgba(212, 197, 169, 0.6);
+    margin-top: 6px;
+}
+
+#mbti-full-arch-modal .traits-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    flex-shrink: 0;
+    width: 168px;
+}
+
+#mbti-full-arch-modal .trait {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 6px;
+    border-radius: 3px;
+    border: 1px solid;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#mbti-full-arch-tabs-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+#mbti-full-arch-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 24px;
+    border-bottom: 1px solid rgba(212, 197, 169, 0.1);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+#mbti-full-arch-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+#mbti-full-arch-modal .tab-btn {
+    background: none;
+    border: none;
+    font-family: 'Cinzel', serif;
+    font-size: 10.5px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.4);
+    padding: 10px 12px 9px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.25s ease;
+}
+
+#mbti-full-arch-modal .tab-btn:hover {
+    color: rgba(212, 197, 169, 0.7);
+}
+
+#mbti-full-arch-modal .tab-btn.active {
+    color: #fbbf24;
+}
+
+#mbti-full-arch-tab-underline {
+    position: absolute;
+    bottom: -1px;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #fbbf24, transparent);
+    transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#mbti-full-arch-modal .pane {
+    display: none;
+}
+
+#mbti-full-arch-modal .pane.active {
+    display: block;
+    animation: wikiFadeIn 0.25s ease;
+}
+
+@keyframes wikiFadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#mbti-full-arch-modal .section-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10.5px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.4);
+    margin-bottom: 8px;
+    margin-top: 16px;
+}
+
+#mbti-full-arch-modal .section-label:first-of-type {
+    margin-top: 0;
+}
+
+#mbti-full-arch-modal p,
+#mbti-full-arch-modal .bullet,
+#mbti-full-arch-modal .fn-desc,
+#mbti-full-arch-modal .fn-example,
+#mbti-full-arch-modal .fiction-blurb {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    line-height: 1.55;
+    color: rgba(212, 197, 169, 0.8);
+    margin: 0;
+}
+
+#mbti-full-arch-modal .bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+#mbti-full-arch-modal .bullet {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    color: rgba(212, 197, 169, 0.75);
+}
+
+#mbti-full-arch-modal .bullet::before {
+    content: '◈';
+    color: #fbbf24;
+    font-size: 8px;
+    flex-shrink: 0;
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+#mbti-full-arch-modal .divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.2), transparent);
+    margin: 14px 0;
+}
+
+#mbti-full-arch-modal .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+#mbti-full-arch-modal .col {
+    background: rgba(212, 197, 169, 0.04);
+    border: 1px solid rgba(212, 197, 169, 0.1);
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+#mbti-full-arch-modal .col-label {
+    font-family: 'Cinzel', serif;
+    font-size: 9.5px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+#mbti-full-arch-modal .col-label.asset {
+    color: #10b981;
+}
+
+#mbti-full-arch-modal .col-label.risk {
+    color: #ef4444;
+}
+
+#mbti-full-arch-modal .fn-row {
+    display: flex;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid rgba(212, 197, 169, 0.08);
+}
+
+#mbti-full-arch-modal .fn-row:last-child {
+    border-bottom: none;
+}
+
+#mbti-full-arch-modal .fn-badge-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    width: 44px;
+    flex-shrink: 0;
+}
+
+#mbti-full-arch-modal .fn-code {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.06);
+}
+
+#mbti-full-arch-modal .fn-role {
+    font-family: 'Cinzel', serif;
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(212, 197, 169, 0.4);
+    text-align: center;
+}
+
+#mbti-full-arch-modal .fn-dots {
+    display: flex;
+    gap: 2px;
+}
+
+#mbti-full-arch-modal .fn-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(212, 197, 169, 0.15);
+}
+
+#mbti-full-arch-modal .fn-dot.lit {
+    background: #fbbf24;
+}
+
+#mbti-full-arch-modal .fn-body {
+    flex: 1;
+}
+
+#mbti-full-arch-modal .fn-name {
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: #fbbf24;
+    margin-bottom: 5px;
+}
+
+#mbti-full-arch-modal .fn-desc {
+    margin-bottom: 4px;
+}
+
+#mbti-full-arch-modal .fn-example {
+    font-style: italic;
+    color: rgba(212, 197, 169, 0.55);
+}
+
+#mbti-full-arch-modal .pressure-highlight {
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 4px;
+    padding: 11px 13px;
+    margin: 12px 0;
+}
+
+#mbti-full-arch-modal .pressure-highlight .col-label {
+    color: #ef4444;
+    margin-bottom: 5px;
+}
+
+#mbti-full-arch-modal .recover-note {
+    display: flex;
+    gap: 9px;
+    background: rgba(16, 185, 129, 0.06);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 4px;
+    padding: 10px 13px;
+}
+
+#mbti-full-arch-modal .recover-note .col-label {
+    color: #10b981;
+    margin-bottom: 4px;
+}
+
+#mbti-full-arch-modal .blindspot-callout {
+    background: rgba(251, 191, 36, 0.06);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 4px;
+    padding: 11px 13px;
+    margin-bottom: 14px;
+}
+
+#mbti-full-arch-modal .blindspot-callout .col-label {
+    color: #fbbf24;
+    margin-bottom: 5px;
+}
+
+#mbti-full-arch-modal .growth-pair {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-bottom: 14px;
+}
+
+#mbti-full-arch-modal .growth-item {
+    padding-left: 12px;
+    border-left: 2px solid rgba(212, 197, 169, 0.15);
+}
+
+#mbti-full-arch-modal .growth-item.mature {
+    border-left-color: #10b981;
+}
+
+#mbti-full-arch-modal .growth-item .col-label {
+    margin-bottom: 4px;
+    color: rgba(212, 197, 169, 0.45);
+}
+
+#mbti-full-arch-modal .growth-item.mature .col-label {
+    color: #10b981;
+}
+
+#mbti-full-arch-modal .growth-item p {
+    font-style: italic;
+}
+
+#mbti-full-arch-modal .habit-note {
+    background: rgba(212, 197, 169, 0.04);
+    border: 1px solid rgba(212, 197, 169, 0.1);
+    border-radius: 4px;
+    padding: 10px 13px;
+}
+
+#mbti-full-arch-modal .habit-note .col-label {
+    color: #fbbf24;
+    margin-bottom: 4px;
+}
+
+#mbti-full-arch-modal .fiction-card {
+    border-left: 3px solid;
+    padding: 2px 0 2px 12px;
+    margin-bottom: 13px;
+}
+
+#mbti-full-arch-modal .fiction-card:last-child {
+    margin-bottom: 0;
+}
+
+#mbti-full-arch-modal .fiction-card.tone-shadow {
+    border-left-color: #ef4444;
+}
+
+#mbti-full-arch-modal .fiction-card.tone-mature {
+    border-left-color: #10b981;
+}
+
+#mbti-full-arch-modal .fiction-card.tone-caution {
+    border-left-color: #fbbf24;
+}
+
+#mbti-full-arch-modal .fiction-name {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    color: rgba(212, 197, 169, 0.92);
+    margin-bottom: 4px;
 }

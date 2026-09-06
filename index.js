@@ -78,6 +78,157 @@
         ESFP: { mbti: 'ESFP', name: 'THE STORM', tagline: 'You feel everything fully.', color: '#f97316', traits: [{ label: 'Extroverted', color: '#f97316' }, { label: 'Concrete', color: '#34d399' }, { label: 'Empathic', color: '#f472b6' }, { label: 'Flexible', color: '#94a3b8' }], illustration: 'storm', bullets: ["You're fully present.", "You bring life to any room."], asset: "Authentic energy", risk: "Overwhelm", famous: ['Every final girl'] }
     };
 
+    // Tabbed wiki encyclopedia ("magnify" modal) content, keyed by MBTI code.
+    // Each value is the raw HTML of exactly five tab panes (Overview / Mind /
+    // Pressure / Growth / Fiction), built to the proven ESTJ modal layout.
+    // The identity header (badge, title, tagline, traits grid) and the animated
+    // illustration come from ARCHETYPES + ILLUSTRATIONS, not this map.
+    // A key with no entry falls back to the simple single-scroll card.
+    const WIKI_CONTENT = {
+        ESTJ: `
+<div class="pane active" id="pane-overview">
+    <div class="section-label">How It Shows Up</div>
+    <div class="bullets">
+        <div class="bullet">You build the structure before anyone asks for one.</div>
+        <div class="bullet">You say the uncomfortable thing everyone else is avoiding.</div>
+        <div class="bullet">You measure a plan by whether it actually works, not whether it feels good.</div>
+        <div class="bullet">You keep your word — reliability isn't a nice-to-have for you, it's non-negotiable.</div>
+    </div>
+    <div class="divider"></div>
+    <div class="two-col">
+        <div class="col">
+            <div class="col-label asset">Greatest Asset</div>
+            <p>Organization</p>
+        </div>
+        <div class="col">
+            <div class="col-label risk">Hidden Risk</div>
+            <p>Rigidity</p>
+        </div>
+    </div>
+    <div class="divider"></div>
+    <div class="two-col">
+        <div class="col">
+            <div class="col-label asset">Secondary Asset</div>
+            <p>Reliability</p>
+        </div>
+        <div class="col">
+            <div class="col-label risk">Secondary Risk</div>
+            <p>Emotional Reticence</p>
+        </div>
+    </div>
+</div>
+<div class="pane" id="pane-mind">
+    <div class="section-label">Cognitive Stack</div>
+    <div class="fn-row">
+        <div class="fn-badge-col">
+            <div class="fn-code">Te</div>
+            <div class="fn-role">Dominant</div>
+            <div class="fn-dots"><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot lit"></span></div>
+        </div>
+        <div class="fn-body">
+            <div class="fn-name">Extraverted Thinking</div>
+            <div class="fn-desc">Runs on external, verifiable logic — what's efficient, what's provable, what gets results.</div>
+            <div class="fn-example">You reorganize a messy plan within minutes of walking into the room, whether anyone asked you to or not.</div>
+        </div>
+    </div>
+    <div class="fn-row">
+        <div class="fn-badge-col">
+            <div class="fn-code">Si</div>
+            <div class="fn-role">Auxiliary</div>
+            <div class="fn-dots"><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot"></span></div>
+        </div>
+        <div class="fn-body">
+            <div class="fn-name">Introverted Sensing</div>
+            <div class="fn-desc">Trusts what's been tested and proven before. Precedent matters.</div>
+            <div class="fn-example">"We've always done it this way" isn't laziness for you — it's a track record you don't want to throw away without a reason.</div>
+        </div>
+    </div>
+    <div class="fn-row">
+        <div class="fn-badge-col">
+            <div class="fn-code">Ne</div>
+            <div class="fn-role">Tertiary</div>
+            <div class="fn-dots"><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot"></span><span class="fn-dot"></span></div>
+        </div>
+        <div class="fn-body">
+            <div class="fn-name">Extraverted Intuition</div>
+            <div class="fn-desc">A less-trusted stream of "what if" possibilities that shows up as blunt, half-formed contingency plans.</div>
+            <div class="fn-example">You'll suddenly propose a left-field backup plan, then just as quickly go back to the tested approach.</div>
+        </div>
+    </div>
+    <div class="fn-row">
+        <div class="fn-badge-col">
+            <div class="fn-code">Fi</div>
+            <div class="fn-role">Inferior</div>
+            <div class="fn-dots"><span class="fn-dot lit"></span><span class="fn-dot"></span><span class="fn-dot"></span><span class="fn-dot"></span></div>
+        </div>
+        <div class="fn-body">
+            <div class="fn-name">Introverted Feeling</div>
+            <div class="fn-desc">Personal values and private emotion — the function you're least fluent in.</div>
+            <div class="fn-example">You know what you believe is right, but explaining why it matters to you personally is the hardest sentence you'll say all week.</div>
+        </div>
+    </div>
+</div>
+<div class="pane" id="pane-pressure">
+    <div class="section-label">Under Pressure</div>
+    <div class="two-col">
+        <div class="col">
+            <div class="col-label" style="color:#fbbf24">Trigger</div>
+            <p>Losing control of a situation, or being told the system you built doesn't work.</p>
+        </div>
+        <div class="col">
+            <div class="col-label" style="color:#fbbf24">Looks Like</div>
+            <p>Uncharacteristic rigidity hardening into control for control's sake.</p>
+        </div>
+    </div>
+    <div class="pressure-highlight">
+        <div class="col-label">What's Actually Happening</div>
+        <p>Your usual Te-Si approach — organize it, apply what's worked before — isn't landing. Under enough strain, your least-developed function, introverted feeling, takes over in its most raw form: you become uncharacteristically emotional, take things personally, and make decisions based on hurt feelings rather than the facts you'd normally trust.</p>
+    </div>
+    <div class="recover-note">
+        <div>
+            <div class="col-label">Recovering</div>
+            <p>Naming the feeling out loud, even clumsily, before trying to fix anything. The fix can wait five minutes.</p>
+        </div>
+    </div>
+</div>
+<div class="pane" id="pane-growth">
+    <div class="section-label">Growth Path</div>
+    <div class="blindspot-callout">
+        <div class="col-label">Blind Spot</div>
+        <p>Treating "efficient" and "right" as the same thing — dismissing feelings as noise that slows down the plan.</p>
+    </div>
+    <div class="growth-pair">
+        <div class="growth-item">
+            <div class="col-label">At Their Least Mature</div>
+            <p>"Enforces rules because they're rules. Confuses respect with obedience."</p>
+        </div>
+        <div class="growth-item mature">
+            <div class="col-label">At Their Best</div>
+            <p>"Enforces standards because they serve people — and can tell you exactly who they serve and why."</p>
+        </div>
+    </div>
+    <div class="habit-note">
+        <div class="col-label">One Habit</div>
+        <p>Before enforcing a rule, ask out loud: "does this still serve the actual goal, or just the old plan?"</p>
+    </div>
+</div>
+<div class="pane" id="pane-fiction">
+    <div class="section-label">In Fiction</div>
+    <div class="fiction-card tone-shadow">
+        <div class="fiction-name">Inspector Javert</div>
+        <div class="fiction-blurb">Les Misérables — the type's shadow side taken to its extreme: a man who mistakes the law itself for justice, and cannot survive the moment those two things split apart.</div>
+    </div>
+    <div class="fiction-card tone-mature">
+        <div class="fiction-name">Princess Tiana</div>
+        <div class="fiction-blurb">The Princess and the Frog — a healthy, grounded version of the type: dedicated, hard-working, and ambitious without losing sight of what's actually realistic.</div>
+    </div>
+    <div class="fiction-card tone-caution">
+        <div class="fiction-name">Dolores Umbridge</div>
+        <div class="fiction-blurb">Harry Potter — order weaponized: she takes real pleasure in enforcing rules, punishes anyone who breaks them without mercy, and turns hostile the moment her authority is questioned.</div>
+    </div>
+</div>`,
+    };
+
     // Default wording for the configurable prompt fields (Prompts settings).
     const DEFAULT_ANALYSIS_PROMPT = 'Brief 1-2 sentence explanation';
     const DEFAULT_COMMENT_NAME = 'Psy Professor';
@@ -1538,9 +1689,19 @@ function getLastUserMessage() {
         else applyTagClass(el, 'neutral');
     }
 
+    // Compact title-casing for the wiki modal header. ARCHETYPES names are
+    // stored all-caps ("THE COMMANDER"); the prototype shows "The Commander".
+    function toTitleCase(str) {
+        return String(str || '').toLowerCase().split(/\s+/)
+            .filter(Boolean)
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+    }
+
     function openFullArchModal() {
         const key = getMBTIKey(scores);
         const arch = ARCHETYPES[key] || ARCHETYPES['unknown'];
+        const hasWiki = Boolean(WIKI_CONTENT[key]);
 
         const illKey = arch.illustration || 'unknown';
         const illustrationEl = document.getElementById('mbti-full-arch-illustration');
@@ -1550,20 +1711,68 @@ function getLastUserMessage() {
                 '<button class="full-arch-close" id="mbti-full-arch-close-btn">×</button>';
         }
 
-        const bodyEl = document.getElementById('mbti-full-arch-body');
-        if (bodyEl) {
+        // Identity header: badge / title / tagline left, 2x2 traits grid right.
+        const identityEl = document.getElementById('mbti-full-arch-identity');
+        if (identityEl) {
             const traitHTML = arch.traits.map(t =>
-                `<span class="full-arch-trait" style="color:${t.color};border-color:${t.color}40;background:${t.color}10">${t.label}</span>`
+                `<span class="trait" style="color:${t.color};border-color:${t.color}40;background:${t.color}10">${t.label}</span>`
             ).join('');
+
+            identityEl.innerHTML =
+                '<div class="identity-row"><div>' +
+                `<div class="mbti-badge">${arch.mbti}</div>` +
+                `<div class="title" style="color:${arch.color}">${toTitleCase(arch.name)}</div>` +
+                `<div class="tagline">${arch.tagline}</div>` +
+                '</div>' + (traitHTML ? `<div class="traits-grid">${traitHTML}</div>` : '') + '</div>';
+        }
+
+        const contentEl = document.getElementById('mbti-full-arch-body');
+        const tabsWrapEl = document.getElementById('mbti-full-arch-tabs-wrap');
+        const tabsEl = document.getElementById('mbti-full-arch-tabs');
+        const underlineEl = document.getElementById('mbti-full-arch-tab-underline');
+
+        if (hasWiki && tabsEl && contentEl) {
+            if (tabsWrapEl) tabsWrapEl.style.display = '';
+
+            tabsEl.innerHTML = ['Overview', 'Mind', 'Pressure', 'Growth', 'Fiction']
+                .map((label, i) => `<button class="tab-btn${i === 0 ? ' active' : ''}" data-tab="${label.toLowerCase()}">${label}</button>`)
+                .join('');
+            contentEl.innerHTML = WIKI_CONTENT[key];
+
+            const panes = contentEl.querySelectorAll('.pane');
+            const buttons = tabsEl.querySelectorAll('.tab-btn');
+
+            function positionWikiUnderline() {
+                if (!underlineEl) return;
+                const active = tabsEl.querySelector('.tab-btn.active');
+                if (!active) return;
+                underlineEl.style.left = active.offsetLeft + 'px';
+                underlineEl.style.width = active.offsetWidth + 'px';
+            }
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    buttons.forEach(b => b.classList.remove('active'));
+                    panes.forEach(p => p.classList.remove('active'));
+                    btn.classList.add('active');
+                    const target = contentEl.querySelector('#pane-' + btn.dataset.tab);
+                    if (target) target.classList.add('active');
+                    contentEl.scrollTop = 0;
+                    positionWikiUnderline();
+                });
+            });
+
+            requestAnimationFrame(positionWikiUnderline);
+        } else if (contentEl) {
+            if (tabsWrapEl) tabsWrapEl.style.display = 'none';
 
             const bulletsHTML = arch.bullets.map(b => `<div class="full-arch-bullet">${b}</div>`).join('');
             const famousHTML = arch.famous.map(f => `<span class="full-arch-famous-name">${f}</span>`).join('');
-            const mbtiLine = key !== 'unknown' ? `<div class="full-arch-mbti-badge">${arch.mbti} · MBTI Analog</div>` : '';
             const twoCol = arch.asset ? `<div class="full-arch-two-col"><div class="full-arch-col"><div class="full-arch-col-label is-asset">Greatest Asset</div><p>${arch.asset}</p></div><div class="full-arch-col"><div class="full-arch-col-label is-risk">Hidden Risk</div><p>${arch.risk}</p></div></div>` : '';
             const famousSection = arch.famous.length ? `<div class="full-arch-section-label">Known Examples</div><div class="full-arch-famous">${famousHTML}</div>` : '';
-            const investigationSection = arch.bullets.length ? `<div class="full-arch-section-label">In This Investigation</div><div class="full-arch-bullets">${bulletsHTML}</div><div class="full-arch-divider"></div>${twoCol}<div class="full-arch-divider"></div>${famousSection}` : '';
+            const investigationSection = arch.bullets.length ? `<div class="full-arch-section-label">In This Investigation</div><div class="full-arch-bullets">${bulletsHTML}</div><div class="full-arch-divider"></div>${twoCol}${famousSection}` : '';
 
-            bodyEl.innerHTML = `${mbtiLine}<div class="full-arch-title" style="color:${arch.color}">${arch.name}</div><div class="full-arch-tagline">${arch.tagline}</div>${traitHTML ? `<div class="full-arch-traits">${traitHTML}</div>` : ''}${investigationSection}`;
+            contentEl.innerHTML = investigationSection;
         }
 
         const overlay = document.getElementById('mbti-full-arch-overlay');
@@ -2307,6 +2516,11 @@ function getLastUserMessage() {
                     <div class="full-arch-illustration-overlay"></div>
                     <button class="full-arch-close" id="mbti-full-arch-close">×</button>
                 </div>
+                <div class="full-arch-identity" id="mbti-full-arch-identity"></div>
+                <div class="full-arch-tabs-wrap" id="mbti-full-arch-tabs-wrap">
+                    <div class="full-arch-tabs" id="mbti-full-arch-tabs"></div>
+                    <div class="full-arch-tab-underline" id="mbti-full-arch-tab-underline"></div>
+                </div>
                 <div class="full-arch-body" id="mbti-full-arch-body"></div>
             </div>
         `;
@@ -2405,8 +2619,12 @@ function getLastUserMessage() {
         fullArchOverlay.addEventListener('click', function(e) {
             if (e.target === this) window.MBTI_Widget.closeFullArchModal();
         });
-        document.getElementById('mbti-full-arch-close').addEventListener('click', function() {
-            window.MBTI_Widget.closeFullArchModal();
+        // Delegated so the close button keeps working even after
+        // openFullArchModal() re-injects it inside the illustration.
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.closest && e.target.closest('#mbti-full-arch-close, #mbti-full-arch-close-btn')) {
+                window.MBTI_Widget.closeFullArchModal();
+            }
         });
 
         document.getElementById('magnify-btn').addEventListener('click', openFullArchModal);
@@ -2713,7 +2931,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.5.1 loaded');
+        console.log('MBTI Widget v3.5.2 loaded');
     }
 
     function showTestResult(message, type) {
