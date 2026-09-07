@@ -48,3 +48,7 @@ The key stays in your browser and is never sent to the server.
 ## Support
 
 For issues and feature requests: [GitHub Repository](https://github.com/Mezi99/SillyTavern-MBTI_Widget)
+
+## License
+
+[MIT](LICENSE) — Copyright (c) 2026 Mezi99
