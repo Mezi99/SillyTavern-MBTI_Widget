@@ -2727,12 +2727,8 @@ function getLastUserMessage() {
     }
 
     function showRescanProgress(show) {
-        const progressEl = document.getElementById('rescan-progress');
         const goBtn = document.getElementById('rescan-go-btn');
 
-        if (progressEl) {
-            progressEl.style.display = show ? 'flex' : 'none';
-        }
         if (goBtn) {
             goBtn.disabled = show;
             goBtn.textContent = show ? 'Scanning...' : 'Re-scan';
@@ -3470,6 +3466,14 @@ function getLastUserMessage() {
                         <button class="header-action-btn magnify-btn" id="magnify-btn" title="MBTI Type Encyclopedia">
                             <div class="magnify-icon"></div>
                         </button>
+                        <button class="history-btn" id="history-btn" title="View analysis history">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </button>
                         <button class="header-action-btn radar-zoom-btn" id="radar-zoom-btn" title="Expand radar chart">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="7"/>
@@ -3517,9 +3521,6 @@ function getLastUserMessage() {
                 <div class="reasoning-display" id="reasoning-display">
                     <div class="reasoning-header">
                         <div class="reasoning-label" id="reasoning-label">Latest Analysis</div>
-                        <button class="header-action-btn magnify-btn reanalyze-btn" id="reanalyze-btn" title="Re-analyze the last turn">
-                            <div class="reanalyze-icon"></div>
-                        </button>
                     </div>
                     <div class="reasoning-text" id="reasoning-text">Start chatting to see analysis...</div>
                     <div class="professor-section" id="professor-section">
@@ -3528,19 +3529,16 @@ function getLastUserMessage() {
                     </div>
                 </div>
                 <div class="mbti-actions" id="mbti-actions">
-                    <button class="history-btn" id="history-btn" title="View analysis history">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                        </svg>
-                    </button>
-                    <button class="rescan-btn" id="rescan-btn" title="Re-scan chat history">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="action-btn" id="rescan-btn" title="Re-scan chat history — analyze past messages and rebuild the rating trail">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M1 4v6h6M23 20v-6h-6"/>
                             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
                         </svg>
+                        <span>Re-scan All</span>
+                    </button>
+                    <button class="action-btn" id="reanalyze-btn" title="Re-analyze the most recent turn">
+                        <div class="reanalyze-icon"></div>
+                        <span>Re-scan Last</span>
                     </button>
                 </div>
                 <div class="mbti-footer" id="mbti-footer">
@@ -3568,10 +3566,6 @@ function getLastUserMessage() {
             <div class="rescan-budget" id="rescan-budget"></div>
             <div class="rescan-warning" id="rescan-warning" style="display:none;"></div>
             <button class="rescan-go-btn" id="rescan-go-btn">Re-scan</button>
-            <div class="rescan-progress" id="rescan-progress" style="display:none;">
-                <div class="rescan-spinner"></div>
-                <span id="rescan-progress-text" class="rescan-progress-text">Analyzing chat history...</span>
-            </div>
         `;
         panel.appendChild(rescanPopup);
 
@@ -4026,7 +4020,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.5.4 loaded');
+        console.log('MBTI Widget v3.5.5 loaded');
     }
 
     function showTestResult(message, type) {

@@ -65,7 +65,7 @@
     background: rgba(2, 4, 10, 0.4);
     border: 1px solid var(--border-faint);
     border-radius: 8px;
-    padding: 16px 12px 14px;
+    padding: 16px 12px 8px;
     overflow: hidden;
     width: 280px;
     position: relative;
@@ -620,25 +620,38 @@
 /* =============================================
    RE-SCAN UI
    ============================================= */
-.rescan-btn {
-    width: 24px;
-    height: 24px;
-    border: 1px solid rgba(212, 175, 55, 0.2);
-    border-radius: 4px;
-    background: rgba(212, 175, 55, 0.05);
-    color: rgba(212, 175, 55, 0.6);
-    cursor: pointer;
+.action-btn {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.05);
+    color: rgba(212, 175, 55, 0.6);
+    cursor: pointer;
+    font-family: 'Raleway', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
     transition: all 0.2s ease;
-    padding: 0;
 }
 
-.rescan-btn:hover {
+.action-btn:hover {
     background: rgba(212, 175, 55, 0.12);
     border-color: rgba(212, 175, 55, 0.4);
     color: rgba(212, 175, 55, 0.9);
+}
+
+.action-btn svg,
+#mbti-widget-panel .action-btn .reanalyze-icon {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
 }
 
 .rescan-popup {
@@ -775,36 +788,6 @@
     cursor: not-allowed;
 }
 
-.rescan-progress {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 10px;
-    padding: 8px;
-    background: rgba(212, 175, 55, 0.05);
-    border-radius: 4px;
-}
-
-.rescan-spinner {
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(212, 175, 55, 0.2);
-    border-top-color: rgba(212, 175, 55, 0.8);
-    border-radius: 50%;
-    animation: rescan-spin 1s linear infinite;
-}
-
-@keyframes rescan-spin {
-    to { transform: rotate(360deg); }
-}
-
-.rescan-progress-text {
-    font-family: 'Raleway', sans-serif;
-    font-size: 11px;
-    color: rgba(212, 175, 55, 0.7);
-}
-
 /* =============================================
    ERROR POPUP
    ============================================= */
@@ -887,7 +870,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     padding: 8px 14px;
     border-top: 1px solid rgba(212, 175, 55, 0.12);
     background: rgba(5, 10, 18, 0.25);
@@ -900,7 +883,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 10px 14px;
+    padding: 6px 14px;
     border-top: 1px solid rgba(212, 175, 55, 0.15);
     background: rgba(5, 10, 18, 0.4);
 }
@@ -913,6 +896,10 @@
     border-radius: 50%;
     animation: rescan-spin 1s linear infinite;
     flex-shrink: 0;
+}
+
+@keyframes rescan-spin {
+    to { transform: rotate(360deg); }
 }
 
 .mbti-footer-text {
