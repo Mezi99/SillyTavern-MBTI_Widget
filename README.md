@@ -2,69 +2,37 @@
 
 A SillyTavern extension that analyzes your chat messages to build and visualize your own evolving MBTI personality profile.
 
-<img width="295" height="566" alt="Screenshot 2026-09-02 at 10-59-01 SillyTavern" src="https://github.com/user-attachments/assets/f102556a-01ff-4fb9-9502-568fb0654b18" />
-<img height="587" alt="Screenshot 2026-09-02 at 10-56-54 SillyTavern" src="https://github.com/user-attachments/assets/88874478-53e6-4a02-8dcb-fde8e8a7fcc7" />
-<img align="middle" width="600"  alt="Screenshot 2026-09-02 at 11-00-21 SillyTavern" src="https://github.com/user-attachments/assets/07880cee-0fcc-4e98-ad8f-cb4e63ec3ea5" />
-
 ## Features
 
-- **Automatic Personality Analysis** - Every message you send is analyzed to update your MBTI profile
-- **Visual Radar Chart** - See your personality as an octagon with 8 axes
-- **Real-time Updates** - Watch your profile evolve as the conversation progresses
-- **Per-Chat Profiles** - Each chat maintains its own personality profile
-- **Trail History** - Track how your profile changed over time
+- **Automatic analysis** — every message you send is scored and updates your profile
+- **Radar chart** — your personality visualized as an octagon across 8 dimensions
+- **Per-chat profiles** — each chat gets its own personality story
+- **Trail history** — see how your profile evolved over time and what drove each change
+- **Re-scan history** — rebuild the trail by re-analyzing past messages
+- **Latest Analysis + Commenter** — a short reasoning for each turn plus a personality commentary (default: the opinionated penguin Dr. Mike Flapjack)
+- **Editable prompts** — tune the analysis wording and the commenter's name and prompt
 
 ## Installation
 
 1. Download or clone this repository
 2. Place the folder in your SillyTavern `public/scripts/extensions` directory
-3. Restart SillyTavern
-4. Enable the extension in Settings → Extensions
+3. Restart SillyTavern and enable the extension in Settings → Extensions
 
-## How It Works
+## Backend
 
-The extension uses AI to analyze your messages and the conversation context. It looks for personality cues across 4 MBTI axes:
+The analysis runs as a separate background call, so your main chat stays untouched. You can power it with:
 
-| Axis | Traits |
-|------|--------|
-| I / E | Introverted ↔ Extroverted |
-| T / F | Thinking ↔ Feeling |
-| S / N | Sensing ↔ Intuitive |
-| J / P | Judging ↔ Perceiving |
+- **SillyTavern's current API** (default) — uses whatever connection profile is active
+- **Any OpenAI-compatible API** — provide a Base URL, API Key, and Model, and test the connection from the panel
 
-
-- Each message can contribute points to either side of each axis, building up a nuanced personality profile over time.
-- Each profile is attached separately for every chat.
-
-## LLM / API Usage
-
-The extension runs the MBTI analysis as a **separate, out-of-band** LLM call — it does not interfere with (or reuse the text of) your main chat generation. Both the automatic per-message analysis and the manual re-scan use the same backend. The analysis prompt is sent with only the recent messages you configured under **Context Messages** as context.
-
-You can choose which model powers the analysis in the extension settings under **LLM Backend**:
-
-- **Use SillyTavern current API** *(default)* — uses the same connection profile (and model) currently active in SillyTavern.
-- **Custom OpenAI-compatible API** — connect to any OpenAI-compatible endpoint by providing an **API Base URL**, **API Key**, and **Model**. Use **Fetch models** to list available models from the endpoint, then **Test Connection** to verify it works. You can also set **Max Tokens**, **Temperature**, and **Context size (tokens)**.
-
-The API key for a custom backend is stored **locally in your browser only** (never synced to the SillyTavern server or leaked to chat metadata).
-
-When re-scanning a long chat, the extension automatically **guards against exceeding the model's context window** — it sends the newest messages that fit and shows a warning in the re-scan popup if older ones had to be omitted. For the SillyTavern backend the budget comes from SillyTavern's own per-model setting; for a custom backend it uses the **Context size (tokens)** field (auto-filled when you fetch models, and falling back to SillyTavern's setting if left at 0).
+The key stays in your browser and is never sent to the server.
 
 ## Usage
 
-- The floating panel shows your current MBTI type (e.g., "INTJ", "ENFP")
-- Click the toggle in the extensions drawer to show/hide the panel
-- Each chat has its own independent profile
-- The panel shows your trail history - hover over dots to see what triggered changes
-- The **Latest Analysis** section shows the reasoning for the last turn, plus a sarcastic **Psy Professor** one-liner; use the button beside it to **re-analyze the last turn** (re-running the auto-analysis manually)
-- The **history modal** lists each analyzed message with its point changes as colored icons (fire / heart / lamp / wind), a totals row under the header, and a legend of what each icon means
-- Each meter shows a small colored **+N / -N** for how many points it changed in the last turn
-- A persistent status bar at the bottom of the panel shows what the extension is doing (analyzing, completed, or an error); if a response comes back in an invalid format, a popup explains the issue and lets you **Re-send** the analysis
-- In the extension drawer, the **Prompts** section lets you change the **Latest Analysis** wording and rename/restyle the **Commenter** (the "Psy Professor" one-liner, default name and prompt); the rating tags themselves stay fixed
-
-## Requirements
-
-- SillyTavern
-- An AI character with an API configured, **or** a custom OpenAI-compatible API endpoint (Base URL + Key + Model)
+- Floating panel shows your current type (e.g. INTJ)
+- Each chat keeps its own profile
+- Hover the history dots to see what changed and why
+- Re-analyze the last turn or re-scan the whole history — and stop any running analysis whenever you want
 
 ## Support
 
