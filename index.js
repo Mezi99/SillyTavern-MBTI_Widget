@@ -3968,11 +3968,13 @@ function getLastUserMessage() {
             console.log('[MBTI] reAnalyzeLastTurn analyzed:', analyzed);
         });
 
-        extension_settings.mbti_widget = extension_settings.mbti_widget || {
-            enabled: true,
-            contextMessages: 5,
-            autoOpenOnLoad: false,
-        };
+        extension_settings.mbti_widget = extension_settings.mbti_widget || {};
+        // Enabled by default on first install. Guard on `=== undefined` so a
+        // user who deliberately disabled the extension (enabled: false) is
+        // not force-re-enabled by a later update.
+        if (extension_settings.mbti_widget.enabled === undefined) extension_settings.mbti_widget.enabled = true;
+        if (extension_settings.mbti_widget.contextMessages === undefined) extension_settings.mbti_widget.contextMessages = 5;
+        if (extension_settings.mbti_widget.autoOpenOnLoad === undefined) extension_settings.mbti_widget.autoOpenOnLoad = false;
         // Ensure nested backend settings exist (v3)
         if (!extension_settings.mbti_widget.backend) {
             extension_settings.mbti_widget.backend = 'st';
@@ -4088,7 +4090,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.5.7 loaded');
+        console.log('MBTI Widget v3.6.0 loaded');
     }
 
     function showTestResult(message, type) {
