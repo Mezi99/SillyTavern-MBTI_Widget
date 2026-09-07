@@ -266,13 +266,21 @@
     margin-top: 8px;
 }
 
-#mbti-widget-panel .reasoning-label {
+#mbti-widget-panel .reasoning-label,
+#mbti-widget-panel .professor-label {
     font-family: 'Cinzel', serif;
     font-size: 10px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: rgba(212, 197, 169, 0.35);
-    margin-bottom: 6px;
+    color: rgba(212, 175, 55, 0.6);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s ease;
+}
+
+#mbti-widget-panel .reasoning-label:hover,
+#mbti-widget-panel .professor-label:hover {
+    color: rgba(212, 175, 55, 0.9);
 }
 
 #mbti-widget-panel .reasoning-text,
@@ -283,6 +291,17 @@
     color: rgba(212, 197, 169, 0.65);
     line-height: 1.5;
     word-wrap: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+#mbti-widget-panel .reasoning-text.expanded,
+#mbti-widget-panel .professor-text.expanded {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
 }
 
 #mbti-widget-panel .reasoning-header {
@@ -334,12 +353,7 @@
 }
 
 #mbti-widget-panel .professor-label {
-    font-family: 'Cinzel', serif;
-    font-size: 9px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: rgba(212, 175, 55, 0.5);
-    margin-bottom: 3px;
+    margin-bottom: 6px;
 }
 
 /* =============================================
@@ -1225,7 +1239,8 @@
     border-top: 1px solid rgba(212, 197, 169, 0.1);
 }
 
-.history-row-professor-name {
+.history-row-professor-name,
+.history-row-analysis-name {
     font-weight: 600;
     color: rgba(212, 175, 55, 0.75);
 }

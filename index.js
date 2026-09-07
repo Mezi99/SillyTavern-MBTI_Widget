@@ -10,6 +10,8 @@
     let isProcessing = false;
     let panelCreated = false;
     let isPanelOpen = false;
+    let reasoningExpanded = false;
+    let professorExpanded = false;
 
     const MAX_SCORE = 18;
 
@@ -1291,6 +1293,7 @@
     }
 
     // Default wording for the configurable prompt fields (Prompts settings).
+    const DEFAULT_ANALYSIS_NAME = 'Latest Analysis';
     const DEFAULT_ANALYSIS_PROMPT = 'Brief 1-2 sentence explanation';
     const DEFAULT_COMMENT_NAME = 'Psy Professor';
     const DEFAULT_COMMENT_PROMPT = 'A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard. Be witty and punchy, keep it short.';
@@ -1852,12 +1855,14 @@ function getLastUserMessage() {
             // messages). Never the AI reply's index (the old chat.length - 1).
             const msgIndex = userIdx >= 0 ? userIdx : trail.length;
             const professorName = getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME;
+            const analysisName = getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME;
 
             upsertTrailEntry(msgIndex, {
                 tags: result.tags || [],
                 reasoning: result.reasoning || '',
                 professor: result.professor || '',
                 professorName: professorName,
+                analysisName: analysisName,
             });
 
             await saveToChatMetadata();
@@ -1989,6 +1994,7 @@ function getLastUserMessage() {
             previousScores: JSON.parse(JSON.stringify(base)),
         };
         if (entryData.professorName) record.professorName = entryData.professorName;
+        if (entryData.analysisName) record.analysisName = entryData.analysisName;
 
         if (existingIdx >= 0) {
             trail[existingIdx] = record;
@@ -2016,6 +2022,7 @@ function getLastUserMessage() {
                 previousScores: prev,
                 reasoning: analysis.reasoning || '',
                 professor: '',
+                analysisName: getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME,
             });
             base = next;
         });
@@ -2161,6 +2168,10 @@ function getLastUserMessage() {
         updateDeltas();
 
         const reasoningEl = document.getElementById('reasoning-text');
+        const reasoningLabel = document.getElementById('reasoning-label');
+        if (reasoningLabel) {
+            reasoningLabel.textContent = getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME;
+        }
         if (reasoningEl) {
             const lastEntry = trail[trail.length - 1];
             const reasoning = lastEntry && lastEntry.reasoning ? lastEntry.reasoning : '';
@@ -2171,6 +2182,7 @@ function getLastUserMessage() {
                 reasoningEl.textContent = 'Start chatting to see analysis...';
                 reasoningEl.style.color = 'rgba(212, 197, 169, 0.5)';
             }
+            reasoningEl.classList.toggle('expanded', reasoningExpanded);
         }
 
         const professorEl = document.getElementById('professor-text');
@@ -2184,6 +2196,7 @@ function getLastUserMessage() {
         if (professorEl) {
             professorEl.textContent = professor;
             professorEl.style.color = 'rgba(212, 197, 169, 0.8)';
+            professorEl.classList.toggle('expanded', professorExpanded);
         }
         if (professorSection) {
             professorSection.style.display = professor ? 'block' : 'none';
@@ -2880,12 +2893,19 @@ function getLastUserMessage() {
                             : `<div class="history-row-professor">${entry.professor}</div>`)
                         : '';
 
+                    const analysisName = entry.analysisName;
+                    const reasoningHTML = entry.reasoning
+                        ? (analysisName
+                            ? `<span class="history-row-analysis-name">${analysisName}:</span> ${entry.reasoning}`
+                            : entry.reasoning)
+                        : 'No reasoning recorded';
+
                     return `
                         <div class="history-row">
                             <div class="history-row-num">${rowNum}</div>
                             <div class="history-row-body">
                                 <div class="history-row-tags">${chipsHTML}</div>
-                                <div class="history-row-reasoning">${entry.reasoning || 'No reasoning recorded'}</div>
+                                <div class="history-row-reasoning">${reasoningHTML}</div>
                                 ${professorHTML}
                             </div>
                         </div>
@@ -3496,7 +3516,7 @@ function getLastUserMessage() {
                 </div>
                 <div class="reasoning-display" id="reasoning-display">
                     <div class="reasoning-header">
-                        <div class="reasoning-label">Latest Analysis</div>
+                        <div class="reasoning-label" id="reasoning-label">Latest Analysis</div>
                         <button class="header-action-btn magnify-btn reanalyze-btn" id="reanalyze-btn" title="Re-analyze the last turn">
                             <div class="reanalyze-icon"></div>
                         </button>
@@ -3719,6 +3739,18 @@ function getLastUserMessage() {
             reAnalyzeLastTurn({ force: true });
         });
 
+        document.getElementById('reasoning-label').addEventListener('click', function() {
+            reasoningExpanded = !reasoningExpanded;
+            if (reasoningExpanded) professorExpanded = false;
+            updatePanel();
+        });
+
+        document.getElementById('professor-label').addEventListener('click', function() {
+            professorExpanded = !professorExpanded;
+            if (professorExpanded) reasoningExpanded = false;
+            updatePanel();
+        });
+
         bindErrorPopup();
 
         document.getElementById('rescan-go-btn').addEventListener('click', function() {
@@ -3914,6 +3946,7 @@ function getLastUserMessage() {
         // backwards-compatible with the classic fixed wording.
         if (!extension_settings.mbti_widget.prompts) {
             extension_settings.mbti_widget.prompts = {
+                analysisName: DEFAULT_ANALYSIS_NAME,
                 analysis: DEFAULT_ANALYSIS_PROMPT,
                 commenter: {
                     name: DEFAULT_COMMENT_NAME,
@@ -3922,6 +3955,7 @@ function getLastUserMessage() {
             };
         } else {
             const prompts = extension_settings.mbti_widget.prompts;
+            if (!prompts.analysisName) prompts.analysisName = DEFAULT_ANALYSIS_NAME;
             if (!prompts.analysis) prompts.analysis = DEFAULT_ANALYSIS_PROMPT;
             if (!prompts.commenter) prompts.commenter = {};
             if (!prompts.commenter.name) prompts.commenter.name = DEFAULT_COMMENT_NAME;
@@ -3992,7 +4026,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.5.3 loaded');
+        console.log('MBTI Widget v3.5.4 loaded');
     }
 
     function showTestResult(message, type) {
@@ -4221,13 +4255,21 @@ function getLastUserMessage() {
     function initializePromptsSettings() {
         const prompts = extension_settings.mbti_widget.prompts || {};
 
+        const analysisNameEl = document.getElementById('mbti_analysis_name');
         const analysisEl = document.getElementById('mbti_prompt_analysis');
         const commenterNameEl = document.getElementById('mbti_commenter_name');
         const commenterPromptEl = document.getElementById('mbti_commenter_prompt');
 
+        if (analysisNameEl) analysisNameEl.value = prompts.analysisName || DEFAULT_ANALYSIS_NAME;
         if (analysisEl) analysisEl.value = prompts.analysis || DEFAULT_ANALYSIS_PROMPT;
         if (commenterNameEl) commenterNameEl.value = prompts.commenter?.name || DEFAULT_COMMENT_NAME;
         if (commenterPromptEl) commenterPromptEl.value = prompts.commenter?.prompt || DEFAULT_COMMENT_PROMPT;
+
+        jQuery('#mbti_analysis_name').on('input', function() {
+            extension_settings.mbti_widget.prompts.analysisName = String(jQuery(this).val());
+            saveSettingsDebounced();
+            updatePanel();
+        });
 
         jQuery('#mbti_prompt_analysis').on('input', function() {
             extension_settings.mbti_widget.prompts.analysis = String(jQuery(this).val());
