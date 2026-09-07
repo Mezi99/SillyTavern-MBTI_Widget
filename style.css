@@ -645,7 +645,8 @@
 /* =============================================
    RE-SCAN UI
    ============================================= */
-.action-btn {
+.action-btn,
+.stop-btn {
     flex: 1;
     display: flex;
     align-items: center;
@@ -666,17 +667,41 @@
     transition: all 0.2s ease;
 }
 
-.action-btn:hover {
+.action-btn:hover,
+.stop-btn:hover {
     background: rgba(212, 175, 55, 0.12);
     border-color: rgba(212, 175, 55, 0.4);
     color: rgba(212, 175, 55, 0.9);
 }
 
 .action-btn svg,
-#mbti-widget-panel .action-btn .reanalyze-icon {
+#mbti-widget-panel .action-btn .reanalyze-icon,
+#mbti-widget-panel .stop-btn .stop-icon {
     width: 12px;
     height: 12px;
     flex-shrink: 0;
+}
+
+/* Stop: mute orange lettering over the same gold border/bg as the action
+   buttons so it stays in the panel's visual language without red alarm. */
+#mbti-widget-panel .stop-btn {
+    color: rgba(222, 160, 90, 0.9);
+}
+
+#mbti-widget-panel .stop-btn:hover {
+    color: rgba(235, 180, 105, 1);
+}
+
+.stop-icon {
+    background-color: currentColor;
+    -webkit-mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/stop.png');
+    mask-image: url('https://img.icons8.com/ios-filled/50/ffffff/stop.png');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
 }
 
 .rescan-popup {

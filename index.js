@@ -8,6 +8,8 @@
     let scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
     let trail = [];
     let isProcessing = false;
+    let isStopped = false;
+    let activeAbortController = null;
     let panelCreated = false;
     let isPanelOpen = false;
     let reasoningExpanded = false;
@@ -1597,18 +1599,21 @@ function getLastUserMessage() {
 
     // Unified entry point used by both auto-trigger and re-scan.
     async function generateMBTI({ prompt, systemPrompt, maxTokensOverride }) {
-        if (isCustomBackend()) {
-            return await generateWithCustomOpenAI({ prompt, systemPrompt, maxTokensOverride });
+        activeAbortController = new AbortController();
+        const signal = activeAbortController.signal;
+        try {
+            if (isCustomBackend()) {
+                return await generateWithCustomOpenAI({ prompt, systemPrompt, maxTokensOverride, signal });
+            }
+            const ctx = SillyTavern.getContext();
+            return await ctx.generateRaw({ prompt, systemPrompt });
+        } finally {
+            activeAbortController = null;
         }
-        const ctx = SillyTavern.getContext();
-        return await ctx.generateRaw({
-            prompt: prompt,
-            systemPrompt: systemPrompt,
-        });
     }
 
     // Direct call to a user-configured OpenAI-compatible endpoint via fetch().
-    async function generateWithCustomOpenAI({ prompt, systemPrompt, maxTokensOverride }) {
+    async function generateWithCustomOpenAI({ prompt, systemPrompt, maxTokensOverride, signal }) {
         const { baseUrl, model, maxTokens, temperature, apiKey } = getCustomApiSettings();
 
         if (!baseUrl || !baseUrl.trim()) {
@@ -1630,6 +1635,7 @@ function getLastUserMessage() {
             return await fetch(endpoint, {
                 method: 'POST',
                 headers: headers,
+                signal: signal,
                 body: JSON.stringify({
                     model: model.trim(),
                     messages: [
@@ -1843,6 +1849,14 @@ function getLastUserMessage() {
         try {
             const result = await queryRating(cleanUser, cleanAi, chatHistory);
 
+            // User pressed Stop while the ST backend settled the promise:
+            // discard the result and record nothing.
+            if (isStopped) {
+                setStatus('idle', 'Analysis aborted');
+                showErrorPopup('The analysis was aborted', { resend: false, title: 'Analysis Stopped' });
+                return false;
+            }
+
             if (result.error) {
                 setStatus('error', 'Response format error');
                 errorResendHandler = () => reAnalyzeLastTurn({ force: true });
@@ -1870,13 +1884,19 @@ function getLastUserMessage() {
             setStatus('done', 'Analysis complete');
             return true;
         } catch (error) {
-            console.error('MBTI Widget: Analysis error', error);
-            setStatus('error', 'Analysis failed');
-            errorResendHandler = () => reAnalyzeLastTurn({ force: true });
-            showErrorPopup('The analysis failed. Re-send to try again.');
+            if (isStopped || error?.name === 'AbortError') {
+                setStatus('idle', 'Analysis aborted');
+                showErrorPopup('The analysis was aborted', { resend: false, title: 'Analysis Stopped' });
+            } else {
+                console.error('MBTI Widget: Analysis error', error);
+                setStatus('error', 'Analysis failed');
+                errorResendHandler = () => reAnalyzeLastTurn({ force: true });
+                showErrorPopup('The analysis failed. Re-send to try again.');
+            }
             return false;
         } finally {
             isProcessing = false;
+            isStopped = false;
         }
     }
 
@@ -2258,7 +2278,18 @@ function getLastUserMessage() {
     }
 
     // Footer status indicator. states: 'idle' | 'busy' | 'done' | 'error'
+    function updateProcessingUI(busy) {
+        const rescan = document.getElementById('rescan-btn');
+        const reanalyze = document.getElementById('reanalyze-btn');
+        const stop = document.getElementById('stop-btn');
+        if (!rescan || !reanalyze || !stop) return;
+        rescan.style.display = busy ? 'none' : '';
+        reanalyze.style.display = busy ? 'none' : '';
+        stop.style.display = busy ? '' : 'none';
+    }
+
     function setStatus(state, msg) {
+        updateProcessingUI(state === 'busy');
         const textEl = document.getElementById('mbti-footer-text');
         const spinnerEl = document.getElementById('mbti-footer-spinner');
         if (!textEl) return;
@@ -2289,11 +2320,15 @@ function getLastUserMessage() {
     // Remember the last re-scan depth, so Re-send re-runs the same scan.
     let lastScanCount = 5;
 
-    function showErrorPopup(message) {
+    function showErrorPopup(message, opts = {}) {
         const popup = document.getElementById('mbti-error-popup');
         const msgEl = document.getElementById('mbti-error-message');
+        const titleEl = document.getElementById('mbti-error-title');
+        const resendBtn = document.getElementById('mbti-error-resend');
         if (!popup) return;
         if (msgEl) msgEl.textContent = message || 'The analysis returned an invalid response format.';
+        if (titleEl) titleEl.textContent = opts.title || 'Analysis Error';
+        if (resendBtn) resendBtn.style.display = opts.resend === false ? 'none' : '';
         popup.classList.add('is-open');
     }
 
@@ -2646,6 +2681,14 @@ function getLastUserMessage() {
                 maxTokensOverride: outputBudget,
             });
 
+            // User pressed Stop while the ST backend settled the promise:
+            // discard the response and record nothing.
+            if (isStopped) {
+                setStatus('idle', 'Re-scan aborted');
+                showErrorPopup('The re-scan was aborted', { resend: false, title: 'Re-scan Stopped' });
+                return;
+            }
+
             const parsed = parseRescanResponse(response);
             console.log('[MBTI] Parsed analyses:', parsed.analyses.length);
 
@@ -2717,12 +2760,18 @@ function getLastUserMessage() {
             console.log('[MBTI] Re-scan complete. Final scores:', scores);
 
         } catch (error) {
-            console.error('MBTI Widget: Re-scan failed', error);
-            setStatus('error', 'Re-scan failed');
-            errorResendHandler = () => reScanHistory(lastScanCount);
-            showErrorPopup('The re-scan failed. Re-send to try again.');
+            if (isStopped || error?.name === 'AbortError') {
+                setStatus('idle', 'Re-scan aborted');
+                showErrorPopup('The re-scan was aborted', { resend: false, title: 'Re-scan Stopped' });
+            } else {
+                console.error('MBTI Widget: Re-scan failed', error);
+                setStatus('error', 'Re-scan failed');
+                errorResendHandler = () => reScanHistory(lastScanCount);
+                showErrorPopup('The re-scan failed. Re-send to try again.');
+            }
         } finally {
             isProcessing = false;
+            isStopped = false;
             showRescanProgress(false);
             closeRescanPopup();
         }
@@ -3542,6 +3591,10 @@ function getLastUserMessage() {
                         <div class="reanalyze-icon"></div>
                         <span>Re-scan Last</span>
                     </button>
+                    <button class="action-btn stop-btn" id="stop-btn" style="display:none;">
+                        <div class="stop-icon"></div>
+                        <span>Stop</span>
+                    </button>
                 </div>
                 <div class="mbti-footer" id="mbti-footer">
                     <div class="mbti-footer-spinner" id="mbti-footer-spinner" style="display:none;"></div>
@@ -3575,7 +3628,7 @@ function getLastUserMessage() {
         errorPopup.id = 'mbti-error-popup';
         errorPopup.className = 'mbti-error-popup';
         errorPopup.innerHTML = `
-            <div class="mbti-error-title">Analysis Error</div>
+            <div class="mbti-error-title" id="mbti-error-title">Analysis Error</div>
             <div class="mbti-error-message" id="mbti-error-message"></div>
             <div class="mbti-error-actions">
                 <button class="mbti-error-btn" id="mbti-error-close">Close</button>
@@ -3733,6 +3786,18 @@ function getLastUserMessage() {
         document.getElementById('reanalyze-btn').addEventListener('click', function(e) {
             e.stopPropagation();
             reAnalyzeLastTurn({ force: true });
+        });
+
+        document.getElementById('stop-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            isStopped = true;
+            if (activeAbortController) activeAbortController.abort();
+            // For the ST backend, generateRaw binds an internal AbortController
+            // to GENERATION_STOPPED, so emitting it cancels the in-flight request.
+            const ctx = SillyTavern.getContext();
+            if (ctx?.eventSource?.emit && ctx?.event_types) {
+                ctx.eventSource.emit(ctx.event_types.GENERATION_STOPPED);
+            }
         });
 
         document.getElementById('reasoning-label').addEventListener('click', function() {
@@ -4022,7 +4087,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.5.6 loaded');
+        console.log('MBTI Widget v3.5.7 loaded');
     }
 
     function showTestResult(message, type) {
