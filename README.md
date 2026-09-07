@@ -1,6 +1,6 @@
 # MBTI Widget
 
-A SillyTavern extension that analyzes your chat messages to build and visualize your own evolving MBTI personality profile.
+A SillyTavern extension that analyzes <b>your own</b> chat messages, to build and visualize your own (or your character's) evolving MBTI personality profile
 
 <div align="center">
 <img height="300" alt="MBTI1" src="https://github.com/user-attachments/assets/73158aea-8654-47d2-8e8b-454bd73f5b30" />
