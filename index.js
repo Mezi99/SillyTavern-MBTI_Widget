@@ -78,156 +78,1217 @@
         ESFP: { mbti: 'ESFP', name: 'THE STORM', tagline: 'You feel everything fully.', color: '#f97316', traits: [{ label: 'Extroverted', color: '#f97316' }, { label: 'Concrete', color: '#34d399' }, { label: 'Empathic', color: '#f472b6' }, { label: 'Flexible', color: '#94a3b8' }], illustration: 'storm', bullets: ["You're fully present.", "You bring life to any room."], asset: "Authentic energy", risk: "Overwhelm", famous: ['Every final girl'] }
     };
 
-    // Tabbed wiki encyclopedia ("magnify" modal) content, keyed by MBTI code.
-    // Each value is the raw HTML of exactly five tab panes (Overview / Mind /
-    // Pressure / Growth / Fiction), built to the proven ESTJ modal layout.
-    // The identity header (badge, title, tagline, traits grid) and the animated
-    // illustration come from ARCHETYPES + ILLUSTRATIONS, not this map.
-    // A key with no entry falls back to the simple single-scroll card.
-    const WIKI_CONTENT = {
-        ESTJ: `
-<div class="pane active" id="pane-overview">
-    <div class="section-label">How It Shows Up</div>
-    <div class="bullets">
-        <div class="bullet">You build the structure before anyone asks for one.</div>
-        <div class="bullet">You say the uncomfortable thing everyone else is avoiding.</div>
-        <div class="bullet">You measure a plan by whether it actually works, not whether it feels good.</div>
-        <div class="bullet">You keep your word — reliability isn't a nice-to-have for you, it's non-negotiable.</div>
-    </div>
-    <div class="divider"></div>
-    <div class="two-col">
-        <div class="col">
-            <div class="col-label asset">Greatest Asset</div>
-            <p>Organization</p>
-        </div>
-        <div class="col">
-            <div class="col-label risk">Hidden Risk</div>
-            <p>Rigidity</p>
-        </div>
-    </div>
-    <div class="divider"></div>
-    <div class="two-col">
-        <div class="col">
-            <div class="col-label asset">Secondary Asset</div>
-            <p>Reliability</p>
-        </div>
-        <div class="col">
-            <div class="col-label risk">Secondary Risk</div>
-            <p>Emotional Reticence</p>
-        </div>
-    </div>
-</div>
-<div class="pane" id="pane-mind">
-    <div class="section-label">Cognitive Stack</div>
-    <div class="fn-row">
-        <div class="fn-badge-col">
-            <div class="fn-code">Te</div>
-            <div class="fn-role">Dominant</div>
-            <div class="fn-dots"><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot lit"></span></div>
-        </div>
-        <div class="fn-body">
-            <div class="fn-name">Extraverted Thinking</div>
-            <div class="fn-desc">Runs on external, verifiable logic — what's efficient, what's provable, what gets results.</div>
-            <div class="fn-example">You reorganize a messy plan within minutes of walking into the room, whether anyone asked you to or not.</div>
-        </div>
-    </div>
-    <div class="fn-row">
-        <div class="fn-badge-col">
-            <div class="fn-code">Si</div>
-            <div class="fn-role">Auxiliary</div>
-            <div class="fn-dots"><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot"></span></div>
-        </div>
-        <div class="fn-body">
-            <div class="fn-name">Introverted Sensing</div>
-            <div class="fn-desc">Trusts what's been tested and proven before. Precedent matters.</div>
-            <div class="fn-example">"We've always done it this way" isn't laziness for you — it's a track record you don't want to throw away without a reason.</div>
-        </div>
-    </div>
-    <div class="fn-row">
-        <div class="fn-badge-col">
-            <div class="fn-code">Ne</div>
-            <div class="fn-role">Tertiary</div>
-            <div class="fn-dots"><span class="fn-dot lit"></span><span class="fn-dot lit"></span><span class="fn-dot"></span><span class="fn-dot"></span></div>
-        </div>
-        <div class="fn-body">
-            <div class="fn-name">Extraverted Intuition</div>
-            <div class="fn-desc">A less-trusted stream of "what if" possibilities that shows up as blunt, half-formed contingency plans.</div>
-            <div class="fn-example">You'll suddenly propose a left-field backup plan, then just as quickly go back to the tested approach.</div>
-        </div>
-    </div>
-    <div class="fn-row">
-        <div class="fn-badge-col">
-            <div class="fn-code">Fi</div>
-            <div class="fn-role">Inferior</div>
-            <div class="fn-dots"><span class="fn-dot lit"></span><span class="fn-dot"></span><span class="fn-dot"></span><span class="fn-dot"></span></div>
-        </div>
-        <div class="fn-body">
-            <div class="fn-name">Introverted Feeling</div>
-            <div class="fn-desc">Personal values and private emotion — the function you're least fluent in.</div>
-            <div class="fn-example">You know what you believe is right, but explaining why it matters to you personally is the hardest sentence you'll say all week.</div>
-        </div>
-    </div>
-</div>
-<div class="pane" id="pane-pressure">
-    <div class="section-label">Under Pressure</div>
-    <div class="two-col">
-        <div class="col">
-            <div class="col-label" style="color:#fbbf24">Trigger</div>
-            <p>Losing control of a situation, or being told the system you built doesn't work.</p>
-        </div>
-        <div class="col">
-            <div class="col-label" style="color:#fbbf24">Looks Like</div>
-            <p>Uncharacteristic rigidity hardening into control for control's sake.</p>
-        </div>
-    </div>
-    <div class="pressure-highlight">
-        <div class="col-label">What's Actually Happening</div>
-        <p>Your usual Te-Si approach — organize it, apply what's worked before — isn't landing. Under enough strain, your least-developed function, introverted feeling, takes over in its most raw form: you become uncharacteristically emotional, take things personally, and make decisions based on hurt feelings rather than the facts you'd normally trust.</p>
-    </div>
-    <div class="recover-note">
-        <div>
-            <div class="col-label">Recovering</div>
-            <p>Naming the feeling out loud, even clumsily, before trying to fix anything. The fix can wait five minutes.</p>
-        </div>
-    </div>
-</div>
-<div class="pane" id="pane-growth">
-    <div class="section-label">Growth Path</div>
-    <div class="blindspot-callout">
-        <div class="col-label">Blind Spot</div>
-        <p>Treating "efficient" and "right" as the same thing — dismissing feelings as noise that slows down the plan.</p>
-    </div>
-    <div class="growth-pair">
-        <div class="growth-item">
-            <div class="col-label">At Their Least Mature</div>
-            <p>"Enforces rules because they're rules. Confuses respect with obedience."</p>
-        </div>
-        <div class="growth-item mature">
-            <div class="col-label">At Their Best</div>
-            <p>"Enforces standards because they serve people — and can tell you exactly who they serve and why."</p>
-        </div>
-    </div>
-    <div class="habit-note">
-        <div class="col-label">One Habit</div>
-        <p>Before enforcing a rule, ask out loud: "does this still serve the actual goal, or just the old plan?"</p>
-    </div>
-</div>
-<div class="pane" id="pane-fiction">
-    <div class="section-label">In Fiction</div>
-    <div class="fiction-card tone-shadow">
-        <div class="fiction-name">Inspector Javert</div>
-        <div class="fiction-blurb">Les Misérables — the type's shadow side taken to its extreme: a man who mistakes the law itself for justice, and cannot survive the moment those two things split apart.</div>
-    </div>
-    <div class="fiction-card tone-mature">
-        <div class="fiction-name">Princess Tiana</div>
-        <div class="fiction-blurb">The Princess and the Frog — a healthy, grounded version of the type: dedicated, hard-working, and ambitious without losing sight of what's actually realistic.</div>
-    </div>
-    <div class="fiction-card tone-caution">
-        <div class="fiction-name">Dolores Umbridge</div>
-        <div class="fiction-blurb">Harry Potter — order weaponized: she takes real pleasure in enforcing rules, punishes anyone who breaks them without mercy, and turns hostile the moment her authority is questioned.</div>
-    </div>
-</div>`,
+    const FUNCTION_NAMES = {
+        Ne: 'Extraverted Intuition', Ni: 'Introverted Intuition',
+        Te: 'Extraverted Thinking', Ti: 'Introverted Thinking',
+        Fe: 'Extraverted Feeling', Fi: 'Introverted Feeling',
+        Se: 'Extraverted Sensing', Si: 'Introverted Sensing'
     };
+
+    const ROLE_PRIORITY = { Dominant: 0, Auxiliary: 1, Tertiary: 2, Inferior: 3 };
+    const ROLE_DOTS = { Dominant: 4, Auxiliary: 3, Tertiary: 2, Inferior: 1 };
+
+    const COGNITIVE_STACKS = {
+        INTJ: ['Ni', 'Te', 'Fi', 'Se'], INFJ: ['Ni', 'Fe', 'Ti', 'Se'],
+        ISTJ: ['Si', 'Te', 'Fi', 'Ne'], ISFJ: ['Si', 'Fe', 'Ti', 'Ne'],
+        INTP: ['Ti', 'Ne', 'Si', 'Fe'], INFP: ['Fi', 'Ne', 'Si', 'Te'],
+        ISTP: ['Ti', 'Se', 'Ni', 'Fe'], ISFP: ['Fi', 'Se', 'Ni', 'Te'],
+        ENTJ: ['Te', 'Ni', 'Se', 'Fi'], ENFJ: ['Fe', 'Ni', 'Se', 'Ti'],
+        ESTJ: ['Te', 'Si', 'Ne', 'Fi'], ESFJ: ['Fe', 'Si', 'Ne', 'Ti'],
+        ENTP: ['Ne', 'Ti', 'Fe', 'Si'], ENFP: ['Ne', 'Fi', 'Te', 'Si'],
+        ESTP: ['Se', 'Ti', 'Fe', 'Ni'], ESFP: ['Se', 'Fi', 'Te', 'Ni']
+    };
+
+    // Tabbed wiki encyclopedia ("magnify" modal) content, keyed by MBTI code.
+    // Data-driven replacement for the old per-archetype HTML panes: one
+    // renderer (`renderWikiPanes`) builds the Overview / Mind / Pressure /
+    // Growth / Fiction tabs from this JSON, so all 16 archetypes share one
+    // code path. The identity header (badge, title, tagline, traits grid) and
+    // the animated illustration come from ARCHETYPES + ILLUSTRATIONS, not this
+    // map. A key with no entry still falls back to the simple scroll card.
+    const WIKI_CONTENT = {
+    "INTJ": {
+        "bullets": [
+            "You see patterns and long-range consequences before anyone else in the room does.",
+            "You'd rather work out the answer yourself than accept it secondhand.",
+            "You revise your opinion the moment better evidence shows up — but not a moment before.",
+            "You measure people by competence first; charm doesn't move the needle much."
+        ],
+        "asset": "Strategic Vision",
+        "risk": "Arrogance",
+        "secondaryAsset": "Independent Judgment",
+        "secondaryRisk": "Dismissiveness of Emotion",
+        "mind": {
+            "Ni": {
+                "role": "Dominant",
+                "desc": "Recognizes long-range patterns and converges on a single, confident interpretation of where things are headed.",
+                "example": "You'll sense how a plan ends before the first step is even taken — and rarely bother explaining how you got there."
+            },
+            "Te": {
+                "role": "Auxiliary",
+                "desc": "Turns that inner vision into workable systems — efficient, provable, and built to get results.",
+                "example": "You'll happily overhaul a process nobody asked you to touch, because the inefficiency was bothering you more than the awkwardness of pointing it out."
+            },
+            "Fi": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary sense of personal values — genuine, but not yet fully trusted or easy to voice.",
+                "example": "You know exactly what you believe is right, even when you can't fully explain why it matters to you and don't especially want to try."
+            },
+            "Se": {
+                "role": "Inferior",
+                "desc": "Awareness of the immediate physical world and present-moment sensation — the function you lean on least.",
+                "example": "You can walk past a room full of detail and notice none of it, because your attention is already three steps down the road."
+            }
+        },
+        "pressure": {
+            "trigger": "Dealing with a flood of unfamiliar details, or an unexpected disruption to a plan you'd already worked out in your head.",
+            "looksLike": "Uncharacteristic impulsiveness — obsessing over minor details, overindulging in sensory pleasures, or making decisions with none of your usual deliberation.",
+            "happening": "Your dominant Ni has run out of road and can't resolve what's happening, so instead of leaning on your trusted auxiliary Te, your psyche drops straight to inferior Se — pulling you into raw, present-moment sensation and impulsive action you'd normally never allow yourself.",
+            "recover": "Naming it as your long-range vision running dry, not a personal failure — then deliberately giving yourself quiet, low-stimulation time instead of trying to out-plan your way through it."
+        },
+        "growth": {
+            "blindspot": "Mistaking confidence in your own analysis for certainty — and treating disagreement as evidence the other person hasn't thought hard enough.",
+            "leastMature": "\"Dismisses feelings — yours and everyone else's — as noise that gets in the way of the right answer.\"",
+            "best": "\"Builds deliberate checkpoints into your own thinking, and actively invites the evidence that might prove you wrong.\"",
+            "habit": "Before locking in a conclusion, ask: \"what evidence would change my mind — and have I actually gone looking for it?\""
+        },
+        "fiction": [
+            {
+                "name": "Hannibal Lecter",
+                "blurb": "The Silence of the Lambs — the type's cold analytical brilliance stripped of any ethical anchor: total confidence in his own judgment, total indifference to anyone else's suffering.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Matilda Wormwood",
+                "blurb": "Matilda — a healthy expression of the type from an early age: patient, self-taught, and quietly certain of her own read on the world long before anyone else takes her seriously.",
+                "tone": "mature"
+            },
+            {
+                "name": "Severus Snape",
+                "blurb": "Harry Potter — brilliant and self-possessed, but so consumed by old convictions and private grievance that his judgment curdles into a bitterness he never lets anyone see the reasoning behind.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "INFJ": {
+        "bullets": [
+            "You read what someone actually means before they've finished the sentence.",
+            "You'll quietly absorb a room's tension for hours before anyone realizes you noticed it at all.",
+            "You'd rather stay quiet than say something you don't fully believe, even if lying would be easier.",
+            "You need what you're doing to matter — busywork drains you faster than almost anything else."
+        ],
+        "asset": "Insightfulness",
+        "risk": "Burnout",
+        "secondaryAsset": "Principled Idealism",
+        "secondaryRisk": "Sensitivity to Criticism",
+        "mind": {
+            "Ni": {
+                "role": "Dominant",
+                "desc": "Converges on a single deep insight about people or situations, usually well before you can explain how you got there.",
+                "example": "You'll say \"something's off with him\" weeks before anyone else notices — and you're usually right."
+            },
+            "Fe": {
+                "role": "Auxiliary",
+                "desc": "Tunes into the emotional undercurrent of a room and adjusts to keep the peace.",
+                "example": "You can feel the exact moment a conversation shifts from fine to not-fine, often before either person involved has clocked it."
+            },
+            "Ti": {
+                "role": "Tertiary",
+                "desc": "A private, tertiary logic you use to quietly test whether your insights actually hold up.",
+                "example": "You'll sit with a conclusion for days, picking it apart on your own before you ever say it out loud."
+            },
+            "Se": {
+                "role": "Inferior",
+                "desc": "Immediate physical sensation and present-moment action — the function you trust least.",
+                "example": "You can walk through the same room every day for years and still not be able to describe what's in it."
+            }
+        },
+        "pressure": {
+            "trigger": "Chronic, unresolved stress — often relational — that outlasts your ability to think or feel your way through it.",
+            "looksLike": "Suddenly out-of-character impulsiveness: reckless decisions, indulgent binges, or a complete loss of your usual long-range focus and empathy.",
+            "happening": "Your Ni-Fe combination has run out of ways to make sense of the situation, so it collapses all the way down to inferior Se — flooding you with present-moment sensation and pulling you toward whatever offers the most immediate relief, consequences be damned.",
+            "recover": "Physically grounding yourself in something simple and sensory on purpose — a walk, a meal, sleep — rather than trying to think your way back out, since thinking is exactly what's exhausted."
+        },
+        "growth": {
+            "blindspot": "Assuming your read on someone's motives is correct simply because it feels certain — and treating that certainty as proof.",
+            "leastMature": "\"Withdraws into a private moral high ground, convinced no one else really understands what's at stake.\"",
+            "best": "\"Holds the same depth of conviction, but stays checkable — willing to say the insight out loud and let it be questioned.\"",
+            "habit": "Before acting on a strong read of someone, ask out loud: \"what would change my mind about this?\""
+        },
+        "fiction": [
+            {
+                "name": "Loki",
+                "blurb": "Marvel — the quintessential unhealthy INFJ: a private, long-held vision of how things should be, executed through manipulation of exactly the people closest to him.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Atticus Finch",
+                "blurb": "To Kill a Mockingbird — principled without being preachy, quietly certain of his own values, and unmoved by a crowd that violently disagrees with him.",
+                "tone": "mature"
+            },
+            {
+                "name": "Gellert Grindelwald",
+                "blurb": "Harry Potter — conviction curdled into justification: he believes everything he does is for a greater good, which is exactly what lets him excuse the harm.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ISTJ": {
+        "bullets": [
+            "You say exactly what you mean, even when a softer version would land easier.",
+            "Once you've committed to something, you follow through — full stop, no matter how you feel about it that day.",
+            "You're the calm one when everyone else is panicking, because panic has never once solved anything.",
+            "You trust what's actually been tested over what merely sounds promising."
+        ],
+        "asset": "Reliability",
+        "risk": "Inflexibility",
+        "secondaryAsset": "Unwavering Honesty",
+        "secondaryRisk": "Bluntness",
+        "mind": {
+            "Si": {
+                "role": "Dominant",
+                "desc": "Draws on a detailed internal library of past experience to judge what's reliable and what isn't.",
+                "example": "You remember exactly how a similar plan failed three years ago, and you're not interested in repeating it to be polite."
+            },
+            "Te": {
+                "role": "Auxiliary",
+                "desc": "Turns that internal precedent into efficient, external action — organizing, executing, enforcing.",
+                "example": "You'll rewrite a broken process on your first day at a new job, because watching it stay broken bothers you more than the awkwardness of speaking up."
+            },
+            "Fi": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary sense of personal values that surfaces as an unshakeable inner compass, even if you rarely explain it.",
+                "example": "You'll break from procedure exactly once, when it crosses a line you privately won't move on — and won't necessarily say why."
+            },
+            "Ne": {
+                "role": "Inferior",
+                "desc": "Open-ended possibility and \"what if\" thinking — the function you trust least and lean on hardly at all.",
+                "example": "Brainstorming ten wild options for a problem feels less like creativity and more like a waste of time you could've spent solving it."
+            }
+        },
+        "pressure": {
+            "trigger": "A crisis or sudden disruption that makes your usual reliance on precedent and routine feel useless.",
+            "looksLike": "Uncharacteristic catastrophizing — spiraling through worst-case scenarios on topics you'd normally handle with total calm.",
+            "happening": "Your trusted Si-Te approach has nothing solid left to draw on, so control passes to your least-developed function, inferior Ne, which floods you with worst-case possibilities faster than you can rule any of them out.",
+            "recover": "Saying the catastrophic scenario out loud to someone who'll take it seriously without dismissing it as \"not like you\" — reality-testing it with another person breaks the spiral faster than trying to reason your way out alone."
+        },
+        "growth": {
+            "blindspot": "Treating \"this is how it's always been done\" as equivalent to \"this is correct\" — and resisting good ideas simply because they're unfamiliar.",
+            "leastMature": "\"Refuses to budge on a rule even after privately admitting it no longer serves its purpose.\"",
+            "best": "\"Holds standards firmly, but revisits them the moment the facts genuinely change — because facts, not habit, were always the actual point.\"",
+            "habit": "Before rejecting a new approach, ask: \"am I resisting this because it's actually wrong, or just because it's unfamiliar?\""
+        },
+        "fiction": [
+            {
+                "name": "Darth Vader",
+                "blurb": "Star Wars — duty and order taken to their coldest extreme: unwavering commitment to a system, total loyalty to a chain of command, with no room left to question whether that command deserves it.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Optimus Prime",
+                "blurb": "Transformers — dependable to the core, unwavering in his sense of duty, and entirely defined by protecting the people under his care.",
+                "tone": "mature"
+            },
+            {
+                "name": "Inspector Lestrade",
+                "blurb": "Sherlock Holmes — fundamentally decent, but so wedded to procedure that his by-the-book instincts routinely put him at odds with the very case he's trying to solve.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ISFJ": {
+        "bullets": [
+            "You notice the small thing someone needs before they've said a word about it.",
+            "You'll go well beyond what's asked of you, and rarely mention that you did.",
+            "You'd rather absorb the discomfort yourself than start a conflict over it.",
+            "You remember details about people's lives that they're surprised you even caught."
+        ],
+        "asset": "Loyal Support",
+        "risk": "Self-Sacrifice",
+        "secondaryAsset": "Practical Generosity",
+        "secondaryRisk": "Conflict Avoidance",
+        "mind": {
+            "Si": {
+                "role": "Dominant",
+                "desc": "Builds a detailed internal library of lived experience and compares the present moment against it.",
+                "example": "You remember exactly how someone takes their coffee, or what upset them last time, long after they've forgotten telling you."
+            },
+            "Fe": {
+                "role": "Auxiliary",
+                "desc": "Reads the emotional atmosphere of a room and moves to keep everyone comfortable and cared for.",
+                "example": "You'll quietly rearrange your own plans the moment you sense someone nearby actually needs you."
+            },
+            "Ti": {
+                "role": "Tertiary",
+                "desc": "A private, tertiary logic that helps you make sense of people's behavior without taking it personally.",
+                "example": "You'll work out a calm, reasoned explanation for why someone hurt you, mostly so you don't have to be angry at them."
+            },
+            "Ne": {
+                "role": "Inferior",
+                "desc": "Open-ended possibility and change — the function you trust least and find hardest to welcome.",
+                "example": "A sudden change of plans doesn't feel exciting to you; it feels like the floor moving."
+            }
+        },
+        "pressure": {
+            "trigger": "Sudden, unfamiliar change that threatens the stability you've worked hard to build for the people around you.",
+            "looksLike": "Uncharacteristic catastrophizing — imagining worst-case outcomes and losing your usual grounded, steady read on things.",
+            "happening": "Your trusted Si-Fe approach has no precedent to draw on, so control drops to inferior Ne, flooding you with exactly the possibilities you normally never let yourself dwell on.",
+            "recover": "Anchoring back in something small and concrete — a routine task, a familiar place — rather than trying to reason your way through every imagined outcome at once."
+        },
+        "growth": {
+            "blindspot": "Equating your own needs with selfishness — so consistently that you stop noticing you have any.",
+            "leastMature": "\"Avoids conflict at any cost, even when staying silent means quietly resenting the people you're protecting.\"",
+            "best": "\"Sets a boundary as clearly and kindly as you'd want someone to set one with you.\"",
+            "habit": "Once a week, name one thing you need out loud — to someone, not just to yourself."
+        },
+        "fiction": [
+            {
+                "name": "Norman Bates",
+                "blurb": "Psycho — devotion and duty distorted into something inescapable: bound so tightly to responsibility and the past that it consumes him entirely.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Samwise Gamgee",
+                "blurb": "The Lord of the Rings — loyalty at its healthiest: steady, selfless, and never once needing recognition for carrying someone else the whole way.",
+                "tone": "mature"
+            },
+            {
+                "name": "Marge Simpson",
+                "blurb": "The Simpsons — dependable to a fault: so committed to routine and keeping everyone comfortable that stepping outside her comfort zone, even briefly, feels like a small crisis.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "INTP": {
+        "bullets": [
+            "You'll spot the flaw in an argument nobody else noticed, then wonder why everyone's annoyed you mentioned it.",
+            "You'd rather understand something completely than be the one who gets credit for it.",
+            "You can get so lost in a train of thought that the conversation moves on without you.",
+            "You'll change your entire opinion the moment better logic shows up — no ego involved."
+        ],
+        "asset": "Analytical Thinking",
+        "risk": "Indecisiveness",
+        "secondaryAsset": "Open-Mindedness",
+        "secondaryRisk": "Emotional Insensitivity",
+        "mind": {
+            "Ti": {
+                "role": "Dominant",
+                "desc": "Builds precise internal logical frameworks and tests every idea against them before trusting it.",
+                "example": "You'll take apart your own argument looking for the flaw before anyone else gets the chance."
+            },
+            "Ne": {
+                "role": "Auxiliary",
+                "desc": "Generates possibilities and connections other people don't see, following curiosity wherever it leads.",
+                "example": "You'll go down a three-hour research rabbit hole on something that started as a passing thought."
+            },
+            "Si": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary awareness of past experience that occasionally roots your theorizing in what's actually worked before.",
+                "example": "You'll surprise people by remembering a small procedural detail from years ago, purely because it once mattered to a system you cared about."
+            },
+            "Fe": {
+                "role": "Inferior",
+                "desc": "Awareness of others' emotions and social harmony — the function you trust and use least.",
+                "example": "You can genuinely forget to ask how someone's doing, not from indifference, but because it just doesn't occur to you."
+            }
+        },
+        "pressure": {
+            "trigger": "Sustained criticism, emotional conflict, or a situation logic simply can't resolve.",
+            "looksLike": "Uncharacteristic emotional flooding — becoming touchy, people-pleasing, or unexpectedly tearful over things you'd normally shrug off.",
+            "happening": "Your trusted Ti-Ne approach can't out-think the problem, so control drops to inferior Fe, and you're suddenly overrun by exactly the feelings you usually keep at arm's length, with none of the skill to manage them.",
+            "recover": "Retreating to solitary, low-stakes analytical work — even something trivial — to let your dominant Ti quietly reassert itself before engaging with people again."
+        },
+        "growth": {
+            "blindspot": "Assuming that because you've thought about something carefully, you've also handled it emotionally.",
+            "leastMature": "\"Dismisses feelings — including your own — as irrelevant data that only muddies a clean argument.\"",
+            "best": "\"Stays just as rigorous, but treats other people's emotional reality as a fact worth taking seriously, not an inconvenience.\"",
+            "habit": "Before ending a hard conversation, ask: \"have I actually addressed how this feels, or only whether it's logical?\""
+        },
+        "fiction": [
+            {
+                "name": "Victor Frankenstein",
+                "blurb": "Frankenstein — brilliant curiosity pursued so single-mindedly that the human consequences of the creation never enter the equation until it's far too late.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Hiccup",
+                "blurb": "How to Train Your Dragon — curiosity paired with genuine courage and care: he questions everything he's been taught, and it's exactly what lets him do the right thing when it matters.",
+                "tone": "mature"
+            },
+            {
+                "name": "Elliot Alderson",
+                "blurb": "Mr. Robot — brilliant and painfully isolated, so deep inside his own analysis that reaching out for real connection starts to feel impossible.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "INFP": {
+        "bullets": [
+            "You feel a decision is wrong before you can fully explain why — and you're usually right.",
+            "You'd rather stay quiet about something than argue for it half-heartedly.",
+            "You hold onto a private inner world that's more vivid to you than most people ever get to see.",
+            "A single piece of harsh feedback can sit with you for days after everyone else has forgotten it."
+        ],
+        "asset": "Creativity",
+        "risk": "Idealism",
+        "secondaryAsset": "Emotional Depth",
+        "secondaryRisk": "Difficulty Committing",
+        "mind": {
+            "Fi": {
+                "role": "Dominant",
+                "desc": "Judges everything against a deeply personal, quietly held set of values.",
+                "example": "You'll go along with almost anything — right up until it crosses a line you didn't even realize mattered to you this much."
+            },
+            "Ne": {
+                "role": "Auxiliary",
+                "desc": "Generates possibilities and emotional connections, often tied to how a person or idea makes you feel.",
+                "example": "You'll suddenly see a completely different side of a familiar story, just from noticing one small emotional detail everyone else skipped."
+            },
+            "Si": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary pull toward comforting memory and past experience.",
+                "example": "You'll return to the same book or song for years, because it still holds the exact feeling it did the first time."
+            },
+            "Te": {
+                "role": "Inferior",
+                "desc": "External, efficient logic and organization — the function you trust and use the least.",
+                "example": "You know exactly what needs to get done, but turning that into an actual step-by-step plan feels oddly exhausting."
+            }
+        },
+        "pressure": {
+            "trigger": "Sustained criticism or negativity aimed at something you care about deeply.",
+            "looksLike": "Uncharacteristic harshness — hypercritical, exaggerated judgments of yourself or others, delivered with none of your usual gentleness.",
+            "happening": "Your dominant Fi can't resolve the hurt on its own, so control drops to inferior Te, and you start handing down blunt, overstated verdicts — on yourself first, often, before turning them on everyone else.",
+            "recover": "Naming it out loud as the grip talking, not the truth — then giving the criticism a day to cool before deciding whether any of it was actually fair."
+        },
+        "growth": {
+            "blindspot": "Treating a strong personal feeling about something as proof that it's objectively true.",
+            "leastMature": "\"Retreats into private judgment of everyone who doesn't meet your inner standard, without ever voicing what that standard is.\"",
+            "best": "\"Holds the same depth of feeling, but says the values out loud where they can actually be discussed — not just felt.\"",
+            "habit": "Before writing someone off internally, ask: \"have I actually told them what I need, or just decided they failed to guess it?\""
+        },
+        "fiction": [
+            {
+                "name": "Erik (The Phantom)",
+                "blurb": "The Phantom of the Opera — idealism curdled into obsession: a private fantasy world built around one person, sustained through manipulation once reality refuses to cooperate.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Frodo Baggins",
+                "blurb": "The Lord of the Rings — quiet moral endurance: he carries an unbearable weight not out of ambition, but because his private sense of what's right leaves him no other choice.",
+                "tone": "mature"
+            },
+            {
+                "name": "Wilson Fisk",
+                "blurb": "Daredevil — good intentions curdled into \"the ends justify the means\": he genuinely believes he's cleaning up the city, which is exactly what lets him excuse the violence it takes to do it.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ISTP": {
+        "bullets": [
+            "You'd rather fix the problem with your hands than talk about how it made you feel.",
+            "You need real breathing room, and you'll quietly pull back the moment someone starts scheduling your time for you.",
+            "A crisis doesn't rattle you — it's the slow, boring stuff that actually tests your patience.",
+            "You show people you care by showing up and doing something useful, not by saying it out loud."
+        ],
+        "asset": "Practical Action",
+        "risk": "Impulsiveness",
+        "secondaryAsset": "Composure Under Pressure",
+        "secondaryRisk": "Emotional Detachment",
+        "mind": {
+            "Ti": {
+                "role": "Dominant",
+                "desc": "Builds a private, internally consistent logical framework and tests everything against it.",
+                "example": "You'll quietly take a system apart in your head just to understand exactly why it works, with no plan to tell anyone what you found."
+            },
+            "Se": {
+                "role": "Auxiliary",
+                "desc": "Engages directly and skillfully with the physical present moment.",
+                "example": "You'll instinctively know how to fix, drive, or handle something the first time you touch it, no manual required."
+            },
+            "Ni": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary sense that occasionally hands you a sudden, oddly specific read on how a situation will unfold.",
+                "example": "You'll have a flash of certainty about how something's going to go, act on it, and only later think to explain why."
+            },
+            "Fe": {
+                "role": "Inferior",
+                "desc": "Awareness of others' emotions and social harmony — the function you trust and use the least.",
+                "example": "You can care about someone enormously and still have no idea how to say so in a way that actually lands."
+            }
+        },
+        "pressure": {
+            "trigger": "Sustained emotional conflict, or a situation where your usual hands-on problem-solving simply doesn't apply.",
+            "looksLike": "A sudden, disproportionate emotional reaction — often expressed as an abrupt, final-feeling action rather than words: walking out, quitting, ending something outright.",
+            "happening": "Your trusted Ti-Se approach can't resolve what's bothering you, so control drops to inferior Fe, and everything you've been quietly not-processing arrives at once, with none of your usual composure.",
+            "recover": "Physical distance and solitude first, then a concrete, low-stakes hands-on task to let your dominant Ti-Se pairing settle back in before revisiting the actual conversation."
+        },
+        "growth": {
+            "blindspot": "Assuming that not talking about a feeling is the same as it not existing.",
+            "leastMature": "\"Ends things — a conversation, a relationship, a commitment — abruptly, rather than sitting in the discomfort of working through it.\"",
+            "best": "\"Still values independence and directness, but can name what's bothering you before it forces its way out sideways.\"",
+            "habit": "Before walking away from a hard conversation, name one concrete thing that's actually bothering you — out loud, to the person."
+        },
+        "fiction": [
+            {
+                "name": "Boba Fett",
+                "blurb": "Star Wars — independence and detachment with no attachment to any side: skilled, unreadable, and willing to work for whoever's paying, regardless of the cause.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Indiana Jones",
+                "blurb": "Indiana Jones — competence and independence in service of something that actually matters to him, not just the next thrill.",
+                "tone": "mature"
+            },
+            {
+                "name": "James Bond",
+                "blurb": "James Bond — decisive and unshakeable under pressure, but so committed to self-sufficiency that real intimacy never gets the chance to take hold.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ISFP": {
+        "bullets": [
+            "You won't fake a feeling you don't have, even when it would make things socially easier.",
+            "You notice beauty in small, ordinary moments most people walk straight past.",
+            "You'll quietly accommodate almost anyone — right up until they cross a line you privately won't move on.",
+            "Rules for the sake of rules feel less like structure and more like a cage."
+        ],
+        "asset": "Authenticity",
+        "risk": "Overwhelm",
+        "secondaryAsset": "Present-Moment Awareness",
+        "secondaryRisk": "Conflict Avoidance",
+        "mind": {
+            "Fi": {
+                "role": "Dominant",
+                "desc": "Judges everything against a deeply personal, quietly held set of values.",
+                "example": "You'll go along with the group for a long time — until something crosses a line only you can see, and then you're immovable."
+            },
+            "Se": {
+                "role": "Auxiliary",
+                "desc": "Engages fully and vividly with the present physical moment.",
+                "example": "You'll notice the exact quality of light in a room before you notice anything anyone in it just said."
+            },
+            "Ni": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary pull toward future implications that helps temper pure impulse.",
+                "example": "Every so often you'll have an oddly specific hunch about how something's going to turn out — and it's usually right."
+            },
+            "Te": {
+                "role": "Inferior",
+                "desc": "External efficiency, structure, and organization — the function you trust and use the least.",
+                "example": "You know exactly what you want to make — turning that into a schedule with deadlines is another matter entirely."
+            }
+        },
+        "pressure": {
+            "trigger": "A prolonged situation that violates your personal values, or being pushed for far more structure and control than feels natural.",
+            "looksLike": "Uncharacteristic harsh criticism and a rigid drive to control your circumstances through logic and systems you don't normally rely on.",
+            "happening": "Your dominant Fi-Se approach has been overwhelmed for too long, so your psyche pulls the emergency brake and drops you into inferior Te — suddenly cold, efficient, and fault-finding in a way that surprises everyone who knows you.",
+            "recover": "Getting back into your body on purpose — a walk, making something with your hands, physical movement — rather than trying to logic your way out of a feeling that logic can't actually reach."
+        },
+        "growth": {
+            "blindspot": "Avoiding conflict so consistently that your own needs quietly disappear from the conversation entirely.",
+            "leastMature": "\"Shuts down and disengages rather than risk a confrontation, even when staying silent costs you something real.\"",
+            "best": "\"Still moves at your own pace and by your own values, but says the hard thing directly instead of just withdrawing.\"",
+            "habit": "Next time you want to avoid a conflict, say one true sentence about it out loud instead of changing the subject."
+        },
+        "fiction": [
+            {
+                "name": "Stain",
+                "blurb": "My Hero Academia — conviction turned violent: a set of personal values so absolute that anyone who doesn't meet them stops counting as a person worth sparing.",
+                "tone": "shadow"
+            },
+            {
+                "name": "June Osborne (Offred)",
+                "blurb": "The Handmaid's Tale — quiet defiance at its healthiest: an unshakeable inner compass that survives every attempt to strip it away, expressed through small acts of resistance rather than grand speeches.",
+                "tone": "mature"
+            },
+            {
+                "name": "Zuko",
+                "blurb": "Avatar: The Last Airbender — values in genuine conflict with each other: chasing an inherited definition of honor so hard that it takes years, and real damage along the way, before he can hear what he actually believes.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ENTJ": {
+        "bullets": [
+            "You spot the inefficiency in a plan within minutes of walking into the room.",
+            "You make the call and move — waiting for consensus feels like watching momentum die.",
+            "You assume everyone else operates at your pace, and get visibly impatient when they don't.",
+            "You can read what someone's feeling just fine; you just don't always think it should change the decision."
+        ],
+        "asset": "Leadership",
+        "risk": "Domination",
+        "secondaryAsset": "Decisiveness",
+        "secondaryRisk": "Poor Handling of Emotions",
+        "mind": {
+            "Te": {
+                "role": "Dominant",
+                "desc": "Runs on external, verifiable logic — organizing people and resources toward a clear goal.",
+                "example": "You'll restructure a meeting's entire agenda in your head before it's even started, because the current plan is clearly wasting everyone's time."
+            },
+            "Ni": {
+                "role": "Auxiliary",
+                "desc": "Converges on a long-range strategic vision, often well before the people around you can see where you're headed.",
+                "example": "You'll commit to a five-year plan with total confidence while everyone else is still debating next quarter."
+            },
+            "Se": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary pull toward decisive, in-the-moment action.",
+                "example": "When the plan needs to change right now, you don't hesitate — you're already moving before you've finished explaining why."
+            },
+            "Fi": {
+                "role": "Inferior",
+                "desc": "A private, personal sense of right and wrong — the function you trust and use the least.",
+                "example": "You rarely talk about what you personally believe in, but cross that line without knowing it and you'll find out immediately."
+            }
+        },
+        "pressure": {
+            "trigger": "Intense emotional confrontation, guilt over having been too harsh, or your own values going unacknowledged.",
+            "looksLike": "Uncharacteristic emotional outbursts, withdrawal from people entirely, or sudden hypersensitivity — reading rejection into small, insignificant details.",
+            "happening": "Your trusted Te-Ni approach can't out-strategize what you're feeling, so control drops to inferior Fi, and you're flooded with exactly the private emotional reactions you normally never let surface.",
+            "recover": "Physical exertion first to burn off the intensity, then naming — even just to yourself — what value actually got stepped on, before making any decisions about people."
+        },
+        "growth": {
+            "blindspot": "Treating your own read on \"what's effective\" as automatically also \"what's right\" — without checking the second one separately.",
+            "leastMature": "\"Steamrolls other people's input as an obstacle to efficiency, then wonders why no one brings you bad news anymore.\"",
+            "best": "\"Moves just as fast and decisively, but has built in a real pause to ask what this costs the people executing the plan.\"",
+            "habit": "Before finalizing a decision, ask one person who disagrees with you to make their case — and actually let it change something."
+        },
+        "fiction": [
+            {
+                "name": "Frank Underwood",
+                "blurb": "House of Cards — Te-Ni ambition with the last shred of Fi surgically removed: strategy and momentum in service of nothing but his own advancement.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Princess Leia",
+                "blurb": "Star Wars — command and conviction aligned: decisive, unshakeable under pressure, and never once willing to let strategy override what she actually believes in.",
+                "tone": "mature"
+            },
+            {
+                "name": "Miranda Priestly",
+                "blurb": "The Devil Wears Prada — competence and standards taken so far past the point of diminishing returns that her own name for it, privately, might be loneliness.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ENFJ": {
+        "bullets": [
+            "You can walk into a room and have everyone rallying around the same goal within minutes.",
+            "You'll advocate loudly for someone who can't speak up for themselves, even when it costs you socially.",
+            "Letting someone down feels almost physically uncomfortable, so you rarely do it.",
+            "You assume most people share your sense of right and wrong — and get genuinely thrown when they don't."
+        ],
+        "asset": "Inspirational Charisma",
+        "risk": "People-Pleasing",
+        "secondaryAsset": "Reliability",
+        "secondaryRisk": "Overcommitment",
+        "mind": {
+            "Fe": {
+                "role": "Dominant",
+                "desc": "Reads the emotional climate of a room instantly and moves to bring people together around it.",
+                "example": "You'll notice a friend is struggling before they've said a word, and you're already thinking about how to help."
+            },
+            "Ni": {
+                "role": "Auxiliary",
+                "desc": "Builds a clear, long-range vision of how people and situations could be.",
+                "example": "You'll see exactly who someone could become, sometimes before they can see it themselves."
+            },
+            "Se": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary pull toward decisive, in-the-moment action once the vision is clear.",
+                "example": "Once you've decided what needs to happen, you'll move on it immediately — no more deliberating."
+            },
+            "Ti": {
+                "role": "Inferior",
+                "desc": "Detached, internally consistent logic — the function you trust and use the least.",
+                "example": "You can feel completely certain a decision is right and still struggle to explain the actual reasoning behind it."
+            }
+        },
+        "pressure": {
+            "trigger": "Sustained conflict, or feeling that your values and effort are going completely unacknowledged.",
+            "looksLike": "Uncharacteristic hypercriticism — suddenly picking apart the logic in everything, and withdrawing from people to think alone instead of connecting.",
+            "happening": "Your trusted Fe-Ni approach can't restore the harmony it usually can, so control drops to inferior Ti, and you turn cold and unfiltered in a way that startles the people used to your warmth.",
+            "recover": "Give yourself the solitude the grip is actually asking for — briefly — then return to people once the harsh, hyper-logical edge has worn off rather than while it's still running the show."
+        },
+        "growth": {
+            "blindspot": "Assuming that because you can see someone's potential clearly, they're obligated to want it too.",
+            "leastMature": "\"Pushes people toward the vision you have for them, then feels hurt or betrayed when they choose differently.\"",
+            "best": "\"Holds the same vision for people, but lets them arrive at it — or not — in their own time, without making it personal.\"",
+            "habit": "Before offering advice someone didn't ask for, ask yourself: \"is this actually for them, or is it for how I need this to go?\""
+        },
+        "fiction": [
+            {
+                "name": "Hans Westergaard",
+                "blurb": "Frozen — Fe-driven charm with the warmth surgically removed: reading people perfectly, purely to find the fastest route to what he wants.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Terry Jeffords",
+                "blurb": "Brooklyn Nine-Nine — leadership that's genuinely about the people being led: warm, invested in everyone's growth, and just as much of a softie in private as he is a captain in public.",
+                "tone": "mature"
+            },
+            {
+                "name": "Lily Aldrin",
+                "blurb": "How I Met Your Mother — good intentions with a controlling edge: she loves fixing people's lives so much that she sometimes forgets to ask whether they wanted the help.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ESTJ": {
+        "bullets": [
+            "You build the structure before anyone asks for one.",
+            "You say the uncomfortable thing everyone else is avoiding.",
+            "You measure a plan by whether it actually works, not whether it feels good.",
+            "You keep your word — reliability isn't a nice-to-have for you, it's non-negotiable."
+        ],
+        "asset": "Organization",
+        "risk": "Rigidity",
+        "secondaryAsset": "Reliability",
+        "secondaryRisk": "Emotional Reticence",
+        "mind": {
+            "Te": {
+                "role": "Dominant",
+                "desc": "Runs on external, verifiable logic — what's efficient, what's provable, what gets results.",
+                "example": "You reorganize a messy plan within minutes of walking into the room, whether anyone asked you to or not."
+            },
+            "Si": {
+                "role": "Auxiliary",
+                "desc": "Trusts what's been tested and proven before. Precedent matters.",
+                "example": "\"We've always done it this way\" isn't laziness for you — it's a track record you don't want to throw away without a reason."
+            },
+            "Ne": {
+                "role": "Tertiary",
+                "desc": "A less-trusted stream of \"what if\" possibilities that shows up as blunt, half-formed contingency plans.",
+                "example": "You'll suddenly propose a left-field backup plan, then just as quickly go back to the tested approach."
+            },
+            "Fi": {
+                "role": "Inferior",
+                "desc": "Personal values and private emotion — the function you're least fluent in.",
+                "example": "You know what you believe is right, but explaining why it matters to you personally is the hardest sentence you'll say all week."
+            }
+        },
+        "pressure": {
+            "trigger": "Losing control of a situation, or being told the system you built doesn't work.",
+            "looksLike": "Uncharacteristic rigidity hardening into control for control's sake.",
+            "happening": "Your usual Te-Si approach — organize it, apply what's worked before — isn't landing. Under enough strain, your least-developed function, introverted feeling, takes over in its most raw form: you become uncharacteristically emotional, take things personally, and make decisions based on hurt feelings rather than the facts you'd normally trust.",
+            "recover": "Naming the feeling out loud, even clumsily, before trying to fix anything. The fix can wait five minutes."
+        },
+        "growth": {
+            "blindspot": "Treating \"efficient\" and \"right\" as the same thing — dismissing feelings as noise that slows down the plan.",
+            "leastMature": "\"Enforces rules because they're rules. Confuses respect with obedience.\"",
+            "best": "\"Enforces standards because they serve people — and can tell you exactly who they serve and why.\"",
+            "habit": "Before enforcing a rule, ask out loud: \"does this still serve the actual goal, or just the old plan?\""
+        },
+        "fiction": [
+            {
+                "name": "Inspector Javert",
+                "blurb": "Les Misérables — the type's shadow side taken to its extreme: a man who mistakes the law itself for justice, and cannot survive the moment those two things split apart.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Princess Tiana",
+                "blurb": "The Princess and the Frog — a healthy, grounded version of the type: dedicated, hard-working, and ambitious without losing sight of what's actually realistic.",
+                "tone": "mature"
+            },
+            {
+                "name": "Dolores Umbridge",
+                "blurb": "Harry Potter — order weaponized: she takes real pleasure in enforcing rules, punishes anyone who breaks them without mercy, and turns hostile the moment her authority is questioned.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ESFJ": {
+        "bullets": [
+            "You know what someone needs before they've thought to ask for it.",
+            "You keep every promise you make, even the small ones nobody would notice if you skipped.",
+            "You'd rather smooth over a disagreement than let it sit in the room.",
+            "A little unnoticed effort stings more than you'd ever admit out loud."
+        ],
+        "asset": "Community",
+        "risk": "Neglecting Self",
+        "secondaryAsset": "Practical Reliability",
+        "secondaryRisk": "Need for Appreciation",
+        "mind": {
+            "Fe": {
+                "role": "Dominant",
+                "desc": "Reads the emotional needs of the group and moves to keep everyone comfortable and connected.",
+                "example": "You'll rearrange an entire gathering around one person's bad day without anyone quite noticing you did it."
+            },
+            "Si": {
+                "role": "Auxiliary",
+                "desc": "Draws on a detailed, well-organized memory of what's worked and what's expected before.",
+                "example": "You remember exactly how last year's holiday went, right down to who sat where, and you're already planning around it."
+            },
+            "Ne": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary pull toward new possibilities that occasionally surprises the people who think they have you fully figured out.",
+                "example": "Every so often you'll float a genuinely offbeat idea, then go right back to the tried-and-true plan five minutes later."
+            },
+            "Ti": {
+                "role": "Inferior",
+                "desc": "Detached, impersonal logic — the function you trust and use the least.",
+                "example": "You'll feel completely sure a decision is right because it feels right, and find it oddly hard to defend that on pure logic alone."
+            }
+        },
+        "pressure": {
+            "trigger": "Sustained conflict, criticism of something you're proud of, or feeling like your effort has gone completely unnoticed.",
+            "looksLike": "Uncharacteristic hypercriticism and withdrawal — suddenly nitpicking small inconsistencies and pulling back from the people you'd normally be taking care of.",
+            "happening": "Your trusted Fe-Si approach has hit a wall it can't smooth over, so control drops to inferior Ti, and you turn colder and more clinical than anyone who knows you would expect.",
+            "recover": "Naming out loud that you feel unappreciated, directly, instead of waiting for someone to notice — the grip tends to ease the moment the actual need gets said."
+        },
+        "growth": {
+            "blindspot": "Equating \"keeping the peace\" with \"the problem is resolved,\" when really it's just gone quiet for now.",
+            "leastMature": "\"Smooths over a real problem to preserve harmony, then quietly resents everyone involved for weeks afterward.\"",
+            "best": "\"Still values harmony, but is willing to sit in a little discomfort now so the resentment doesn't build later.\"",
+            "habit": "Next time you want to smooth something over, name the actual disagreement out loud first — then smooth it over."
+        },
+        "fiction": [
+            {
+                "name": "Mother Gothel",
+                "blurb": "Tangled — caretaking curdled into possession: love expressed entirely as control, convinced that keeping someone dependent is the same thing as keeping them safe.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Monica Geller",
+                "blurb": "Friends — devotion channeled into hosting, organizing, and holding the group together: competitive and particular, but genuinely there for the people she loves.",
+                "tone": "mature"
+            },
+            {
+                "name": "Effie Trinket",
+                "blurb": "The Hunger Games — propriety and appearances valued so highly that she initially can't see the horror in front of her, mistaking manners for what actually matters.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ENTP": {
+        "bullets": [
+            "You'll argue a position you don't even hold, just to see if it survives contact.",
+            "You generate ten workable ideas before lunch and finish approximately none of them.",
+            "Routine feels less like stability and more like a slow leak of oxygen.",
+            "You can pick up a completely unrelated skill fast enough to unsettle the people who've been doing it for years."
+        ],
+        "asset": "Innovation",
+        "risk": "Argumentativeness",
+        "secondaryAsset": "Intellectual Versatility",
+        "secondaryRisk": "Inconsistency",
+        "mind": {
+            "Ne": {
+                "role": "Dominant",
+                "desc": "Sees the world as a web of interconnected possibilities and generates options effortlessly.",
+                "example": "You'll connect two completely unrelated ideas mid-conversation and immediately want to test whether the connection actually holds."
+            },
+            "Ti": {
+                "role": "Auxiliary",
+                "desc": "Builds a private, internally consistent logical framework and tests every claim — including your own — against it.",
+                "example": "You'll poke holes in your own argument out loud, mid-argument, just because you noticed the hole."
+            },
+            "Fe": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary read on the social climate that lets you charm a room when you bother to use it.",
+                "example": "You can win people over effortlessly when it matters to you — you just don't always think it matters."
+            },
+            "Si": {
+                "role": "Inferior",
+                "desc": "Grounded, detail-oriented memory of past experience — the function you trust and use the least.",
+                "example": "You'll forget the same practical detail three times in a row because your attention was somewhere far more interesting."
+            }
+        },
+        "pressure": {
+            "trigger": "Sustained criticism, or a situation demanding routine and precision with zero room for improvisation.",
+            "looksLike": "Uncharacteristic pessimism, nitpicking, and a nostalgic, gloomy fixation on past mistakes — the opposite of your usual forward-looking energy.",
+            "happening": "Your trusted Ne-Ti pairing has nowhere left to generate options, so control drops to inferior Si, and you get stuck replaying old failures instead of imagining new possibilities.",
+            "recover": "Deliberately building in one small, boring routine — same meal, same walk — rather than trying to think your way out with more ideas, which is exactly what got you here."
+        },
+        "growth": {
+            "blindspot": "Treating every conversation as a debate to win, even when the other person just wanted to be heard.",
+            "leastMature": "\"Argues a point purely to prove you can, long after it's stopped being interesting to anyone else in the room.\"",
+            "best": "\"Still loves a good argument, but can tell the difference between exploring an idea and just needing to be right.\"",
+            "habit": "Before pushing back on someone's idea, ask yourself: \"am I actually curious, or do I just want to win this?\""
+        },
+        "fiction": [
+            {
+                "name": "The Joker",
+                "blurb": "Batman — chaos as philosophy, argued with total conviction: cleverness and improvisation used purely to prove that nothing anyone believes actually matters.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Chandler Bing",
+                "blurb": "Friends — wit used to connect rather than deflect: still allergic to sincerity, but shows up completely when it counts.",
+                "tone": "mature"
+            },
+            {
+                "name": "Fleabag",
+                "blurb": "Fleabag — provocation as a defense mechanism: funny, sharp, and so committed to deflecting through jokes that real intimacy keeps slipping through the cracks.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ENFP": {
+        "bullets": [
+            "You'll connect two people, two ideas, or two entire fields that had no business being connected — and it works.",
+            "You say yes to things because you're genuinely excited, then realize at 11pm what that yes actually costs.",
+            "You care so specifically about certain things that people are sometimes surprised you have limits at all.",
+            "Finishing the last 10% of a project is somehow harder than starting three new ones."
+        ],
+        "asset": "Enthusiasm",
+        "risk": "Distraction",
+        "secondaryAsset": "Empathetic Communication",
+        "secondaryRisk": "Overcommitment",
+        "mind": {
+            "Ne": {
+                "role": "Dominant",
+                "desc": "Sees possibilities and emotional connections everywhere, especially in people.",
+                "example": "You'll meet someone for five minutes and walk away with a full, vivid theory of who they are and what they need."
+            },
+            "Fi": {
+                "role": "Auxiliary",
+                "desc": "Judges everything against a deeply personal, quietly held set of values.",
+                "example": "You'll seem endlessly easygoing right up until something touches a value you didn't realize was non-negotiable."
+            },
+            "Te": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary pull toward efficient execution once you're actually excited enough to use it.",
+                "example": "When something matters enough, you'll suddenly organize it with a precision that surprises everyone who's only seen your messy desk."
+            },
+            "Si": {
+                "role": "Inferior",
+                "desc": "Grounded routine and detailed memory of the past — the function you trust and use the least.",
+                "example": "You'll forget where you put something five minutes ago while vividly remembering exactly how a conversation from three years ago felt."
+            }
+        },
+        "pressure": {
+            "trigger": "Overcommitment catching up with you all at once, or criticism aimed at something you genuinely care about.",
+            "looksLike": "Uncharacteristic rigidity and self-criticism — suddenly nitpicky, pessimistic, and fixated on past mistakes instead of your usual forward-looking optimism.",
+            "happening": "Your Ne-Fi combination has generated more than your Te can actually execute, so control drops to inferior Si, and you get stuck rigidly replaying what went wrong instead of imagining what's next.",
+            "recover": "One small, concrete routine — not a new idea, just something familiar and physical — to give your exhausted Ne a place to rest before you try to solve anything."
+        },
+        "growth": {
+            "blindspot": "Saying yes from genuine excitement without checking whether future-you can actually deliver on it.",
+            "leastMature": "\"Commits enthusiastically, then quietly disappears when the follow-through gets hard or boring.\"",
+            "best": "\"Still says yes to what excites you, but says a clear no to everything else — before the moment you're excited turns into a promise.\"",
+            "habit": "Before saying yes to something new, name one thing you'll have to say no to in order to actually do it."
+        },
+        "fiction": [
+            {
+                "name": "Megamind",
+                "blurb": "Megamind — endless creativity with nowhere healthy to go: constant idea-generation and real emotional pain funneled into supervillainy simply because no one ever expected anything else from him.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Veronica Mars",
+                "blurb": "Veronica Mars — sharp, values-driven curiosity used in service of real justice: she follows every hunch to the end, even the ones that cost her socially.",
+                "tone": "mature"
+            },
+            {
+                "name": "Clementine Kruczynski",
+                "blurb": "Eternal Sunshine of the Spotless Mind — enthusiasm and reinvention taken far enough that the people who love her can never quite tell which version of her they're getting next.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ESTP": {
+        "bullets": [
+            "You'll jump into a problem with your hands before anyone's finished describing it.",
+            "You read a room's energy in seconds and adjust before anyone else has even noticed the shift.",
+            "You trust what you can see and test over what someone tells you should be true.",
+            "You say the blunt thing fast, then occasionally have to walk it back."
+        ],
+        "asset": "Adaptability",
+        "risk": "Recklessness",
+        "secondaryAsset": "Quick Thinking",
+        "secondaryRisk": "Impulsiveness",
+        "mind": {
+            "Se": {
+                "role": "Dominant",
+                "desc": "Engages fully and immediately with the physical present moment.",
+                "example": "You'll notice the exact second an opportunity opens up in a room, and you're already moving on it before anyone else clocks it."
+            },
+            "Ti": {
+                "role": "Auxiliary",
+                "desc": "Forms independent, internally consistent conclusions rather than accepting conventional wisdom.",
+                "example": "You'll take something apart — literally or logically — just to satisfy yourself that you actually understand how it works."
+            },
+            "Fe": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary read on the social atmosphere that grows stronger with experience.",
+                "example": "You'll charm your way through a tense room without even fully realizing you did it."
+            },
+            "Ni": {
+                "role": "Inferior",
+                "desc": "Long-range pattern-thinking and future implications — the function you trust and use the least.",
+                "example": "Planning three steps ahead feels a lot less natural to you than just handling step one really well and figuring out the rest as it comes."
+            }
+        },
+        "pressure": {
+            "trigger": "Micromanagement, loss of autonomy, or being forced into a passive situation with no room to act.",
+            "looksLike": "Uncharacteristic catastrophic thinking — sudden paranoia about the future or other people's motives, and a fixation on worst-case scenarios.",
+            "happening": "Your trusted Se-Ti approach has nothing left to act on, so control drops to inferior Ni, and you get pulled into exactly the kind of abstract, future-focused anxiety your instincts normally protect you from.",
+            "recover": "Physical activity first to burn off the charge, then talking it through out loud with someone else — processing it externally works far better for you than sitting alone with it."
+        },
+        "growth": {
+            "blindspot": "Assuming that because you can handle almost anything in the moment, you don't need to think past the moment at all.",
+            "leastMature": "\"Acts first without pausing to consider who gets affected, then treats the fallout as someone else's problem to manage.\"",
+            "best": "\"Still moves fast and trusts your instincts, but takes the extra few seconds to ask who this decision actually lands on.\"",
+            "habit": "Before acting on impulse in something that affects other people, ask one question first: \"who does this actually impact?\""
+        },
+        "fiction": [
+            {
+                "name": "Ramsay Bolton",
+                "blurb": "Game of Thrones — action and impulse with every trace of empathy removed: he doesn't calculate cruelty, he simply enjoys it in the moment, the same way he enjoys everything else.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Aladdin",
+                "blurb": "Aladdin — quick thinking and resourcefulness pointed toward something bigger than the next thrill: he's still improvising every step, just now in service of people he actually loves.",
+                "tone": "mature"
+            },
+            {
+                "name": "Eleanor Shellstrop",
+                "blurb": "The Good Place — living entirely in the moment with zero regard for consequences, until she's finally forced to reckon with exactly who that made her.",
+                "tone": "caution"
+            }
+        ]
+    },
+    "ESFP": {
+        "bullets": [
+            "You can walk into any room and read its entire emotional temperature within seconds.",
+            "You feel things fully and fast — and you're not interested in performing a calmer version of that for anyone's comfort.",
+            "People assume you're not thinking deeply about things, right up until you surprise them with exactly how much you actually noticed.",
+            "Planning three months out feels abstract in a way that planning the next three hours never does."
+        ],
+        "asset": "Authentic Energy",
+        "risk": "Overwhelm",
+        "secondaryAsset": "Emotional Presence",
+        "secondaryRisk": "Difficulty Planning Ahead",
+        "mind": {
+            "Se": {
+                "role": "Dominant",
+                "desc": "Reads the present moment with vivid, high-resolution immediacy.",
+                "example": "You'll catch the exact shift in someone's tone before they've said anything that would explain it."
+            },
+            "Fi": {
+                "role": "Auxiliary",
+                "desc": "Quietly judges everything against a personal set of values, even when it doesn't show on the surface.",
+                "example": "You seem endlessly go-with-the-flow, right up until something crosses a line only you can see — and then you're done negotiating."
+            },
+            "Te": {
+                "role": "Tertiary",
+                "desc": "A quiet, tertiary pull toward efficient, get-it-done execution, especially under pressure.",
+                "example": "You'll suddenly organize an entire event flawlessly at the last minute, then go right back to your usual spontaneity once it's handled."
+            },
+            "Ni": {
+                "role": "Inferior",
+                "desc": "Long-range, symbolic meaning-making — the function you trust and use the least.",
+                "example": "You'll sense that something means more than it appears to, without being able to explain exactly why — and mostly you just let that feeling pass."
+            }
+        },
+        "pressure": {
+            "trigger": "A long stretch of overextending yourself socially, followed by something small that wouldn't normally bother you.",
+            "looksLike": "A sudden, out-of-character conviction that someone's betrayed you — reading dark, hidden meaning into completely ordinary things, and holding onto that conviction harder than you'd hold onto something you actually knew.",
+            "happening": "Your dominant Se-Fi pairing has been overextended for too long with no real payoff, so control drops to inferior Ni, and it hands you one dark, unshakeable story about the future instead of your usual read on the present.",
+            "recover": "Taking the pressure off completely — rest, quiet, less social load — rather than trying to argue yourself out of the story, since arguing with a grip rarely works; it needs to run out of fuel instead."
+        },
+        "growth": {
+            "blindspot": "Assuming that because a feeling is intensely real to you right now, it must also be permanent.",
+            "leastMature": "\"Avoids a real conversation by changing the subject, changing the plan, or simply changing the room.\"",
+            "best": "\"Still feels everything fully and immediately, but can stay in an uncomfortable conversation long enough to actually finish it.\"",
+            "habit": "Next time you want to walk away from a hard conversation, commit to staying for five more minutes before you decide to leave."
+        },
+        "fiction": [
+            {
+                "name": "Roxie Hart",
+                "blurb": "Chicago — charisma and self-expression with nothing underneath but the need to be seen: willing to lie, manipulate, or worse, as long as it keeps her in the spotlight.",
+                "tone": "shadow"
+            },
+            {
+                "name": "Marty McFly",
+                "blurb": "Back to the Future — quick-thinking and adaptability used with real courage: he improvises his way through crisis after crisis without ever losing sight of the people he's doing it for.",
+                "tone": "mature"
+            },
+            {
+                "name": "Serena van der Woodsen",
+                "blurb": "Gossip Girl — warmth and spontaneity that consistently outruns the consequences: she means well in the moment, then runs from the fallout instead of facing it.",
+                "tone": "caution"
+            }
+        ]
+    }
+};
+
+    // The wiki JSON is the authoritative source for the primary asset/risk
+    // (a few entries were refined there), so propagate back into ARCHETYPES:
+    // the fallback card and Overview pane stay consistent.
+    for (const key of Object.keys(WIKI_CONTENT)) {
+        const w = WIKI_CONTENT[key];
+        if (ARCHETYPES[key] && w) {
+            ARCHETYPES[key].asset = w.asset;
+            ARCHETYPES[key].risk = w.risk;
+        }
+    }
+
+    // Text escaping for wiki pane content dropped into innerHTML.
+    function escWikiText(str) {
+        return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Builders for the five wiki tabs. Every pane uses the same class names as
+    // the original ESTJ template, so the scoped full-arch CSS applies unchanged;
+    // only the wording now comes from the WIKI_CONTENT JSON per archetype.
+    function buildWikiOverview(w) {
+        const bullets = w.bullets.map(b => `        <div class="bullet">${escWikiText(b)}</div>`).join('\n');
+        return [
+            '<div class="pane active" id="pane-overview">',
+            '    <div class="section-label">How It Shows Up</div>',
+            '    <div class="bullets">',
+            bullets,
+            '    </div>',
+            '    <div class="divider"></div>',
+            '    <div class="two-col">',
+            '        <div class="col">',
+            '            <div class="col-label asset">Greatest Asset</div>',
+            `            <p>${escWikiText(w.asset)}</p>`,
+            '        </div>',
+            '        <div class="col">',
+            '            <div class="col-label risk">Hidden Risk</div>',
+            `            <p>${escWikiText(w.risk)}</p>`,
+            '        </div>',
+            '    </div>',
+            '    <div class="divider"></div>',
+            '    <div class="two-col">',
+            '        <div class="col">',
+            '            <div class="col-label asset">Secondary Asset</div>',
+            `            <p>${escWikiText(w.secondaryAsset)}</p>`,
+            '        </div>',
+            '        <div class="col">',
+            '            <div class="col-label risk">Secondary Risk</div>',
+            `            <p>${escWikiText(w.secondaryRisk)}</p>`,
+            '        </div>',
+            '    </div>',
+            '</div>',
+        ].join('\n');
+    }
+
+    function buildWikiMind(w) {
+        // Sort by explicit role, never by JSON key order (which is not a stack
+        // guarantee). Dots mirror the role's maturity: Dominant 4 through Inferior 1.
+        const rows = Object.keys(w.mind)
+            .map(code => Object.assign({ code }, w.mind[code]))
+            .sort((a, b) => ROLE_PRIORITY[a.role] - ROLE_PRIORITY[b.role])
+            .map(fn => {
+                const lit = ROLE_DOTS[fn.role] || 0;
+                let dots = '';
+                for (let i = 0; i < 4; i++) dots += `<span class="fn-dot${i < lit ? ' lit' : ''}"></span>`;
+                return [
+                    '    <div class="fn-row">',
+                    '        <div class="fn-badge-col">',
+                    `            <div class="fn-code">${escWikiText(fn.code)}</div>`,
+                    `            <div class="fn-role">${escWikiText(fn.role)}</div>`,
+                    `            <div class="fn-dots">${dots}</div>`,
+                    '        </div>',
+                    '        <div class="fn-body">',
+                    `            <div class="fn-name">${escWikiText(FUNCTION_NAMES[fn.code] || fn.code)}</div>`,
+                    `            <div class="fn-desc">${escWikiText(fn.desc)}</div>`,
+                    `            <div class="fn-example">${escWikiText(fn.example)}</div>`,
+                    '        </div>',
+                    '    </div>',
+                ].join('\n');
+            })
+            .join('\n');
+        return [
+            '<div class="pane" id="pane-mind">',
+            '    <div class="section-label">Cognitive Stack</div>',
+            rows,
+            '</div>',
+        ].join('\n');
+    }
+
+    function buildWikiPressure(w) {
+        return [
+            '<div class="pane" id="pane-pressure">',
+            '    <div class="section-label">Under Pressure</div>',
+            '    <div class="two-col">',
+            '        <div class="col">',
+            '            <div class="col-label" style="color:#fbbf24">Trigger</div>',
+            `            <p>${escWikiText(w.pressure.trigger)}</p>`,
+            '        </div>',
+            '        <div class="col">',
+            '            <div class="col-label" style="color:#fbbf24">Looks Like</div>',
+            `            <p>${escWikiText(w.pressure.looksLike)}</p>`,
+            '        </div>',
+            '    </div>',
+            '    <div class="pressure-highlight">',
+            '        <div class="col-label">What\'s Actually Happening</div>',
+            `        <p>${escWikiText(w.pressure.happening)}</p>`,
+            '    </div>',
+            '    <div class="recover-note">',
+            '        <div>',
+            '            <div class="col-label">Recovering</div>',
+            `            <p>${escWikiText(w.pressure.recover)}</p>`,
+            '        </div>',
+            '    </div>',
+            '</div>',
+        ].join('\n');
+    }
+
+    function buildWikiGrowth(w) {
+        return [
+            '<div class="pane" id="pane-growth">',
+            '    <div class="section-label">Growth Path</div>',
+            '    <div class="blindspot-callout">',
+            '        <div class="col-label">Blind Spot</div>',
+            `        <p>${escWikiText(w.growth.blindspot)}</p>`,
+            '    </div>',
+            '    <div class="growth-pair">',
+            '        <div class="growth-item">',
+            '            <div class="col-label">At Their Least Mature</div>',
+            `            <p>${escWikiText(w.growth.leastMature)}</p>`,
+            '        </div>',
+            '        <div class="growth-item mature">',
+            '            <div class="col-label">At Their Best</div>',
+            `            <p>${escWikiText(w.growth.best)}</p>`,
+            '        </div>',
+            '    </div>',
+            '    <div class="habit-note">',
+            '        <div class="col-label">One Habit</div>',
+            `        <p>${escWikiText(w.growth.habit)}</p>`,
+            '    </div>',
+            '</div>',
+        ].join('\n');
+    }
+
+    function buildWikiFiction(w) {
+        const toneClass = { shadow: 'tone-shadow', mature: 'tone-mature', caution: 'tone-caution' };
+        const cards = w.fiction
+            .map(f => [
+                `    <div class="fiction-card ${toneClass[f.tone] || 'tone-shadow'}">`,
+                `        <div class="fiction-name">${escWikiText(f.name)}</div>`,
+                `        <div class="fiction-blurb">${escWikiText(f.blurb)}</div>`,
+                '    </div>',
+            ].join('\n'))
+            .join('\n');
+        return [
+            '<div class="pane" id="pane-fiction">',
+            '    <div class="section-label">In Fiction</div>',
+            cards,
+            '</div>',
+        ].join('\n');
+    }
+
+    // Single entry point: returns all five tab panes for an MBTI key's wiki
+    // entry, or '' when there is no entry (caller keeps the simple fallback).
+    function renderWikiPanes(key) {
+        const w = WIKI_CONTENT[key];
+        if (!w) return '';
+        return [
+            buildWikiOverview(w),
+            buildWikiMind(w),
+            buildWikiPressure(w),
+            buildWikiGrowth(w),
+            buildWikiFiction(w),
+        ].join('\n');
+    }
 
     // Default wording for the configurable prompt fields (Prompts settings).
     const DEFAULT_ANALYSIS_PROMPT = 'Brief 1-2 sentence explanation';
@@ -1737,7 +2798,7 @@ function getLastUserMessage() {
             tabsEl.innerHTML = ['Overview', 'Mind', 'Pressure', 'Growth', 'Fiction']
                 .map((label, i) => `<button class="tab-btn${i === 0 ? ' active' : ''}" data-tab="${label.toLowerCase()}">${label}</button>`)
                 .join('');
-            contentEl.innerHTML = WIKI_CONTENT[key];
+            contentEl.innerHTML = renderWikiPanes(key);
 
             const panes = contentEl.querySelectorAll('.pane');
             const buttons = tabsEl.querySelectorAll('.tab-btn');
@@ -2931,7 +3992,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.5.2 loaded');
+        console.log('MBTI Widget v3.5.3 loaded');
     }
 
     function showTestResult(message, type) {
