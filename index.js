@@ -2171,6 +2171,7 @@ function getLastUserMessage() {
         const reasoningLabel = document.getElementById('reasoning-label');
         if (reasoningLabel) {
             reasoningLabel.textContent = getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME;
+            reasoningLabel.classList.toggle('is-expanded', reasoningExpanded);
         }
         if (reasoningEl) {
             const lastEntry = trail[trail.length - 1];
@@ -2192,6 +2193,7 @@ function getLastUserMessage() {
         const professor = lastEntry && lastEntry.professor ? lastEntry.professor : '';
         if (professorLabel) {
             professorLabel.textContent = getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME;
+            professorLabel.classList.toggle('is-expanded', professorExpanded);
         }
         if (professorEl) {
             professorEl.textContent = professor;
@@ -3461,7 +3463,6 @@ function getLastUserMessage() {
         panel.innerHTML = `
             <div class="profile-shell" id="profile-shell">
                 <div class="profile-header">
-                    <div class="mbti-code" id="mbti-code">????</div>
                     <div class="header-actions" id="header-actions">
                         <button class="header-action-btn magnify-btn" id="magnify-btn" title="MBTI Type Encyclopedia">
                             <div class="magnify-icon"></div>
@@ -3487,6 +3488,7 @@ function getLastUserMessage() {
                 </div>
                 <div class="profile-eyebrow">Your Nature</div>
                 <div class="archetype-name" id="archetype-name" style="color: var(--theme-gold)">THE UNKNOWN</div>
+                <div class="mbti-code" id="mbti-code">????</div>
                 <div class="archetype-desc" id="archetype-desc">Start chatting to build your MBTI profile...</div>
                 <div class="octagon-wrapper">
                     <svg id="octagon-svg" viewBox="0 0 220 220" width="100%" style="display:block;overflow:visible;position:relative;z-index:2;">
@@ -4020,7 +4022,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.5.5 loaded');
+        console.log('MBTI Widget v3.5.6 loaded');
     }
 
     function showTestResult(message, type) {
