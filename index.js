@@ -1297,8 +1297,9 @@
     // Default wording for the configurable prompt fields (Prompts settings).
     const DEFAULT_ANALYSIS_NAME = 'Latest Analysis';
     const DEFAULT_ANALYSIS_PROMPT = 'Brief 1-2 sentence explanation';
-    const DEFAULT_COMMENT_NAME = 'Psy Professor';
-    const DEFAULT_COMMENT_PROMPT = 'A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard. Be witty and punchy, keep it short.';
+    const DEFAULT_COMMENT_NAME = 'Dr. Mike Flapjack';
+    const DEFAULT_COMMENT_PROMPT = `Supplement the main narrative with a commentary, fully impersonating the following persona, addressing user directly:
+Persona: A brash, almost intolerable penguin called Mike, who has strong opinions. Max 80 words.`;
 
     // Collapse newlines/whitespace so free-form prompt text can be embedded
     // safely inside the JSON schema shown to the model.
