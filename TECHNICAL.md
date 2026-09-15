@@ -54,9 +54,9 @@ getMessageContext(n)    → Get n recent messages for LLM context
     ↓
 queryRating()          → Call generateMBTI() with prompt + systemPrompt
     ↓
-parseRatingResponse() → Extract tags from LLM JSON response
+parseRatingResponse() → Extract tags (normalized {tag, intensity, weight}) from LLM JSON response
     ↓
-applyTag()             → Update scores based on tags
+applyTagsTo(next, tags) → Update scores based on tag weights
     ↓
 saveToChatMetadata()  → Persist scores to chat metadata
     ↓
@@ -343,14 +343,46 @@ Uses SillyTavern's drawer classes:
 ### MBTI Axis Scores
 
 ```javascript
-const MAX_SCORE = 18;  // Maximum score per axis
+const MAX_SCORE = 18;  // Maximum score per axis — normalization constant, deliberately unchanged in v3.7
+```
 
+**Why MAX_SCORE is still 18 (v3.7):** weighted deltas (0.5 / 1.0 / 1.5 / 2.0) are clamped by `Math.max/min` in `applyTagsTo()` exactly like integer deltas were, so fractional increments saturate at ±18 without ever overshooting. The constant is used by 26 sites purely as a shared ceiling/scaling factor (bar widths, radar polygon coordinates, conviction % `Σ|s|/(4·MAX_SCORE)`, stats domain). Because float clamping at an integer bound is mathematically identical to int clamping, scores stay in `[-18, 18]` and no UI geometry needs to change — that is why the value is left untouched rather than bumped.
+
+```javascript
 let scores = {
     ie: 0,  // Introvert (neg) / Extrovert (pos)
     tf: 0,  // Thinking (neg) / Feeling (pos)
     sn: 0,  // Sensing (neg) / Intuitive (pos)
     jp: 0   // Judging (neg) / Perceiving (pos)
 };
+```
+
+### Weighted scoring (v3.7)
+
+Prompts ask for tag objects with one of four fixed intensity labels; the parser maps them to delta weights (never floats from the model):
+
+```javascript
+const INTENSITY_WEIGHTS = { subtle: 0.5, clear: 1.0, strong: 1.5, defining: 2.0 };
+const DEFAULT_INTENSITY = 'clear';   // fallback for missing/unknown/legacy-bare entries
+const VALID_TAGS = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'anchor', 'drift'];
+```
+
+- LLM output shape: `{ "tags": [ { "tag": "flame", "intensity": "strong" } ], "reasoning": "...", "professor": "..." }` (re-scan per analysis).
+- Every raw entry goes through `normalizeTagEntry()` → `{tag, intensity, weight}`; bare strings and unknown intensities normalize to `clear`/1.0, preserving pre-v3.7 behavior for flaky models.
+- `applyTagsTo(scoresObj, tags)` (index.js, module-level setting gate `extension_settings.mbti_widget.weightedScoring !== false`) applies `weight` per tag instead of fixed 1; the toggle off reproduces old fixed-±1 scoring exactly.
+- Trail records store `appliedTags: [{ tag, intensity }]`; the history chips and panel deltas render intensity via `data-intensity` attributes.
+- Example trail entry (auto-trigger record):
+
+```javascript
+{
+  messageIndex: 12,
+  previousScores: { ie: 0, tf: 0, sn: 0, jp: 0 },
+  scores: { ie: 1.5, tf: 0, sn: 0, jp: 0 },          // flame/strong applied
+  appliedTags: [{ tag: "flame", intensity: "strong" }],
+  reasoning: "The user jumped straight into the argument.",
+  professor: "Directly to the chalk — no detour through caution.",
+  professorName: "Psy Professor"
+}
 ```
 
 ### VERTICES (octagon points)
@@ -400,6 +432,8 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 ---
 
 ## Version History
+
+- **3.7.0** - Scoring Model: weighted, graded tags. The LLM is now prompted to return each tag as `{ "tag": ..., "intensity": ... }` with one of four fixed labels — `subtle` (0.5), `clear` (1.0), `strong` (1.5), `defining` (2.0) — mapped to delta weights by the new module constants `INTENSITY_WEIGHTS` / `DEFAULT_INTENSITY`. `parseRatingResponse()` / `parseRescanResponse()` normalize every entry through `normalizeTagEntry()` into `{tag, intensity, weight}` triples (bare strings and unknown/missing intensities fall back to `clear`/1.0, so legacy responses behave exactly like the old fixed-±1), and `applyTagsTo()` (the real scoring entry point; there is no `applyTag`) applies `weight` instead of a hardcoded 1, gated by the new **Weighted scoring** setting (`extension_settings.mbti_widget.weightedScoring`, default `true`, toggle in the extension drawer, wired and saved like `mbti_enabled`) — when off it deterministically reproduces pre-v3.7. Each trail record now stores `appliedTags` (`{tag, intensity}` pairs, spread automatically through `pruneStaleTrailEntries`' rebuild) so the history UI can restate intensity; chips carry `data-intensity` and deltas render through the new `formatSigned()` helper (`+1.5`, no trailing `.0`). CSS adds `[data-intensity]` shading for both the panel's `.axis-delta` numbers and history `.mbti-rating-chip` numbers (the icon keeps its polarity tag color), with the 8s delta fade re-declared at strictly higher specificity (`#mbti-widget-panel .axis-delta[data-intensity].fade`) so intensity colors can never defeat it. **`MAX_SCORE` stays 18 by design:** it is a pure normalization constant (clamp ceiling, bar/radar scale, conviction % = Σ|s|/(4·18)) shared by 26 call sites, and since every write path clamps via `Math.max/min`, fractional weights (0.5/1.5/...) simply saturate at ±18 exactly as integers do — running the widget mathematically changes nothing structurally, so the constant is left untouched. Schema docs (`schema-auto-trigger.md`, `schema-rescan.md`) updated to the `{tag, intensity}` shape. Version bumped 3.6.0 → 3.7.0 (manifest + load banner). Implemented on branch `v3.7`; `main` untouched.
 
 - **3.6.0** - MBTI Widget is now enabled by default on first install. The settings bootstrap previously set `enabled: true` only via the `extension_settings.mbti_widget = extension_settings.mbti_widget || {...}` short-circuit, which fires solely when the whole object is absent. If the key existed from an older version but lacked `enabled` (or held `false`), the default never applied, leaving the drawer toggle unchecked and the auto-trigger guard (`index.js` `if (!settings?.enabled) return;`) silently inactive — the "where is it?" confusion. The bootstrap is now `mbti_widget = mbti_widget || {}` followed by explicit `=== undefined` guards for `enabled` (→ `true`), `contextMessages` (→ 5) and `autoOpenOnLoad` (→ `false`), so a missing field defaults to enabled on first load while a deliberately-saved `false` is still honored. Version bumped 3.5.7 → 3.6.0 (manifest + load banner).
 

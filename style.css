@@ -370,6 +370,31 @@
     opacity: 0;
 }
 
+/* v3.7 intensity shading on the axis deltas. Specificity is tuned so these
+   color rules can never defeat the 8s fade, which is re-declared below at a
+   strictly higher specificity (#mbti-widget-panel + [data-intensity] + .fade). */
+#mbti-widget-panel .axis-delta[data-intensity="subtle"] {
+    opacity: 0.55;
+}
+
+#mbti-widget-panel .axis-delta[data-intensity="clear"] {
+}
+
+#mbti-widget-panel .axis-delta[data-intensity="strong"] {
+    color: #ffd166;
+    font-weight: 700;
+}
+
+#mbti-widget-panel .axis-delta[data-intensity="defining"] {
+    color: #ffb38a;
+    font-weight: 800;
+    text-shadow: 0 0 6px rgba(255, 179, 138, 0.35);
+}
+
+#mbti-widget-panel .axis-delta[data-intensity].fade {
+    opacity: 0;
+}
+
 /* Psy Professor commentary */
 #mbti-widget-panel .professor-section {
     margin-top: 8px;
@@ -1167,6 +1192,28 @@
 
 .mbti-rating-chip.is-summary {
     font-size: 13px;
+}
+
+/* v3.7 intensity shading on history chips: the icon keeps its polarity tag
+   color; only the number reflects how strongly the trait fired. */
+.mbti-rating-chip[data-intensity] .mbti-rating-chip-num {
+    font-variant-numeric: tabular-nums;
+}
+
+.mbti-rating-chip[data-intensity="subtle"] .mbti-rating-chip-num {
+    opacity: 0.55;
+}
+
+.mbti-rating-chip[data-intensity="clear"] .mbti-rating-chip-num {
+}
+
+.mbti-rating-chip[data-intensity="strong"] .mbti-rating-chip-num {
+    color: #ffd166;
+}
+
+.mbti-rating-chip[data-intensity="defining"] .mbti-rating-chip-num {
+    color: #ffb38a;
+    font-weight: 800;
 }
 
 .mbti-rating-icon {

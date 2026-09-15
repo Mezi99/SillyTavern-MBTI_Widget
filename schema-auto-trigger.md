@@ -40,10 +40,16 @@ Pair 4 - Approach to uncertainty: anchor vs drift
 
 Respond strictly ONLY with valid JSON:
 {
-  "tags": ["tag1", "tag2"],
+  "tags": [ { "tag": "tag1", "intensity": "clear" } ],
   "reasoning": "Brief 1-2 sentence explanation",
   "professor": "A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard"
 }
+
+Intensity guide (choose one per tag):
+- "subtle": the trait is only faintly implied by this turn
+- "clear": a normal, ordinary-strength signal (default)
+- "strong": the turn is clearly and directly driven by this trait
+- "defining": this turn is centrally, unmistakably about this trait
 ```
 
 ---
@@ -52,7 +58,7 @@ Respond strictly ONLY with valid JSON:
 
 ```json
 {
-  "tags": ["shadow", "reason"],
+  "tags": [ { "tag": "shadow", "intensity": "strong" }, { "tag": "reason", "intensity": "clear" } ],
   "reasoning": "User withdrew from the confrontation and relied on logical analysis to address the problem.",
   "professor": "Classic retreat-and-rationalize. The whiteboard writes itself."
 }
@@ -62,11 +68,13 @@ Respond strictly ONLY with valid JSON:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `tags` | string[] | Yes | 1-4 tags from the allowed set. One per axis pair at most. |
+| `tags` | array | Yes | 1-4 tag objects from the allowed set. One per axis pair at most. |
+| `tags[].tag` | string | Yes | One of the 8 allowed tags. |
+| `tags[].intensity` | string | No | One of `subtle` / `clear` / `strong` / `defining`. Missing or unknown values fall back to `clear` (weight 1.0). |
 | `reasoning` | string | Yes | Brief explanation of why these tags were chosen. |
 | `professor` | string | No | A short, sarcastic one-liner analysis of the moment, in the voice of a psychology professor. Displayed in its own "Psy Professor" section in the panel. |
 
-### Valid Tags
+### Valid Tags & Intensity Weights
 
 | Tag | Axis | Direction | Meaning |
 |-----|------|-----------|---------|
@@ -79,11 +87,22 @@ Respond strictly ONLY with valid JSON:
 | `anchor` | J/P | J (negative) | Committed to a position or plan |
 | `drift` | J/P | P (positive) | Kept options open, adapted, stayed flexible |
 
+| Intensity | Delta weight | Meaning |
+|-----------|--------------|---------|
+| `subtle` | 0.5 | Trait only faintly implied |
+| `clear` | 1.0 | Normal-strength signal (default) |
+| `strong` | 1.5 | Turn clearly driven by the trait |
+| `defining` | 2.0 | Turn centrally about the trait |
+
+The **Weighted scoring** toggle (`extension_settings.mbti_widget.weightedScoring`) scales every delta by this weight. When off, every tag applies a fixed ±1 like pre-v3.7. Because `MAX_SCORE` (18) clamps each axis via `Math.max/min`, fractional weights saturate exactly at ±MAX_SCORE.
+
 ### Validation Rules
 
 - Minimum 1 tag, maximum 4
 - One tag per axis pair at most (e.g., cannot have both `shadow` and `flame`)
-- Tags must be from the allowed set (case-insensitive, trimmed)
+- Tags must be from the allowed set (case-insensitive, trimmed); unknown tags are dropped
+- `intensity` must be one of the four labels (case-insensitive); unknown/missing → `clear`
+- Bare strings (`"shadow"`) are also accepted for backward compatibility — they normalize to `clear` (weight 1.0)
 - Markdown fences (` ```json ... ``` `) are stripped before parsing
 
 ---
@@ -92,7 +111,10 @@ Respond strictly ONLY with valid JSON:
 
 ```javascript
 {
-  tags: ["shadow", "reason"],      // Filtered, lowercase
+  tags: [
+    { tag: "shadow", intensity: "strong", weight: 1.5 },
+    { tag: "reason", intensity: "clear", weight: 1.0 }
+  ],                          // Filtered, lowercase, normalized
   reasoning: "User withdrew...",   // Trimmed string
   professor: "Classic retreat..."  // Trimmed string, may be empty
 }

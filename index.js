@@ -17,6 +17,17 @@
 
     const MAX_SCORE = 18;
 
+    // The 8 locked tag strings — the only tags the parsing layer will accept,
+    // whether the model returns them bare (legacy) or as {tag, intensity}.
+    const VALID_TAGS = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'anchor', 'drift'];
+
+    // Weighted scoring (v3.7): the LLM is asked for a fixed intensity label per
+    // tag, mapped to a delta multiplier. Unknown/missing labels fall back to
+    // 'clear' (1.0) so legacy responses and flaky models behave exactly like
+    // the old fixed ±1. Toggling weightedScoring off forces 1.0 everywhere.
+    const INTENSITY_WEIGHTS = { subtle: 0.5, clear: 1.0, strong: 1.5, defining: 2.0 };
+    const DEFAULT_INTENSITY = 'clear';
+
     // Shared axis metadata: icon mask image, sign colors, and the tag names
     // each sign maps to (used by the main meters, history modal rows, totals
     // and legend). Mirrors the icons/colors in the panel axis bars.
@@ -1327,10 +1338,17 @@ Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs dr
 
 Respond strictly ONLY with valid JSON:
 {
- "tags": ["tag1", "tag2"],  // Minimum 1 tag, maximum 4 (one per pair).
+ "tags": [ { "tag": "tag1", "intensity": "clear" } ],  // Minimum 1 tag, maximum 4 (one per pair).
  "reasoning": "${analysis}",
  "professor": "${comment}"
-}`;
+}
+
+Intensity guide (choose one per tag):
+- "subtle": the trait is only faintly implied by this turn
+- "clear": a normal, ordinary-strength signal (default)
+- "strong": the turn is clearly and directly driven by this trait
+- "defining": this turn is centrally, unmistakably about this trait
+`;
     }
 
     // Re-scan prompt: same locked tag schema; reasoning line follows the
@@ -1352,7 +1370,7 @@ Respond strictly ONLY with valid JSON:
   "analyses": [
     {
       "messageIndex": 0,
-      "tags": ["tag1", "tag2"],
+      "tags": [ { "tag": "tag1", "intensity": "clear" } ],
       "reasoning": "${analysis}"
     }
   ]
@@ -1364,7 +1382,14 @@ Pair 2 - Decision method: reason (used logic, evidence, analysis) vs heart (used
 Pair 3 - Information focus: clue (focused on concrete physical details) vs pattern (made a connection, inference, or intuitive leap)
 Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs drift (kept options open, adapted, stayed flexible)
 
-If a message is genuinely neutral on an axis, omit both tags from that pair.`;
+If a message is genuinely neutral on an axis, omit both tags from that pair.
+
+Intensity guide (choose one per tag):
+- "subtle": the trait is only faintly implied by this turn
+- "clear": a normal, ordinary-strength signal (default)
+- "strong": the turn is clearly and directly driven by this trait
+- "defining": this turn is centrally, unmistakably about this trait
+`;
     }
 
     // --- Regex script cleaning (mirrors ST's main-chat / ST-Copilot behavior) ---
@@ -1901,18 +1926,31 @@ function getLastUserMessage() {
         }
     }
 
+    // Converts one raw LLM tag entry (bare string or {tag, intensity}) into the
+    // internal {tag, intensity, weight} triple. Unknown/missing intensity falls
+    // back to 'clear'/1.0 — preserves the pre-v3.7 fixed-±1 behavior and keeps
+    // flaky models (or legacy bare-string responses) harmless.
+    function normalizeTagEntry(entry) {
+        if (typeof entry === 'string') {
+            return { tag: entry.toLowerCase().trim(), intensity: DEFAULT_INTENSITY, weight: INTENSITY_WEIGHTS[DEFAULT_INTENSITY] };
+        }
+        const tag = String((entry && entry.tag) || '').toLowerCase().trim();
+        const raw = String((entry && entry.intensity) || '').toLowerCase().trim();
+        const intensity = INTENSITY_WEIGHTS[raw] ? raw : DEFAULT_INTENSITY;
+        return { tag, intensity, weight: INTENSITY_WEIGHTS[intensity] ?? INTENSITY_WEIGHTS[DEFAULT_INTENSITY] };
+    }
+
     function parseRatingResponse(response) {
-        const knownTags = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'anchor', 'drift'];
         try {
             const parsed = JSON.parse(stripMarkdownFences(response));
             if (parsed.tags && Array.isArray(parsed.tags)) {
                 const tags = parsed.tags
-                    .map(t => t.toLowerCase().trim())
-                    .filter(t => knownTags.includes(t));
-                
+                    .map(normalizeTagEntry)
+                    .filter(t => VALID_TAGS.includes(t.tag));
+
                 const reasoning = (parsed.reasoning || '').toString().trim();
                 const professor = (parsed.professor || '').toString().trim();
-                
+
                 // Validate: 1-4 tags required
                 if (tags.length >= 1 && tags.length <= 4) {
                     return { tags, reasoning, professor, error: false };
@@ -1921,25 +1959,36 @@ function getLastUserMessage() {
         } catch (e) {
             console.error('MBTI Widget: Invalid JSON response', e);
         }
-        
+
         // Hard failure: response wasn't valid/parseable (empty, malformed, etc).
         // The caller surfaces this to the user.
         console.error('MBTI Widget: Failed to parse valid JSON response');
         return { tags: [], reasoning: '', professor: '', error: true };
     }
 
-    // Apply MBTI tags by mutating the given scores object (no global side effects).
+    // Apply MBTI tags by mutating the given scores object (no global side
+    // effects). Each entry may be a bare tag string (legacy) or a normalized
+    // {tag, intensity, weight} triple. The delta is the tag's weight (default
+    // 1.0) scaled by the weightedScoring toggle: flipping the toggle off
+    // deterministically reproduces the old fixed-±1 behavior. MAX_SCORE is a
+    // pure clamp / normalization constant — fractional increments saturate
+    // exactly at ±MAX_SCORE via Math.max/min.
     function applyTagsTo(scoresObj, tags) {
-        (tags || []).forEach(tag => {
+        const weighted = extension_settings?.mbti_widget?.weightedScoring !== false;
+        (tags || []).forEach(entry => {
+            const tag = typeof entry === 'string' ? entry : entry?.tag;
+            const weight = weighted
+                ? (typeof entry === 'string' ? INTENSITY_WEIGHTS[DEFAULT_INTENSITY] : (entry?.weight ?? INTENSITY_WEIGHTS[DEFAULT_INTENSITY]))
+                : INTENSITY_WEIGHTS[DEFAULT_INTENSITY];
             switch (tag) {
-                case 'shadow': scoresObj.ie = Math.max(-MAX_SCORE, scoresObj.ie - 1); break;
-                case 'flame': scoresObj.ie = Math.min(MAX_SCORE, scoresObj.ie + 1); break;
-                case 'reason': scoresObj.tf = Math.max(-MAX_SCORE, scoresObj.tf - 1); break;
-                case 'heart': scoresObj.tf = Math.min(MAX_SCORE, scoresObj.tf + 1); break;
-                case 'clue': scoresObj.sn = Math.max(-MAX_SCORE, scoresObj.sn - 1); break;
-                case 'pattern': scoresObj.sn = Math.min(MAX_SCORE, scoresObj.sn + 1); break;
-                case 'anchor': scoresObj.jp = Math.max(-MAX_SCORE, scoresObj.jp - 1); break;
-                case 'drift': scoresObj.jp = Math.min(MAX_SCORE, scoresObj.jp + 1); break;
+                case 'shadow': scoresObj.ie = Math.max(-MAX_SCORE, scoresObj.ie - weight); break;
+                case 'flame': scoresObj.ie = Math.min(MAX_SCORE, scoresObj.ie + weight); break;
+                case 'reason': scoresObj.tf = Math.max(-MAX_SCORE, scoresObj.tf - weight); break;
+                case 'heart': scoresObj.tf = Math.min(MAX_SCORE, scoresObj.tf + weight); break;
+                case 'clue': scoresObj.sn = Math.max(-MAX_SCORE, scoresObj.sn - weight); break;
+                case 'pattern': scoresObj.sn = Math.min(MAX_SCORE, scoresObj.sn + weight); break;
+                case 'anchor': scoresObj.jp = Math.max(-MAX_SCORE, scoresObj.jp - weight); break;
+                case 'drift': scoresObj.jp = Math.min(MAX_SCORE, scoresObj.jp + weight); break;
             }
         });
     }
@@ -2013,6 +2062,9 @@ function getLastUserMessage() {
             reasoning: entryData.reasoning || '',
             professor: entryData.professor || '',
             previousScores: JSON.parse(JSON.stringify(base)),
+            appliedTags: tags.map(e => typeof e === 'string'
+                ? { tag: e, intensity: DEFAULT_INTENSITY }
+                : { tag: e.tag, intensity: e.intensity }),
         };
         if (entryData.professorName) record.professorName = entryData.professorName;
         if (entryData.analysisName) record.analysisName = entryData.analysisName;
@@ -2044,6 +2096,9 @@ function getLastUserMessage() {
                 reasoning: analysis.reasoning || '',
                 professor: '',
                 analysisName: getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME,
+                appliedTags: (analysis.tags || []).map(e => typeof e === 'string'
+                    ? { tag: e, intensity: DEFAULT_INTENSITY }
+                    : { tag: e.tag, intensity: e.intensity }),
             });
             base = next;
         });
@@ -2238,6 +2293,13 @@ function getLastUserMessage() {
         el.classList.add('mbti-tag-' + tag);
     }
 
+    // Signed, 1-decimal number for deltas: '+1.5' / '-0.5' / '+2'. No trailing
+    // '.0' and no decimal point when the value is integral (keeps legacy clean).
+    function formatSigned(num) {
+        const rounded = Math.round(num * 10) / 10;
+        return (rounded > 0 ? '+' : '') + (Number.isInteger(rounded) ? rounded : rounded.toFixed(1));
+    }
+
     function updateDeltas() {
         const axes = ['ie', 'tf', 'sn', 'jp'];
         const lastEntry = trail[trail.length - 1];
@@ -2256,11 +2318,13 @@ function getLastUserMessage() {
             const delta = (after[a] || 0) - (before[a] || 0);
             if (delta !== 0) {
                 const meta = AXIS_BY_NAME[a];
-                el.textContent = delta > 0 ? `+${delta}` : `${delta}`;
+                el.textContent = formatSigned(delta);
                 applyTagClass(el, delta > 0 ? meta.posTag : meta.negTag);
+                el.dataset.intensity = entryIntensityForTag(lastEntry, delta > 0 ? meta.posTag : meta.negTag);
                 el.classList.remove('fade');
             } else {
                 el.textContent = '';
+                delete el.dataset.intensity;
                 el.classList.remove('fade');
             }
         });
@@ -2576,12 +2640,21 @@ function getLastUserMessage() {
             const parsed = JSON.parse(stripMarkdownFences(response));
 
             if (parsed.analyses && Array.isArray(parsed.analyses)) {
-                const validAnalyses = parsed.analyses.filter(a =>
-                    a.messageIndex !== undefined &&
-                    Array.isArray(a.tags) &&
-                    a.tags.length >= 1 &&
-                    a.tags.length <= 4
-                );
+                const validAnalyses = parsed.analyses
+                    .filter(a =>
+                        a.messageIndex !== undefined &&
+                        Array.isArray(a.tags) &&
+                        a.tags.length >= 1 &&
+                        a.tags.length <= 4
+                    )
+                    .map(a => ({
+                        messageIndex: a.messageIndex,
+                        tags: a.tags.map(normalizeTagEntry).filter(t => VALID_TAGS.includes(t.tag)),
+                        reasoning: (a.reasoning || '').toString().trim(),
+                    }))
+                    // An analysis whose raw tags all normalize to invalid tags
+                    // would produce an empty zero-delta record — drop it.
+                    .filter(a => a.tags.length >= 1);
 
                 return { analyses: validAnalyses, error: false };
             }
@@ -2994,11 +3067,23 @@ function getLastUserMessage() {
         return '<div class="mbti-rating-icon" style="-webkit-mask-image:url(\'' + meta.icon + '\');mask-image:url(\'' + meta.icon + '\');"></div>';
     }
 
-    // One chip: icon + signed delta for a non-zero axis.
-    function ratingChipHTML(meta, delta) {
+    // One chip: icon + signed delta for a non-zero axis. When intensity is given
+    // (weighted scoring) the chip gets a data-intensity attribute for the
+    // colored intensity dot in CSS; totals-row chips pass none.
+    function ratingChipHTML(meta, delta, intensity) {
         const tag = delta > 0 ? meta.posTag : meta.negTag;
-        const text = (delta > 0 ? '+' : '') + delta;
-        return '<span class="mbti-rating-chip mbti-tag-' + tag + '">' + ratingIconHTML(meta) + '<span class="mbti-rating-chip-num">' + text + '</span></span>';
+        const attr = intensity ? ' data-intensity="' + intensity + '"' : '';
+        return '<span class="mbti-rating-chip mbti-tag-' + tag + '"' + attr + '>' + ratingIconHTML(meta) + '<span class="mbti-rating-chip-num">' + formatSigned(delta) + '</span></span>';
+    }
+
+    // Intensity of the applied tag that produced this axis delta, falling back
+    // to 'clear' for legacy entries that predate appliedTags (or when the model
+    // returned a bare tag).
+    function entryIntensityForTag(entry, tag) {
+        const tags = entry.appliedTags;
+        if (!Array.isArray(tags)) return DEFAULT_INTENSITY;
+        const found = tags.filter(t => t && t.tag === tag).pop();
+        return (found && found.intensity) || DEFAULT_INTENSITY;
     }
 
     // Chips for a single history row (all axes with non-zero delta).
@@ -3006,7 +3091,11 @@ function getLastUserMessage() {
         const deltas = entryDelta(entry, i);
         return AXIS_META
             .filter(m => deltas[m.axis] !== 0)
-            .map(m => ratingChipHTML(m, deltas[m.axis]));
+            .map(m => ratingChipHTML(
+                m,
+                deltas[m.axis],
+                entryIntensityForTag(entry, deltas[m.axis] > 0 ? m.posTag : m.negTag)
+            ));
     }
 
     // Totals row under the modal header: current score per axis (the same
@@ -3017,7 +3106,7 @@ function getLastUserMessage() {
         el.innerHTML = AXIS_META.map(m => {
             const val = scores[m.axis] || 0;
             const tag = val > 0 ? m.posTag : (val < 0 ? m.negTag : 'neutral');
-            const text = (val > 0 ? '+' : '') + val;
+            const text = formatSigned(val);
             return '<span class="mbti-rating-chip is-summary mbti-tag-' + tag + '">' + ratingIconHTML(m) + '<span class="mbti-rating-chip-num">' + text + '</span></span>';
         }).join('');
     }
@@ -3975,6 +4064,9 @@ function getLastUserMessage() {
         if (extension_settings.mbti_widget.enabled === undefined) extension_settings.mbti_widget.enabled = true;
         if (extension_settings.mbti_widget.contextMessages === undefined) extension_settings.mbti_widget.contextMessages = 5;
         if (extension_settings.mbti_widget.autoOpenOnLoad === undefined) extension_settings.mbti_widget.autoOpenOnLoad = false;
+        // Weighted scoring (v3.7) is on by default. Guard on `=== undefined` so
+        // an existing install that toggled it off stays off across the update.
+        if (extension_settings.mbti_widget.weightedScoring === undefined) extension_settings.mbti_widget.weightedScoring = true;
         // Ensure nested backend settings exist (v3)
         if (!extension_settings.mbti_widget.backend) {
             extension_settings.mbti_widget.backend = 'st';
@@ -4032,6 +4124,7 @@ function getLastUserMessage() {
 
         // Initialize toggle states from settings
         jQuery('#mbti_enabled').prop('checked', extension_settings.mbti_widget.enabled);
+        jQuery('#mbti_weighted_scoring').prop('checked', extension_settings.mbti_widget.weightedScoring);
         jQuery('#mbti_context_messages').val(extension_settings.mbti_widget.contextMessages);
         jQuery('#mbti_context_messages_value').text(extension_settings.mbti_widget.contextMessages);
 
@@ -4080,6 +4173,13 @@ function getLastUserMessage() {
             jQuery('#mbti_enabled').prop('checked', enabled);
         });
 
+        jQuery('#mbti_weighted_scoring').on('change', function() {
+            extension_settings.mbti_widget.weightedScoring = jQuery(this).is(':checked');
+            saveSettingsDebounced();
+            // Existing trail deltas are baked in; only future analyses change.
+            updatePanel();
+        });
+
         jQuery('#mbti_context_messages').on('input', function() {
             const val = parseInt(jQuery(this).val());
             extension_settings.mbti_widget.contextMessages = val;
@@ -4090,7 +4190,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.6.0 loaded');
+        console.log('MBTI Widget v3.7.0 loaded');
     }
 
     function showTestResult(message, type) {
