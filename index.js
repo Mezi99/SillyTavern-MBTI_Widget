@@ -2423,6 +2423,10 @@ function getLastUserMessage() {
         return i_e + s_n + t_f + j_p;
     }
 
+    // Compute the current-score octagon in the shared 0-220 space. Points are
+    // inset by BASE (8) at score 0 and reach BASE+MAX_R = 92 at ±MAX_SCORE —
+    // exactly the outer web ring, so the polygon (and its dots/glow) always
+    // stays inside the grid and can never overlap the radar-modal labels.
     function scoresToOctagonPoints(s) {
         const axisVals = [
             Math.max(0, -(s.tf || 0)) / MAX_SCORE,
@@ -2435,7 +2439,7 @@ function getLastUserMessage() {
             Math.max(0, -(s.jp || 0)) / MAX_SCORE,
         ];
         const BASE = 8;
-        const MAX_R = 92;
+        const MAX_R = 84;
         return VERTICES.map((v, i) => {
             const t = BASE + axisVals[i] * MAX_R;
             const dx = v.x - CENTER.x;

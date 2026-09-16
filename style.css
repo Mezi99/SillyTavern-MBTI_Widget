@@ -370,25 +370,21 @@
     opacity: 0;
 }
 
-/* v3.7 intensity shading on the axis deltas. Specificity is tuned so these
-   color rules can never defeat the 8s fade, which is re-declared below at a
-   strictly higher specificity (#mbti-widget-panel + [data-intensity] + .fade). */
+/* v3.7 intensity emphasis on the axis deltas. The number always keeps its
+   tag-pair polarity color (mbti-tag-*); intensity is shown as weight/opacity
+   only, never a hue change. Specificity is tuned so these rules can never
+   defeat the 8s fade, which is re-declared below at a strictly higher
+   specificity (#mbti-widget-panel + [data-intensity] + .fade). */
 #mbti-widget-panel .axis-delta[data-intensity="subtle"] {
     opacity: 0.55;
 }
 
-#mbti-widget-panel .axis-delta[data-intensity="clear"] {
-}
-
 #mbti-widget-panel .axis-delta[data-intensity="strong"] {
-    color: #ffd166;
     font-weight: 700;
 }
 
 #mbti-widget-panel .axis-delta[data-intensity="defining"] {
-    color: #ffb38a;
     font-weight: 800;
-    text-shadow: 0 0 6px rgba(255, 179, 138, 0.35);
 }
 
 #mbti-widget-panel .axis-delta[data-intensity].fade {
@@ -1194,8 +1190,8 @@
     font-size: 13px;
 }
 
-/* v3.7 intensity shading on history chips: the icon keeps its polarity tag
-   color; only the number reflects how strongly the trait fired. */
+/* v3.7 intensity emphasis on history chips: the icon and number keep their
+   polarity tag colors (mbti-tag-*); intensity is weight/opacity only. */
 .mbti-rating-chip[data-intensity] .mbti-rating-chip-num {
     font-variant-numeric: tabular-nums;
 }
@@ -1204,15 +1200,11 @@
     opacity: 0.55;
 }
 
-.mbti-rating-chip[data-intensity="clear"] .mbti-rating-chip-num {
-}
-
 .mbti-rating-chip[data-intensity="strong"] .mbti-rating-chip-num {
-    color: #ffd166;
+    font-weight: 700;
 }
 
 .mbti-rating-chip[data-intensity="defining"] .mbti-rating-chip-num {
-    color: #ffb38a;
     font-weight: 800;
 }
 
