@@ -42,7 +42,7 @@ Respond strictly ONLY with valid JSON:
 {
   "tags": [ { "tag": "tag1", "intensity": "clear" } ],
   "reasoning": "Brief 1-2 sentence explanation",
-  "professor": "A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard"
+  "commenter": "A sarcastic one-liner analyzing this moment like a psychology professor at a whiteboard"
 }
 
 Intensity guide (choose one per tag):
@@ -52,6 +52,8 @@ Intensity guide (choose one per tag):
 - "defining": this turn is centrally, unmistakably about this trait
 ```
 
+> The `reasoning` and `commenter` JSON lines are **omitted entirely** when the corresponding prompt's **Active** toggle is off in the extension drawer (whatever description text is configured replaces the examples above; the tags/pairs stay locked). The widget just never parses text it did not ask for.
+
 ---
 
 ## LLM Expected Output
@@ -60,9 +62,10 @@ Intensity guide (choose one per tag):
 {
   "tags": [ { "tag": "shadow", "intensity": "strong" }, { "tag": "reason", "intensity": "clear" } ],
   "reasoning": "User withdrew from the confrontation and relied on logical analysis to address the problem.",
-  "professor": "Classic retreat-and-rationalize. The whiteboard writes itself."
+  "commenter": "Classic retreat-and-rationalize. The whiteboard writes itself."
 }
 ```
+> Pre-v3.7.1 responses may return `professor` instead of `commenter`; the parser accepts both. Responses from disabled prompts simply lack the field.
 
 ### Fields
 
@@ -71,8 +74,8 @@ Intensity guide (choose one per tag):
 | `tags` | array | Yes | 1-4 tag objects from the allowed set. One per axis pair at most. |
 | `tags[].tag` | string | Yes | One of the 8 allowed tags. |
 | `tags[].intensity` | string | No | One of `subtle` / `clear` / `strong` / `defining`. Missing or unknown values fall back to `clear` (weight 1.0). |
-| `reasoning` | string | Yes | Brief explanation of why these tags were chosen. |
-| `professor` | string | No | A short, sarcastic one-liner analysis of the moment, in the voice of a psychology professor. Displayed in its own "Psy Professor" section in the panel. |
+| `reasoning` | string | When Analysis Active | Brief explanation of why these tags were chosen. Omitted (not requested) when the **Analysis** prompt's Active toggle is off. |
+| `commenter` | string | When Commenter Active | A short, sarcastic one-liner analysis of the moment, in the voice of the configured commenter. Displayed in its own section in the panel. Only requested/persisted when the **Commenter** prompt's Active toggle is on. |
 
 ### Valid Tags & Intensity Weights
 
@@ -116,7 +119,7 @@ The **Weighted scoring** toggle (`extension_settings.mbti_widget.weightedScoring
     { tag: "reason", intensity: "clear", weight: 1.0 }
   ],                          // Filtered, lowercase, normalized
   reasoning: "User withdrew...",   // Trimmed string
-  professor: "Classic retreat..."  // Trimmed string, may be empty
+  commenter: "Classic retreat..."  // Trimmed string, may be empty
 }
 ```
 

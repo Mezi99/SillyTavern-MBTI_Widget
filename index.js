@@ -13,7 +13,12 @@
     let panelCreated = false;
     let isPanelOpen = false;
     let reasoningExpanded = false;
-    let professorExpanded = false;
+    let commenterExpanded = false;
+    // Last generated analysis / commenter text (session state). Persisted to
+    // chat metadata only when the corresponding prompt is active and NOT saved
+    // to the trail, so the panel survives a chat reload without per-turn bloat.
+    let lastAnalysis = '';
+    let lastCommenter = '';
 
     const MAX_SCORE = 18;
 
@@ -1306,7 +1311,7 @@
     }
 
     // Default wording for the configurable prompt fields (Prompts settings).
-    const DEFAULT_ANALYSIS_NAME = 'Latest Analysis';
+    const DEFAULT_ANALYSIS_NAME = 'Analysis';
     const DEFAULT_ANALYSIS_PROMPT = 'Brief 1-2 sentence explanation';
     const DEFAULT_COMMENT_NAME = 'Dr. Mike Flapjack';
     const DEFAULT_COMMENT_PROMPT = `Supplement the main narrative with a commentary, fully impersonating the following persona, addressing user directly:
@@ -1322,13 +1327,67 @@ Persona: A brash, almost intolerable penguin called Mike, who has strong opinion
         return extension_settings?.mbti_widget?.prompts || {};
     }
 
-    // Fixed rating schema + tag pairs. The reasoning ("Latest Analysis") and
-    // the commenter ("professor") description lines come from the Prompts
-    // settings; the tags/pairs themselves stay locked.
+    // --- Prompt activity / persistence toggles (v3.7.1) ---
+    // activeX gates whether the prompt is sent to the LLM at all; saveX gates
+    // whether its per-turn output is stored in the trail (metadata bloat).
+    // A prompt that is not active can never have records saved (enforced at
+    // settings bootstrap and UI level).
+    function analysisEnabled() {
+        return getPromptsSettings().activeAnalysis !== false;
+    }
+
+    function commenterEnabled() {
+        return getPromptsSettings().activeCommenter !== false;
+    }
+
+    function analysisSaved() {
+        return analysisEnabled() && getPromptsSettings().saveAnalysis !== false;
+    }
+
+    function commenterSaved() {
+        return commenterEnabled() && getPromptsSettings().saveCommenter === true;
+    }
+
+    function analysisDisplayName() {
+        return getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME;
+    }
+
+    function commenterDisplayName() {
+        return getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME;
+    }
+
+    // Records written before v3.7.1 stored the commenter under the serialized
+    // keys `professor` / `professorName`. Read both so long-existing chats keep
+    // rendering their saved comments.
+    function entryCommenter(entry) {
+        return (entry && (entry.commenter || entry.professor)) || '';
+    }
+
+    function entryCommenterName(entry) {
+        return (entry && (entry.commenterName || entry.professorName)) || '';
+    }
+
+    const LAST_ANALYSIS_KEY = 'mbti_last_analysis';
+    const LAST_ANALYSIS_NAME_KEY = 'mbti_last_analysis_name';
+    const LAST_COMMENTER_KEY = 'mbti_last_commenter';
+    const LAST_COMMENTER_NAME_KEY = 'mbti_last_commenter_name';
+
+    // Fixed rating schema + tag pairs. The reasoning ("Analysis") and the
+    // commenter description lines come from the Prompts settings; the
+    // tags/pairs themselves stay locked. Each text line is omitted entirely
+    // when its prompt is disabled (Active off), so the model never produces
+    // output the widget would discard.
     function buildRatingSystemPrompt() {
         const p = getPromptsSettings();
         const analysis = sanitizePromptText(p.analysis) || DEFAULT_ANALYSIS_PROMPT;
         const comment = sanitizePromptText(p.commenter?.prompt) || DEFAULT_COMMENT_PROMPT;
+        const extra = [];
+        if (analysisEnabled()) extra.push(` "reasoning": "${analysis}"`);
+        if (commenterEnabled()) extra.push(` "commenter": "${comment}"`);
+        const tagsLine = ` "tags": [ { "tag": "tag1", "intensity": "clear" } ]`
+            + (extra.length > 0 ? ',' : '')
+            + `  // Minimum 1 tag, maximum 4 (one per pair).`;
+        const schema = [tagsLine, ...extra.map((f, i) => (i < extra.length - 1 ? f + ',' : f))].join('\n');
         return `Analyze the user's last message. For each of the 4 pairs below, choose exactly ONE tag — the one that better describes this specific action. If the action is genuinely neutral on an axis, omit both tags from that pair.
 
 Pair 1 - Social energy: shadow (withdrew, avoided, observed from distance) vs flame (engaged, confronted, inserted themselves)
@@ -1338,9 +1397,7 @@ Pair 4 - Approach to uncertainty: anchor (committed to a position or plan) vs dr
 
 Respond strictly ONLY with valid JSON:
 {
- "tags": [ { "tag": "tag1", "intensity": "clear" } ],  // Minimum 1 tag, maximum 4 (one per pair).
- "reasoning": "${analysis}",
- "professor": "${comment}"
+${schema}
 }
 
 Intensity guide (choose one per tag):
@@ -1352,11 +1409,13 @@ Intensity guide (choose one per tag):
     }
 
     // Re-scan prompt: same locked tag schema; reasoning line follows the
-    // configured "Latest Analysis" prompt. No commenter line is requested
-    // (re-scan stores no comments).
+    // configured "Analysis" prompt (omitted when Analysis is disabled — the
+    // per-message records then carry no reasoning). No commenter line is
+    // requested (re-scan stores no comments).
     function buildRescanPrompt() {
         const p = getPromptsSettings();
         const analysis = sanitizePromptText(p.analysis) || DEFAULT_ANALYSIS_PROMPT;
+        const analysisLine = analysisEnabled() ? `,\n      "reasoning": "${analysis}"` : '';
         return `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
 
 Message numbering rules (CRITICAL):
@@ -1370,8 +1429,7 @@ Respond strictly ONLY with valid JSON:
   "analyses": [
     {
       "messageIndex": 0,
-      "tags": [ { "tag": "tag1", "intensity": "clear" } ],
-      "reasoning": "${analysis}"
+      "tags": [ { "tag": "tag1", "intensity": "clear" } ]${analysisLine}
     }
   ]
 }
@@ -1831,7 +1889,7 @@ function getLastUserMessage() {
             if (isCustomBackend()) {
                 showTestResult(`Analysis failed: ${error.message}`, 'err');
             }
-            return { tags: [], reasoning: '', professor: '', error: true };
+            return { tags: [], reasoning: '', commenter: '', error: true };
         }
     }
 
@@ -1894,16 +1952,21 @@ function getLastUserMessage() {
             // chat-file numbering and the re-scan entries (which analyze user
             // messages). Never the AI reply's index (the old chat.length - 1).
             const msgIndex = userIdx >= 0 ? userIdx : trail.length;
-            const professorName = getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME;
-            const analysisName = getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME;
+            const commenterName = commenterDisplayName();
+            const analysisName = analysisDisplayName();
 
             upsertTrailEntry(msgIndex, {
                 tags: result.tags || [],
                 reasoning: result.reasoning || '',
-                professor: result.professor || '',
-                professorName: professorName,
+                commenter: result.commenter || '',
+                commenterName: commenterName,
                 analysisName: analysisName,
             });
+
+            // Last-state mirrors the latest generated text regardless of the
+            // save toggle; only persistence differs (see saveToChatMetadata).
+            lastAnalysis = analysisEnabled() ? (result.reasoning || '') : '';
+            lastCommenter = commenterEnabled() ? (result.commenter || '') : '';
 
             await saveToChatMetadata();
             updatePanel();
@@ -1949,11 +2012,13 @@ function getLastUserMessage() {
                     .filter(t => VALID_TAGS.includes(t.tag));
 
                 const reasoning = (parsed.reasoning || '').toString().trim();
-                const professor = (parsed.professor || '').toString().trim();
+                // Accept both the v3.7.1+ "commenter" key and responses still
+                // using the old "professor" field name.
+                const commenter = (parsed.commenter || parsed.professor || '').toString().trim();
 
                 // Validate: 1-4 tags required
                 if (tags.length >= 1 && tags.length <= 4) {
-                    return { tags, reasoning, professor, error: false };
+                    return { tags, reasoning, commenter, error: false };
                 }
             }
         } catch (e) {
@@ -1963,7 +2028,7 @@ function getLastUserMessage() {
         // Hard failure: response wasn't valid/parseable (empty, malformed, etc).
         // The caller surfaces this to the user.
         console.error('MBTI Widget: Failed to parse valid JSON response');
-        return { tags: [], reasoning: '', professor: '', error: true };
+        return { tags: [], reasoning: '', commenter: '', error: true };
     }
 
     // Apply MBTI tags by mutating the given scores object (no global side
@@ -2059,15 +2124,18 @@ function getLastUserMessage() {
         const record = {
             messageIndex: messageIndex,
             scores: after,
-            reasoning: entryData.reasoning || '',
-            professor: entryData.professor || '',
             previousScores: JSON.parse(JSON.stringify(base)),
             appliedTags: tags.map(e => typeof e === 'string'
                 ? { tag: e, intensity: DEFAULT_INTENSITY }
                 : { tag: e.tag, intensity: e.intensity }),
         };
-        if (entryData.professorName) record.professorName = entryData.professorName;
-        if (entryData.analysisName) record.analysisName = entryData.analysisName;
+        // Only the per-turn text whose "save to chat file" toggle is on lands
+        // in the trail record; otherwise it exists solely as the last state
+        // (module vars + metadata) and the history modal omits the row.
+        if (analysisSaved() && entryData.reasoning) record.reasoning = entryData.reasoning;
+        if (analysisSaved() && entryData.analysisName) record.analysisName = entryData.analysisName;
+        if (commenterSaved() && entryData.commenter) record.commenter = entryData.commenter;
+        if (commenterSaved() && entryData.commenterName) record.commenterName = entryData.commenterName;
 
         if (existingIdx >= 0) {
             trail[existingIdx] = record;
@@ -2089,19 +2157,25 @@ function getLastUserMessage() {
             const prev = JSON.parse(JSON.stringify(base));
             const next = JSON.parse(JSON.stringify(prev));
             applyTagsTo(next, analysis.tags);
-            trail.push({
+            const entry = {
                 messageIndex: analysis.messageIndex,
                 scores: next,
                 previousScores: prev,
-                reasoning: analysis.reasoning || '',
-                professor: '',
-                analysisName: getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME,
                 appliedTags: (analysis.tags || []).map(e => typeof e === 'string'
                     ? { tag: e, intensity: DEFAULT_INTENSITY }
                     : { tag: e.tag, intensity: e.intensity }),
-            });
+            };
+            if (analysisSaved() && analysis.reasoning) entry.reasoning = analysis.reasoning;
+            if (analysisSaved()) entry.analysisName = analysisDisplayName();
+            trail.push(entry);
             base = next;
         });
+        // Re-scan produces no comments; the analysis last state is the final
+        // scanned record's reasoning (when enabled).
+        lastAnalysis = analysisEnabled()
+            ? (analyses.length > 0 ? (analyses[analyses.length - 1].reasoning || '') : '')
+            : '';
+        lastCommenter = '';
         syncScoresFromTrail();
     }
 
@@ -2111,6 +2185,23 @@ function getLastUserMessage() {
         if (!metadata) return;
         metadata.mbti_scores = scores;
         metadata.mbti_trail = trail;
+        // Last-state metadata exists only when the prompt is active and its
+        // per-turn records are NOT saved to the trail (that would be redundant
+        // bloat). Records saved to the trail already survive reloads.
+        if (analysisEnabled() && !analysisSaved()) {
+            metadata[LAST_ANALYSIS_KEY] = lastAnalysis;
+            metadata[LAST_ANALYSIS_NAME_KEY] = analysisDisplayName();
+        } else {
+            delete metadata[LAST_ANALYSIS_KEY];
+            delete metadata[LAST_ANALYSIS_NAME_KEY];
+        }
+        if (commenterEnabled() && !commenterSaved()) {
+            metadata[LAST_COMMENTER_KEY] = lastCommenter;
+            metadata[LAST_COMMENTER_NAME_KEY] = commenterDisplayName();
+        } else {
+            delete metadata[LAST_COMMENTER_KEY];
+            delete metadata[LAST_COMMENTER_NAME_KEY];
+        }
         await context.saveMetadata();
     }
 
@@ -2168,18 +2259,41 @@ function getLastUserMessage() {
         if (metadata?.mbti_scores) {
             scores = metadata.mbti_scores;
             trail = metadata.mbti_trail || [];
-            updatePanel();
         } else {
             scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
             trail = [];
-            updatePanel();
         }
+        refreshLastState();
+        updatePanel();
         // Branched/shortened chats must not retain stale tail records — prune
-        // and persist so the auto-trigger guard and history stay consistent.
+        // (which also clears the last state) and persist so the auto-trigger
+        // guard, history, and panel stay consistent.
         if (pruneStaleTrailEntries()) {
+            lastAnalysis = '';
+            lastCommenter = '';
             await saveToChatMetadata();
             updatePanel();
         }
+    }
+
+    // Rebuild the last-analysis / last-commenter display state after a chat
+    // load. Saved-to-trail prompts read from the trail's final record; prompts
+    // with save-off read the last-state metadata keys written earlier (falling
+    // back to the last trail record so long-existing chats that stored the
+    // commenter before the toggle existed don't blank out on upgrade).
+    function refreshLastState() {
+        const metadata = SillyTavern.getContext()?.chatMetadata || {};
+        const last = trail[trail.length - 1] || {};
+        lastAnalysis = analysisEnabled()
+            ? (analysisSaved()
+                ? (last.reasoning || metadata[LAST_ANALYSIS_KEY] || '')
+                : (metadata[LAST_ANALYSIS_KEY] || last.reasoning || ''))
+            : '';
+        lastCommenter = commenterEnabled()
+            ? (commenterSaved()
+                ? (entryCommenter(last) || metadata[LAST_COMMENTER_KEY] || '')
+                : (metadata[LAST_COMMENTER_KEY] || entryCommenter(last) || ''))
+            : '';
     }
 
     function updatePanel() {
@@ -2245,15 +2359,16 @@ function getLastUserMessage() {
 
         const reasoningEl = document.getElementById('reasoning-text');
         const reasoningLabel = document.getElementById('reasoning-label');
+        const reasoningDisplay = document.getElementById('reasoning-display');
+        // Hide the whole analysis block when the Analysis prompt is disabled.
+        if (reasoningDisplay) reasoningDisplay.style.display = analysisEnabled() ? '' : 'none';
         if (reasoningLabel) {
-            reasoningLabel.textContent = getPromptsSettings().analysisName || DEFAULT_ANALYSIS_NAME;
+            reasoningLabel.textContent = analysisDisplayName();
             reasoningLabel.classList.toggle('is-expanded', reasoningExpanded);
         }
         if (reasoningEl) {
-            const lastEntry = trail[trail.length - 1];
-            const reasoning = lastEntry && lastEntry.reasoning ? lastEntry.reasoning : '';
-            if (reasoning) {
-                reasoningEl.textContent = reasoning;
+            if (lastAnalysis) {
+                reasoningEl.textContent = lastAnalysis;
                 reasoningEl.style.color = 'rgba(212, 197, 169, 0.8)';
             } else {
                 reasoningEl.textContent = 'Start chatting to see analysis...';
@@ -2265,19 +2380,17 @@ function getLastUserMessage() {
         const professorEl = document.getElementById('professor-text');
         const professorSection = document.getElementById('professor-section');
         const professorLabel = document.getElementById('professor-label');
-        const lastEntry = trail[trail.length - 1];
-        const professor = lastEntry && lastEntry.professor ? lastEntry.professor : '';
         if (professorLabel) {
-            professorLabel.textContent = getPromptsSettings().commenter?.name || DEFAULT_COMMENT_NAME;
-            professorLabel.classList.toggle('is-expanded', professorExpanded);
+            professorLabel.textContent = commenterDisplayName();
+            professorLabel.classList.toggle('is-expanded', commenterExpanded);
         }
         if (professorEl) {
-            professorEl.textContent = professor;
+            professorEl.textContent = lastCommenter;
             professorEl.style.color = 'rgba(212, 197, 169, 0.8)';
-            professorEl.classList.toggle('expanded', professorExpanded);
+            professorEl.classList.toggle('expanded', commenterExpanded);
         }
         if (professorSection) {
-            professorSection.style.display = professor ? 'block' : 'none';
+            professorSection.style.display = (commenterEnabled() && lastCommenter) ? 'block' : 'none';
         }
 
         scheduleDeltaFade();
@@ -3011,26 +3124,29 @@ function getLastUserMessage() {
                         : '<span class="history-tag-empty">No change</span>';
 
                     const rowNum = entry.messageIndex !== undefined ? entry.messageIndex : i + 1;
-                    const professorName = entry.professorName;
-                    const professorHTML = entry.professor
-                        ? (professorName
-                            ? `<div class="history-row-professor"><span class="history-row-professor-name">${professorName}:</span> ${entry.professor}</div>`
-                            : `<div class="history-row-professor">${entry.professor}</div>`)
+                    const commenterName = entryCommenterName(entry);
+                    const commenterText = entryCommenter(entry);
+                    const professorHTML = commenterText
+                        ? (commenterName
+                            ? `<div class="history-row-professor"><span class="history-row-professor-name">${commenterName}:</span> ${commenterText}</div>`
+                            : `<div class="history-row-professor">${commenterText}</div>`)
                         : '';
 
+                    // Rows with save-off prompts (or none stored) simply have no
+                    // reasoning/comment — the row is omitted, not filled.
                     const analysisName = entry.analysisName;
                     const reasoningHTML = entry.reasoning
                         ? (analysisName
                             ? `<span class="history-row-analysis-name">${analysisName}:</span> ${entry.reasoning}`
                             : entry.reasoning)
-                        : 'No reasoning recorded';
+                        : '';
 
                     return `
                         <div class="history-row">
                             <div class="history-row-num">${rowNum}</div>
                             <div class="history-row-body">
                                 <div class="history-row-tags">${chipsHTML}</div>
-                                <div class="history-row-reasoning">${reasoningHTML}</div>
+                                ${reasoningHTML ? `<div class="history-row-reasoning">${reasoningHTML}</div>` : ''}
                                 ${professorHTML}
                             </div>
                         </div>
@@ -3665,13 +3781,13 @@ function getLastUserMessage() {
                 </div>
                 <div class="reasoning-display" id="reasoning-display">
                     <div class="reasoning-header">
-                        <div class="reasoning-label" id="reasoning-label">Latest Analysis</div>
+                        <div class="reasoning-label" id="reasoning-label">Analysis</div>
                     </div>
                     <div class="reasoning-text" id="reasoning-text">Start chatting to see analysis...</div>
-                    <div class="professor-section" id="professor-section">
-                        <div class="professor-label" id="professor-label">Psy Professor</div>
-                        <div class="professor-text" id="professor-text"></div>
-                    </div>
+                </div>
+                <div class="professor-section" id="professor-section">
+                    <div class="professor-label" id="professor-label">Psy Professor</div>
+                    <div class="professor-text" id="professor-text"></div>
                 </div>
                 <div class="mbti-actions" id="mbti-actions">
                     <button class="action-btn" id="rescan-btn" title="Re-scan chat history — analyze past messages and rebuild the rating trail">
@@ -3896,13 +4012,13 @@ function getLastUserMessage() {
 
         document.getElementById('reasoning-label').addEventListener('click', function() {
             reasoningExpanded = !reasoningExpanded;
-            if (reasoningExpanded) professorExpanded = false;
+            if (reasoningExpanded) commenterExpanded = false;
             updatePanel();
         });
 
         document.getElementById('professor-label').addEventListener('click', function() {
-            professorExpanded = !professorExpanded;
-            if (professorExpanded) reasoningExpanded = false;
+            commenterExpanded = !commenterExpanded;
+            if (commenterExpanded) reasoningExpanded = false;
             updatePanel();
         });
 
@@ -4102,25 +4218,41 @@ function getLastUserMessage() {
             extension_settings.mbti_widget.rescanMessages = 0;
         }
 
-        // Prompt customization (Latest Analysis + Commenter). Keep defaults
-        // backwards-compatible with the classic fixed wording.
+        // Prompt customization (Analysis + Commenter). Keep defaults
+        // backwards-compatible with the classic fixed wording. v3.7.1: each
+        // prompt has an Active toggle (sent to the LLM at all) and a "save to
+        // chat file" toggle (per-record persistence). Defaults: both active;
+        // Analysis saved, Commenter not.
         if (!extension_settings.mbti_widget.prompts) {
             extension_settings.mbti_widget.prompts = {
                 analysisName: DEFAULT_ANALYSIS_NAME,
                 analysis: DEFAULT_ANALYSIS_PROMPT,
+                activeAnalysis: true,
+                saveAnalysis: true,
                 commenter: {
                     name: DEFAULT_COMMENT_NAME,
                     prompt: DEFAULT_COMMENT_PROMPT,
                 },
+                activeCommenter: true,
+                saveCommenter: false,
             };
         } else {
             const prompts = extension_settings.mbti_widget.prompts;
             if (!prompts.analysisName) prompts.analysisName = DEFAULT_ANALYSIS_NAME;
             if (!prompts.analysis) prompts.analysis = DEFAULT_ANALYSIS_PROMPT;
+            if (prompts.activeAnalysis === undefined) prompts.activeAnalysis = true;
+            if (prompts.saveAnalysis === undefined) prompts.saveAnalysis = true;
             if (!prompts.commenter) prompts.commenter = {};
             if (!prompts.commenter.name) prompts.commenter.name = DEFAULT_COMMENT_NAME;
             if (!prompts.commenter.prompt) prompts.commenter.prompt = DEFAULT_COMMENT_PROMPT;
+            if (prompts.activeCommenter === undefined) prompts.activeCommenter = true;
+            if (prompts.saveCommenter === undefined) prompts.saveCommenter = false;
         }
+        // Enforce: a disabled prompt can never save its records, so the
+        // save on/off toggle is only usable while Active is on.
+        const initPrompts = extension_settings.mbti_widget.prompts;
+        if (initPrompts.activeAnalysis === false) initPrompts.saveAnalysis = false;
+        if (initPrompts.activeCommenter === false) initPrompts.saveCommenter = false;
 
 
         createFab();
@@ -4194,7 +4326,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.7.0 loaded');
+        console.log('MBTI Widget v3.7.1 loaded');
     }
 
     function showTestResult(message, type) {
@@ -4432,6 +4564,58 @@ function getLastUserMessage() {
         if (analysisEl) analysisEl.value = prompts.analysis || DEFAULT_ANALYSIS_PROMPT;
         if (commenterNameEl) commenterNameEl.value = prompts.commenter?.name || DEFAULT_COMMENT_NAME;
         if (commenterPromptEl) commenterPromptEl.value = prompts.commenter?.prompt || DEFAULT_COMMENT_PROMPT;
+
+        // Keep the Active / Save toggles consistent with the stored settings:
+        // the save checkbox is disabled (and forced off) whenever its prompt's
+        // Active toggle is off.
+        function syncPromptToggleStates() {
+            const aActive = jQuery('#mbti_analysis_active');
+            const aSave = jQuery('#mbti_analysis_save');
+            const cActive = jQuery('#mbti_commenter_active');
+            const cSave = jQuery('#mbti_commenter_save');
+            const analysisOn = extension_settings.mbti_widget.prompts.activeAnalysis !== false;
+            const commenterOn = extension_settings.mbti_widget.prompts.activeCommenter !== false;
+            if (aActive.length) aActive.prop('checked', analysisOn);
+            if (cActive.length) cActive.prop('checked', commenterOn);
+            if (aSave.length) {
+                aSave.prop('disabled', !analysisOn);
+                aSave.prop('checked', analysisOn && extension_settings.mbti_widget.prompts.saveAnalysis !== false);
+            }
+            if (cSave.length) {
+                cSave.prop('disabled', !commenterOn);
+                cSave.prop('checked', commenterOn && extension_settings.mbti_widget.prompts.saveCommenter === true);
+            }
+        }
+
+        syncPromptToggleStates();
+
+        jQuery('#mbti_analysis_active').on('change', function() {
+            const on = jQuery(this).is(':checked');
+            extension_settings.mbti_widget.prompts.activeAnalysis = on;
+            if (!on) extension_settings.mbti_widget.prompts.saveAnalysis = false;
+            saveSettingsDebounced();
+            syncPromptToggleStates();
+            updatePanel();
+        });
+
+        jQuery('#mbti_analysis_save').on('change', function() {
+            extension_settings.mbti_widget.prompts.saveAnalysis = jQuery(this).is(':checked');
+            saveSettingsDebounced();
+        });
+
+        jQuery('#mbti_commenter_active').on('change', function() {
+            const on = jQuery(this).is(':checked');
+            extension_settings.mbti_widget.prompts.activeCommenter = on;
+            if (!on) extension_settings.mbti_widget.prompts.saveCommenter = false;
+            saveSettingsDebounced();
+            syncPromptToggleStates();
+            updatePanel();
+        });
+
+        jQuery('#mbti_commenter_save').on('change', function() {
+            extension_settings.mbti_widget.prompts.saveCommenter = jQuery(this).is(':checked');
+            saveSettingsDebounced();
+        });
 
         jQuery('#mbti_analysis_name').on('input', function() {
             extension_settings.mbti_widget.prompts.analysisName = String(jQuery(this).val());

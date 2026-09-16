@@ -135,11 +135,19 @@
                     <details class="mbti-set-block mbti-set-nested" open>
                         <summary class="mbti-set-header">
                             <span class="mbti-set-chevron fa-solid fa-chevron-down"></span>
-                            <span>Latest Analysis</span>
+                            <span>Analysis</span>
                         </summary>
                         <div class="mbti-set-body">
+                            <label class="mbti-toggle-row" for="mbti_analysis_active" title="Send the Analysis prompt to the LLM and show its output. Off = skip this prompt entirely.">
+                                <input type="checkbox" id="mbti_analysis_active" class="checkbox">
+                                <span class="mbti-toggle-label">Active</span>
+                            </label>
+                            <label class="mbti-toggle-row" for="mbti_analysis_save" title="Store one explanation per turn in the chat file. Off = only the latest is kept. Only usable while Active is on.">
+                                <input type="checkbox" id="mbti_analysis_save" class="checkbox" disabled>
+                                <span class="mbti-toggle-label">Save history to chat file</span>
+                            </label>
                             <label class="mbti-field-label" for="mbti_analysis_name">Name</label>
-                            <input type="text" id="mbti_analysis_name" class="mbti-input" value="Latest Analysis" autocomplete="off">
+                            <input type="text" id="mbti_analysis_name" class="mbti-input" value="Analysis" autocomplete="off">
                             <label class="mbti-field-label" for="mbti_prompt_analysis">Prompt</label>
                             <textarea id="mbti_prompt_analysis" class="mbti-input mbti-textarea" rows="2">Brief 1-2 sentence explanation</textarea>
                         </div>
@@ -151,6 +159,14 @@
                             <span>Commenter</span>
                         </summary>
                         <div class="mbti-set-body">
+                            <label class="mbti-toggle-row" for="mbti_commenter_active" title="Send the Commenter prompt to the LLM and show its output. Off = skip this prompt entirely.">
+                                <input type="checkbox" id="mbti_commenter_active" class="checkbox">
+                                <span class="mbti-toggle-label">Active</span>
+                            </label>
+                            <label class="mbti-toggle-row" for="mbti_commenter_save" title="Store one comment per turn in the chat file. Off = only the latest is kept. Only usable while Active is on.">
+                                <input type="checkbox" id="mbti_commenter_save" class="checkbox" disabled>
+                                <span class="mbti-toggle-label">Save history to chat file</span>
+                            </label>
                             <label class="mbti-field-label" for="mbti_commenter_name">Name</label>
                             <input type="text" id="mbti_commenter_name" class="mbti-input" value="Psy Professor" autocomplete="off">
                             <label class="mbti-field-label" for="mbti_commenter_prompt">Prompt</label>

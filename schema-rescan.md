@@ -96,7 +96,7 @@ Intensity guide (choose one per tag):
 | `analyses[].tags` | array | Yes | 1-4 tag objects from the allowed set |
 | `analyses[].tags[].tag` | string | Yes | One of the 8 allowed tags |
 | `analyses[].tags[].intensity` | string | No | One of `subtle` / `clear` / `strong` / `defining`. Missing or unknown → `clear` (weight 1.0) |
-| `analyses[].reasoning` | string | Yes | Brief explanation of tag choices |
+| `analyses[].reasoning` | string | When Analysis Active | Brief explanation of tag choices. Omitted (not requested) when the **Analysis** prompt's Active toggle is off — the re-scan records then carry no reasoning text. |
 
 ### Valid Tags & Intensity Weights
 
@@ -122,7 +122,7 @@ The **Weighted scoring** toggle (`extension_settings.mbti_widget.weightedScoring
 
 ### Validation Rules
 
-- Each analysis must have `messageIndex`, `tags`, and `reasoning`
+- Each analysis must have `messageIndex` and `tags` (1-4 per message); `reasoning` is required only while the Analysis prompt is Active
 - Tags: minimum 1, maximum 4 per message
 - One tag per axis pair at most
 - Tags must be from the allowed set (case-insensitive, trimmed); unknown tags are dropped; an analysis whose tags all normalize to invalid is dropped with it

@@ -171,7 +171,7 @@ async function queryRating(lastUserMessage, lastAiResponse, chatHistory) {
     } catch (error) {
         console.error('MBTI Widget: Rating query failed', error);
         if (isCustomBackend()) showTestResult(`Analysis failed: ${error.message}`, 'err');
-        return { tags: [], reasoning: '', professor: '', error: true };
+        return { tags: [], reasoning: '', commenter: '', error: true };
     }
 }
 ```
@@ -185,12 +185,12 @@ async function queryRating(lastUserMessage, lastAiResponse, chatHistory) {
 ---
 
 #### `buildRatingSystemPrompt()` (Prompt builders)
-Builds the system prompt sent for the per-turn rating. The **tag pairs and the JSON schema are fixed and locked**; only the two description lines are filled from the `Prompts` settings:
+Builds the system prompt sent for the per-turn rating. The **tag pairs and the JSON schema are fixed and locked**; only the description lines are filled from the `Prompts` settings, and each is **omitted wholesale when its prompt's Active toggle is off** (so the model never produces output the widget would discard):
 
-- `reasoning` line ← `prompts.analysis` (default `Brief 1-2 sentence explanation`)
-- `professor` (commenter) line ← `prompts.commenter.prompt` (default the "psychology professor at a whiteboard" wording)
+- `reasoning` line ← `prompts.analysis` (default `Brief 1-2 sentence explanation`) — present only while `prompts.activeAnalysis !== false`
+- `commenter` line ← `prompts.commenter.prompt` (default the "psychology professor at a whiteboard" wording) — present only while `prompts.activeCommenter !== false`
 
-`buildRescanPrompt()` is the re-scan variant: same locked schema, reasoning line injected, and **no** commenter line (re-scan stores no comments). `sanitizePromptText()` collapses whitespace so multiline textarea content cannot corrupt the JSON schema shown to the model. The commenter **name** (`prompts.commenter.name`, default `Psy Professor`) is display-only — it is never sent to the model; it renders as the panel section header via `updatePanel()`.
+`buildRescanPrompt()` is the re-scan variant: same locked schema, reasoning line injected (omitted when Analysis is inactive), and **no** commenter line (re-scan stores no comments). `sanitizePromptText()` collapses whitespace so multiline textarea content cannot corrupt the JSON schema shown to the model. The commenter **name** (`prompts.commenter.name`, default `Psy Professor`) is display-only — it is never sent to the model; it renders as the panel section header via `updatePanel()`.
 
 ---
 
@@ -232,12 +232,30 @@ function applyTag(tag) {
 Persists scores per chat:
 
 ```javascript
-function saveToChatMetadata() {
+async function saveToChatMetadata() {
     const context = SillyTavern.getContext();
-    if (!context.chat) return;
-    if (!context.chat.metadata) context.chat.metadata = {};
-    context.chat.metadata.mbti_scores = scores;
-    context.chat.metadata.mbti_trail = trail;
+    const metadata = context.chatMetadata;
+    if (!metadata) return;
+    metadata.mbti_scores = scores;
+    metadata.mbti_trail = trail;
+    // Last-state keys: written ONLY when a prompt is Active but its per-turn
+    // records are NOT saved to the trail (see "Personalization / persistence
+    // toggles"); deleted otherwise so stale values never linger.
+    if (analysisEnabled() && !analysisSaved()) {
+        metadata.mbti_last_analysis = lastAnalysis;
+        metadata.mbti_last_analysis_name = analysisDisplayName();
+    } else {
+        delete metadata.mbti_last_analysis;
+        delete metadata.mbti_last_analysis_name;
+    }
+    if (commenterEnabled() && !commenterSaved()) {
+        metadata.mbti_last_commenter = lastCommenter;
+        metadata.mbti_last_commenter_name = commenterDisplayName();
+    } else {
+        delete metadata.mbti_last_commenter;
+        delete metadata.mbti_last_commenter_name;
+    }
+    await context.saveMetadata();
 }
 ```
 
@@ -246,7 +264,7 @@ function saveToChatMetadata() {
 ---
 
 #### `loadFromChatMetadata()` (line 829)
-Loads scores when a chat opens, then prunes stale records for branched/shortened chats.
+Loads scores when a chat opens, restores the last-analysis / last-commenter display state, then prunes stale records for branched/shortened chats.
 
 ```javascript
 async function loadFromChatMetadata() {
@@ -259,14 +277,20 @@ async function loadFromChatMetadata() {
         scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
         trail = [];
     }
+    refreshLastState();          // rebuild lastAnalysis/lastCommenter display state
+    updatePanel();
     if (pruneStaleTrailEntries()) {   // branched/shortened chat?
-        await saveToChatMetadata();    // persist the pruned state
+        lastAnalysis = '';            // ...and cleared last state → empty panel
+        lastCommenter = '';
+        await saveToChatMetadata();   // persist the pruned state
         updatePanel();
     }
 }
 ```
 
-**Branch handling:** ST's "branch from message N" copies the chat metadata but truncates the chat file. `pruneStaleTrailEntries()` (called on every chat load) keeps only trail records whose `messageIndex` still maps to a real `is_user` message in the current chat, dedupes last-wins, and rebuilds the cumulative chain from each record's own tag contribution (`scores − previousScores`). Stale tail records (referencing messages that no longer exist) and legacy AI-indexed rows are dropped, so the auto-trigger guard (`userIdx <= lastRecordIdx`) can fire again on the branched chat's next user message and the history modal only shows the valid prefix.
+**Last-state restore (`refreshLastState()`):** for a Save=on prompt the display text comes from the trail's final record (with a fallback to the last-state keys for older chats); for a Save=off prompt it comes from the `mbti_last_*` metadata keys alone. A disabled (inactive) prompt always yields `''`, hiding its panel section.
+
+**Branch handling:** ST's "branch from message N" copies the chat metadata but truncates the chat file. `pruneStaleTrailEntries()` (called on every chat load) keeps only trail records whose `messageIndex` still maps to a real `is_user` message in the current chat, dedupes last-wins, and rebuilds the cumulative chain from each record's own tag contribution (`scores − previousScores`). Stale tail records (referencing messages that no longer exist) and legacy AI-indexed rows are dropped — and the last analysis/commenter state is cleared to `''` at the same time — so the auto-trigger guard (`userIdx <= lastRecordIdx`) can fire again on the branched chat's next user message and the history modal and panel only show the valid prefix.
 
 ---
 
@@ -367,10 +391,10 @@ const DEFAULT_INTENSITY = 'clear';   // fallback for missing/unknown/legacy-bare
 const VALID_TAGS = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'anchor', 'drift'];
 ```
 
-- LLM output shape: `{ "tags": [ { "tag": "flame", "intensity": "strong" } ], "reasoning": "...", "professor": "..." }` (re-scan per analysis).
+- LLM output shape: `{ "tags": [ { "tag": "flame", "intensity": "strong" } ], "reasoning": "...", "commenter": "..." }` (re-scan per analysis; pre-v3.7.1 responses may say `professor` instead of `commenter` — both are parsed).
 - Every raw entry goes through `normalizeTagEntry()` → `{tag, intensity, weight}`; bare strings and unknown intensities normalize to `clear`/1.0, preserving pre-v3.7 behavior for flaky models.
 - `applyTagsTo(scoresObj, tags)` (index.js, module-level setting gate `extension_settings.mbti_widget.weightedScoring !== false`) applies `weight` per tag instead of fixed 1; the toggle off reproduces old fixed-±1 scoring exactly.
-- Trail records store `appliedTags: [{ tag, intensity }]`; the history chips and panel deltas render intensity via `data-intensity` attributes.
+- Trail records store `appliedTags: [{ tag, intensity }]`; the history chips and panel deltas render intensity via `data-intensity` attributes. Per-turn `reasoning`/`commenter`/names appear in a record **only when that prompt is Active and its Save toggle is on** (`analysisSaved()` / `commenterSaved()`); otherwise the latest text lives solely in the last-state metadata.
 - Example trail entry (auto-trigger record):
 
 ```javascript
@@ -380,8 +404,8 @@ const VALID_TAGS = ['shadow', 'flame', 'reason', 'heart', 'clue', 'pattern', 'an
   scores: { ie: 1.5, tf: 0, sn: 0, jp: 0 },          // flame/strong applied
   appliedTags: [{ tag: "flame", intensity: "strong" }],
   reasoning: "The user jumped straight into the argument.",
-  professor: "Directly to the chalk — no detour through caution.",
-  professorName: "Psy Professor"
+  commenter: "Directly to the chalk — no detour through caution.",
+  commenterName: "Psy Professor"
 }
 ```
 
@@ -432,6 +456,8 @@ const settings = extension_settings?.mbti_widget;  // HAS VALUE
 ---
 
 ## Version History
+
+- **3.7.1** - Per-prompt Activity + persistence toggles (save-on/off + active-on/off for the **Analysis** and **Commenter** prompts) and the `professor` → `commenter` rename. New `prompts` settings, all bootstrapped with `=== undefined` guards and defaults (both prompts **Active**, **Analysis saved**, **Commenter not saved**): `activeAnalysis`, `saveAnalysis`, `activeCommenter`, `saveCommenter`. A disabled (inactive) prompt is omitted **entirely** from every built system prompt (`buildRatingSystemPrompt()` drops the `reasoning` line, the `commenter` line, or both; `buildRescanPrompt()` drops its `reasoning` line) and its save flag is force-cleared at bootstrap + UI level (the Save checkbox is disabled while Active is off — "must be toggled on for the save on/off to be usable"). Trail records are gated in the single writer `upsertTrailEntry()` and in `rebuildTrailFromAnalyses()`: the per-turn `reasoning`/`analysisName`/`commenter`/`commenterName` fields land in `mbti_trail` only when that prompt is active AND saved — the "crucial" rating part (scores, deltas, `appliedTags` chips) is **always** saved, so the history modal still shows every entry. When a prompt is active but save-off, only its **latest** output survives via new module vars `lastAnalysis`/`lastCommenter` persisted to new chat-metadata keys `mbti_last_analysis`/`mbti_last_analysis_name`/`mbti_last_commenter`/`mbti_last_commenter_name` (written in `saveToChatMetadata`, deleted when redundant); `refreshLastState()` rebuilds them on chat load, and `pruneStaleTrailEntries()` fixes them to `''` too, so a branched chat displays nothing rather than stale text. `updatePanel()` now reads the display from those module vars, hides the whole `.reasoning-display` when Analysis is inactive, keeps the (moved-out-of-`reasoning-display`) `.professor-section` hidden unless Commenter is active with text, and uses `analysisDisplayName()`/`commenterDisplayName()`. The history modal renders rows through `entryCommenter()`/`entryCommenterName()` (which read the new `commenter`/`commenterName` keys with a silent fallback to legacy `professor`/`professorName` saved by long-existing chats) and **omits** any reasoning/comment row a record does not store — no more "No reasoning recorded" filler. Default display name renamed `'Latest Analysis'` → `'Analysis'` (`DEFAULT_ANALYSIS_NAME`, drawer block, panel label). The commenter is `commenter` everywhere in code/JSON (`professor` kept only as a read-back-compat alias). Manifest + load banner → 3.7.1; schema docs note the omitted fields; storage docs updated.
 
 - **3.7.0** - Scoring Model: weighted, graded tags. The LLM is now prompted to return each tag as `{ "tag": ..., "intensity": ... }` with one of four fixed labels — `subtle` (0.5), `clear` (1.0), `strong` (1.5), `defining` (2.0) — mapped to delta weights by the new module constants `INTENSITY_WEIGHTS` / `DEFAULT_INTENSITY`. `parseRatingResponse()` / `parseRescanResponse()` normalize every entry through `normalizeTagEntry()` into `{tag, intensity, weight}` triples (bare strings and unknown/missing intensities fall back to `clear`/1.0, so legacy responses behave exactly like the old fixed-±1), and `applyTagsTo()` (the real scoring entry point; there is no `applyTag`) applies `weight` instead of a hardcoded 1, gated by the new **Weighted scoring** setting (`extension_settings.mbti_widget.weightedScoring`, default `true`, toggle in the extension drawer, wired and saved like `mbti_enabled`) — when off it deterministically reproduces pre-v3.7. Each trail record now stores `appliedTags` (`{tag, intensity}` pairs, spread automatically through `pruneStaleTrailEntries`' rebuild) so the history UI can restate intensity; chips carry `data-intensity` and deltas render through the new `formatSigned()` helper (`+1.5`, no trailing `.0`). CSS adds `[data-intensity]` shading for both the panel's `.axis-delta` numbers and history `.mbti-rating-chip` numbers (the icon keeps its polarity tag color), with the 8s delta fade re-declared at strictly higher specificity (`#mbti-widget-panel .axis-delta[data-intensity].fade`) so intensity colors can never defeat it. **`MAX_SCORE` stays 18 by design:** it is a pure normalization constant (clamp ceiling, bar/radar scale, conviction % = Σ|s|/(4·18)) shared by 26 call sites, and since every write path clamps via `Math.max/min`, fractional weights (0.5/1.5/...) simply saturate at ±18 exactly as integers do — running the widget mathematically changes nothing structurally, so the constant is left untouched. Schema docs (`schema-auto-trigger.md`, `schema-rescan.md`) updated to the `{tag, intensity}` shape. Follow-up fixes on the same release: intensity emphasis is **bold/opacity only** (delays keep their polarity `mbti-tag-*` colors everywhere — the v3.7 `strong`/`defining` rules originally recolored them away), and `scoresToOctagonPoints` now uses `MAX_R = 84` (`BASE + MAX_R = 92`, the outer web ring) so the radar polygon previously pegged at radius 100 no longer escapes the grid — fixing the main-window overflow and the radar-modal tag-label overlap. Version bumped 3.6.0 → 3.7.0 (manifest + load banner). Implemented on branch `v3.7`; `main` untouched.
 
@@ -515,13 +541,17 @@ This data is stored in the chat file (`.jsonl`) under `chat_metadata`:
   "chat_metadata": {
     "mbti_scores": { "ie": 2, "tf": -1, "sn": 3, "jp": 0 },
     "mbti_trail": [
-      { "scores": { "ie": 1, "tf": 0, "sn": 2, "jp": 0 }, "reasoning": "...", "professor": "...", "professorName": "Psy Professor", "previousScores": { "ie": 0, "tf": 0, "sn": 1, "jp": 0 } }
-    ]
+      { "scores": { "ie": 1, "tf": 0, "sn": 2, "jp": 0 }, "reasoning": "...", "commenter": "...", "commenterName": "Psy Professor", "previousScores": { "ie": 0, "tf": 0, "sn": 1, "jp": 0 } }
+    ],
+    "mbti_last_analysis": "… (only when Analysis Active & Save off)",
+    "mbti_last_analysis_name": "Analysis",
+    "mbti_last_commenter": "… (only when Commenter Active & Save off)",
+    "mbti_last_commenter_name": "Psy Professor"
   }
 }
 ```
 
-`reasoning` and `professor` are the LLM's analysis and its sarcastic "Psy Professor" one-liner for the turn. `previousScores` is a snapshot of `scores` taken *before* that turn's tags were applied, used to render the per-axis point deltas in the panel. `professorName` is the commenter name captured when the turn was generated, so history records keep their original author even if the commenter is renamed later. All four are optional for backward compatibility with trails saved before these fields existed (the history modal shows the comment without a name prefix when `professorName` is missing).
+`reasoning` and `commenter` are the LLM's analysis and its configured commenter one-liner for the turn, stored only when the matching prompt is Active **and** its "Save history to chat file" toggle is on. `previousScores` is a snapshot of `scores` taken *before* that turn's tags were applied, used to render the per-axis point deltas in the panel. `commenterName` is the commenter name captured when the turn was generated, so history records keep their original author even if the commenter is renamed later. The `mbti_last_*` keys persist only the **latest** analysis/commenter text (plus names) exactly when the corresponding prompt is save-off — they let the panel survive a chat reload without a per-turn entry, and a branch prune clears them. All of `reasoning`/`commenter`/names are optional for backward compatibility: pre-v3.7.1 trails used `professor` / `professorName`, which readers (`entryCommenter()` / `entryCommenterName()`) fall back to silently, and the history modal omits any rows a record does not have.
 
 ---
 
@@ -559,14 +589,14 @@ The LLM returns:
 
 ## Trail System
 
-The `trail` array stores the history of MBTI score changes, including the LLM's reasoning and Psy Professor commentary:
+The `trail` array stores the history of MBTI score changes, including the LLM's reasoning and the commenter's commentary (each present only while its prompt is Active + Save on):
 
 ```javascript
 trail = [
     {
         scores: { ie: 1, tf: 0, sn: 2, jp: 0 },
         reasoning: "User's question showed analytical thinking...",
-        professor: "A chalkboard that answers questions — how adorably academic.",
+        commenter: "A chalkboard that answers questions — how adorably academic.",
         previousScores: { ie: 0, tf: 0, sn: 1, jp: 0 }
     },
     // ... more entries
