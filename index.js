@@ -20,6 +20,12 @@
     let lastAnalysis = '';
     let lastCommenter = '';
 
+    // Swipe analysis cache (v3.7.2): persisted per-chat snapshot of the tag
+    // ratings (+ saved text) for every swipe variant that has been analyzed,
+    // so swiping back to an already-analyzed variant restores its analysis
+    // instead of burning another LLM call. Shaped {[userIdx]: {[swipeCur]: {...}}}.
+    let swipeCache = {};
+
     const MAX_SCORE = 18;
 
     // The 8 locked tag strings — the only tags the parsing layer will accept,
@@ -1372,6 +1378,11 @@ Persona: A brash, almost intolerable penguin called Mike, who has strong opinion
     const LAST_COMMENTER_KEY = 'mbti_last_commenter';
     const LAST_COMMENTER_NAME_KEY = 'mbti_last_commenter_name';
 
+    // Per-swipe analysis cache key (v3.7.2). Unlike the trail, which holds one
+    // record per turn (the active swipe), this preserves the analysis of every
+    // analyzed swipe variant so swiping back restores instantly.
+    const SWIPE_META_KEY = 'mbti_swipes';
+
     // Fixed rating schema + tag pairs. The reasoning ("Analysis") and the
     // commenter description lines come from the Prompts settings; the
     // tags/pairs themselves stay locked. Each text line is omitted entirely
@@ -1904,6 +1915,13 @@ function getLastUserMessage() {
         const { userMessage, aiResponse, userIdx, userMsgObj, aiMsgObj } = getLastUserMessage();
         if (!userMessage || userIdx < 0) return false;
 
+        // Swipe-aware caching (v3.7.2): remember which swipe variant this call
+        // is analyzing at the START, before any await. Swiping mid-analysis
+        // would otherwise key the completed result to the wrong variant — the
+        // swipe_id and mes mutate while the LLM is running, but the swipes
+        // array itself stays stable.
+        const swipeTarget = aiMsgObj ? { swipeId: swipeIdOf(aiMsgObj) } : null;
+
         // Auto-trigger path (MESSAGE_RECEIVED): analyze only when a genuinely NEW
         // user message arrived — i.e. the latest is_user line is newer than the
         // last recorded analysis. ST's "Continue" / regenerate / swipe append an
@@ -1955,13 +1973,19 @@ function getLastUserMessage() {
             const commenterName = commenterDisplayName();
             const analysisName = analysisDisplayName();
 
-            upsertTrailEntry(msgIndex, {
+            const entryData = {
                 tags: result.tags || [],
                 reasoning: result.reasoning || '',
                 commenter: result.commenter || '',
                 commenterName: commenterName,
                 analysisName: analysisName,
-            });
+            };
+
+            upsertTrailEntry(msgIndex, entryData);
+
+            // Remember this swipe variant's analysis so a swipe-back can restore
+            // it instantly instead of burning another LLM call.
+            cacheSwipeEntry(msgIndex, swipeTarget, aiMsgObj, entryData);
 
             // Last-state mirrors the latest generated text regardless of the
             // save toggle; only persistence differs (see saveToChatMetadata).
@@ -2179,6 +2203,156 @@ function getLastUserMessage() {
         syncScoresFromTrail();
     }
 
+    // --- Swipe analysis cache (v3.7.2) ---
+    // The trail holds one record per turn — the analysis of the ACTIVE swipe.
+    // When the user swipes to a *different* variant, that variant has its own
+    // analysis from a prior check; we cache each analyzed variant keyed by
+    // user message index + swipe index so toggling back replays the cached
+    // analysis instead of spending another LLM call.
+
+    // Active swipe index of an AI message. ST tracks it on 'swipe_id'
+    // (0-based); bare messages default to swipe 0 (their single variant).
+    function swipeIdOf(msg) {
+        const id = Number(msg && msg.swipe_id);
+        return Number.isFinite(id) && id >= 0 ? id : 0;
+    }
+
+    // Text fingerprint of a swipe variant, used to invalidate the cache when
+    // swipes are deleted (their indices shift): a cached entry is only valid
+    // for the exact variant text it was produced from. djb2 — stable across
+    // reloads, no crypto dependency, collisions effectively impossible here.
+    function swipeVariantFingerprint(msg, swipeIdx) {
+        const text = (msg && Array.isArray(msg.swipes) && typeof msg.swipes[swipeIdx] === 'string')
+            ? msg.swipes[swipeIdx]
+            : (msg && typeof msg.mes === 'string' ? msg.mes : '');
+        let hash = 5381;
+        for (let i = 0; i < text.length; i++) hash = ((hash << 5) + hash + text.charCodeAt(i)) >>> 0;
+        return 'x' + hash.toString(36);
+    }
+
+    // Cache the freshly-generated analysis for one swipe variant. The per-prompt
+    // "save to chat file" toggles are respected exactly like the trail: the
+    // reasoning/commenter text lands in the cache only when its prompt saves,
+    // so save-off prompts still keep per-swipe tags with no text duplication.
+    function cacheSwipeEntry(userIdx, swipeTarget, aiMsgObj, entryData) {
+        if (userIdx < 0 || !swipeTarget || !aiMsgObj) return;
+        const swipeIdx = swipeTarget.swipeId;
+        if (typeof swipeIdx !== 'number') return;
+
+        const record = {
+            tags: entryData.tags || [],
+            analysisName: entryData.analysisName,
+            commenterName: entryData.commenterName,
+            fingerprint: swipeVariantFingerprint(aiMsgObj, swipeIdx),
+        };
+        if (analysisSaved() && entryData.reasoning) record.reasoning = entryData.reasoning;
+        if (commenterSaved() && entryData.commenter) record.commenter = entryData.commenter;
+
+        if (!swipeCache[userIdx]) swipeCache[userIdx] = {};
+        swipeCache[userIdx][swipeIdx] = record;
+    }
+
+    // The AI reply that follows a given user message index (first non-user,
+    // non-system message after it). Returns null when there is none yet.
+    function findAiReplyFor(userIdx) {
+        const chat = SillyTavern.getContext()?.chat || [];
+        for (let i = userIdx + 1; i < chat.length; i++) {
+            if (chat[i].is_system) continue;
+            return chat[i].is_user ? null : chat[i];
+        }
+        return null;
+    }
+
+    // Return a cached analysis for the given turn + active swipe, or null.
+    // Rejects entries whose variant text no longer matches (swipe deletion
+    // shifts indices), forcing a fresh analysis in that case.
+    function lookupSwipeCacheEntry(userIdx, aiMsgObj) {
+        if (userIdx < 0 || !aiMsgObj) return null;
+        const turn = swipeCache[userIdx];
+        if (!turn) return null;
+        const id = swipeIdOf(aiMsgObj);
+        const record = turn[id];
+        if (!record) return null;
+        return record.fingerprint === swipeVariantFingerprint(aiMsgObj, id) ? record : null;
+    }
+
+    // Drop cached entries that reference removed user turns or swipe variants
+    // that no longer exist (branch / shortened chat / swipe deletion). Returns
+    // true when anything changed (caller persists).
+    function pruneSwipeCache() {
+        const context = SillyTavern.getContext();
+        const chat = context?.chat;
+        if (!chat) return false;
+        let changed = false;
+        for (const key of Object.keys(swipeCache)) {
+            const userIdx = Number(key);
+            const ai = Number.isFinite(userIdx) && userIdx >= 0 ? findAiReplyFor(userIdx) : null;
+            if (!ai) {
+                changed = true;
+                delete swipeCache[key];
+                continue;
+            }
+            const keep = {};
+            for (const sid of Object.keys(swipeCache[key])) {
+                const id = Number(sid);
+                const rec = swipeCache[key][sid];
+                if (rec && Number.isFinite(id) && id >= 0 && rec.fingerprint === swipeVariantFingerprint(ai, id)) {
+                    keep[sid] = rec;
+                } else {
+                    changed = true;
+                }
+            }
+            if (Object.keys(keep).length === 0) {
+                changed = true;
+                delete swipeCache[key];
+            } else if (Object.keys(keep).length !== Object.keys(swipeCache[key]).length) {
+                swipeCache[key] = keep;
+            }
+        }
+        if (changed) console.warn('[MBTI] Pruned stale swipe cache record(s) (branch/shortened chat/swipe deleted).');
+        return changed;
+    }
+
+    // React to the user swiping the tail AI reply. If the newly shown variant
+    // was analyzed before, restore its cached analysis without an LLM call;
+    // otherwise fire the auto-trigger analysis for it (force:true bypasses the
+    // "no new user message" guard — the user message index hasn't changed).
+    async function onMessageSwiped(messageIndex) {
+        if (isProcessing) return;
+        const settings = extension_settings?.mbti_widget;
+        if (!settings?.enabled) return;
+
+        const context = SillyTavern.getContext();
+        const chat = context?.chat || [];
+        const { userIdx, aiMsgObj } = getLastUserMessage();
+        if (!aiMsgObj || userIdx < 0) return;
+        // Only react to swipes on the tail AI reply — the turn the widget tracks.
+        // The payload is the swiped message's chat index; when it's a valid number,
+        // insist it matches the last turn's AI reply (older ST versions may omit it).
+        const swipedIndex = Number(messageIndex);
+        if (Number.isFinite(swipedIndex) && swipedIndex !== chat.indexOf(aiMsgObj)) return;
+
+        const cached = lookupSwipeCacheEntry(userIdx, aiMsgObj);
+        if (cached) {
+            console.log('[MBTI] Swipe restored cached analysis for turn', userIdx, 'swipe', swipeIdOf(aiMsgObj));
+            upsertTrailEntry(userIdx, {
+                tags: cached.tags || [],
+                reasoning: cached.reasoning || '',
+                analysisName: cached.analysisName,
+                commenter: cached.commenter || '',
+                commenterName: cached.commenterName,
+            });
+            lastAnalysis = analysisEnabled() ? (cached.reasoning || '') : '';
+            lastCommenter = commenterEnabled() ? (cached.commenter || '') : '';
+            await saveToChatMetadata();
+            updatePanel();
+            return true;
+        }
+
+        console.log('[MBTI] Swipe to new variant: analyzing turn', userIdx, 'swipe', swipeIdOf(aiMsgObj));
+        return reAnalyzeLastTurn({ force: true });
+    }
+
     async function saveToChatMetadata() {
         const context = SillyTavern.getContext();
         const metadata = context.chatMetadata;
@@ -2201,6 +2375,13 @@ function getLastUserMessage() {
         } else {
             delete metadata[LAST_COMMENTER_KEY];
             delete metadata[LAST_COMMENTER_NAME_KEY];
+        }
+        // Per-swipe analysis cache (only persisted while non-empty to avoid
+        // bloat; emptied by pruning).
+        if (Object.keys(swipeCache).length > 0) {
+            metadata[SWIPE_META_KEY] = swipeCache;
+        } else {
+            delete metadata[SWIPE_META_KEY];
         }
         await context.saveMetadata();
     }
@@ -2263,12 +2444,19 @@ function getLastUserMessage() {
             scores = { ie: 0, tf: 0, sn: 0, jp: 0 };
             trail = [];
         }
+        // Restore the per-swipe analysis cache, then prune both it and the
+        // trail for the current (possibly branched/truncated) chat.
+        swipeCache = (metadata?.[SWIPE_META_KEY] && typeof metadata[SWIPE_META_KEY] === 'object')
+            ? metadata[SWIPE_META_KEY]
+            : {};
         refreshLastState();
         updatePanel();
         // Branched/shortened chats must not retain stale tail records — prune
         // (which also clears the last state) and persist so the auto-trigger
         // guard, history, and panel stay consistent.
-        if (pruneStaleTrailEntries()) {
+        const trailPruned = pruneStaleTrailEntries();
+        const swipePruned = pruneSwipeCache();
+        if (trailPruned || swipePruned) {
             lastAnalysis = '';
             lastCommenter = '';
             await saveToChatMetadata();
@@ -4177,6 +4365,28 @@ function getLastUserMessage() {
             console.log('[MBTI] reAnalyzeLastTurn analyzed:', analyzed);
         });
 
+        // v3.7.2: when the user swipes to a new AI variant, analyze the new
+        // variant (or restore its cached analysis if it was analyzed before).
+        // Fires with the swiped message's chat index as payload.
+        context.eventSource.on(context.event_types.MESSAGE_SWIPED, async (messageIndex) => {
+            console.log('[MBTI] MESSAGE_SWIPED event fired, messageIndex:', messageIndex);
+            const handled = await onMessageSwiped(messageIndex);
+            console.log('[MBTI] onMessageSwiped handled:', handled);
+        });
+
+        // Keep the per-swipe cache in sync when variants are deleted (their
+        // indices shift, invalidating cached fingerprints). Only wired when the
+        // event type exists in the running ST version.
+        if (context.event_types.MESSAGE_SWIPE_DELETED) {
+            context.eventSource.on(context.event_types.MESSAGE_SWIPE_DELETED, async () => {
+                console.log('[MBTI] MESSAGE_SWIPE_DELETED event fired, pruning swipe cache');
+                if (pruneSwipeCache()) {
+                    await saveToChatMetadata();
+                    updatePanel();
+                }
+            });
+        }
+
         extension_settings.mbti_widget = extension_settings.mbti_widget || {};
         // Enabled by default on first install. Guard on `=== undefined` so a
         // user who deliberately disabled the extension (enabled: false) is
@@ -4326,7 +4536,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.7.1 loaded');
+        console.log('MBTI Widget v3.7.2 loaded');
     }
 
     function showTestResult(message, type) {
