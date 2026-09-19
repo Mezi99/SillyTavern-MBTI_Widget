@@ -27,8 +27,8 @@
     let swipeCache = {};
 
     // Swipe waiting for its variant to finish generating (v3.7.3). A swipe to
-    // a *new* overswipe shows ST's '...' placeholder until generation ends, so
-    // the analysis must wait until the real text exists (GENERATION_ENDED). The
+    // a *new* overswipe has no final content yet (empty or '...' placeholder)
+    // until generation ends, so the analysis must wait for the real text. The
     // userIdx is captured so a stale entry is dropped if a new user message
     // arrives before the generation completes. Null when idle.
     let pendingSwipe = null;
@@ -2017,6 +2017,12 @@ function getLastUserMessage() {
         } finally {
             isProcessing = false;
             isStopped = false;
+            // v3.7.4: a swipe deferred while this analysis was running (the
+            // pending marker is captured even during isProcessing) may have
+            // finished meanwhile — retry-drain it now that the busy flag is
+            // released. settlePendingSwipe is a no-op when nothing is pending
+            // or the variant text isn't real content yet, so this cannot loop.
+            if (pendingSwipe) settlePendingSwipe();
         }
     }
 
@@ -2231,12 +2237,26 @@ function getLastUserMessage() {
         return (msg && typeof msg.mes === 'string') ? msg.mes : '';
     }
 
-    // True when the target swipe variant is settled — it has text that is not
-    // ST's in-progress '...' marker. Used at swipe-trigger time to split the
-    // instant path (switch to an existing variant, cached restore or analyze
-    // now) from the deferred path (a brand-new overswipe still generating).
-    function textIsFinal(msg, swipeIdx) {
-        return swipeVariantText(msg, swipeIdx) !== '...';
+    // True when the target swipe variant holds final content. Used at
+    // swipe-trigger time to split the instant path (switch to an existing
+    // variant, cached restore or analyze now) from the deferred path (a
+    // brand-new overswipe still generating). The check is placeholder-agnostic:
+    // ST marks in-progress variants as '...' on some versions but pushes a
+    // freshly-empty '' slot (or none yet) on others, so blank / '...'-style
+    // text always counts as NOT settled. When the message has a swipes array,
+    // only the per-variant slot is authoritative — mes is skipped so a new
+    // overswipe whose slot isn't pushed yet can't be mistaken for the previous
+    // variant's (already-settled) text. A variant that finished with genuinely
+    // empty text is rare but still final via its generation metadata.
+    function variantIsSettled(msg, swipeIdx) {
+        if (!msg) return false;
+        if (Array.isArray(msg.swipes)) {
+            const slot = msg.swipes[swipeIdx];
+            if (typeof slot === 'string' && slot.trim() !== '' && slot !== '...' && slot !== '…') return true;
+            return !!(msg.swipe_info && msg.swipe_info[swipeIdx] && msg.swipe_info[swipeIdx].gen_finished);
+        }
+        // Single-variant message (no swipes): its mes is the final text.
+        return typeof msg.mes === 'string' && msg.mes.length > 0;
     }
 
     // Text fingerprint of a swipe variant, used to invalidate the cache when
@@ -2339,11 +2359,13 @@ function getLastUserMessage() {
     // variant was analyzed before, restore its cached analysis without an LLM
     // call; otherwise fire the auto-trigger analysis for it (force:true bypasses
     // the "no new user message" guard — the user message index hasn't changed).
-    // A swipe to a brand-new overswipe shows ST's '...' placeholder until the
-    // generation ends: defer the analysis to settlePendingSwipe on
-    // GENERATION_ENDED so the query sees the finished text.
+    // A swipe to a brand-new overswipe has no final content until the generation
+    // ends: record pendingSwipe and defer the analysis to settlePendingSwipe —
+    // drained by MESSAGE_RECEIVED / GENERATION_ENDED once the real text lands.
+    // The pending marker is captured even while an analysis is running (state
+    // only) so a swipe during a busy auto-trigger is not lost; reAnalyzeLastTurn
+    // retries the drain after it releases the busy flag.
     async function onMessageSwiped(messageIndex) {
-        if (isProcessing) return false;
         const settings = extension_settings?.mbti_widget;
         if (!settings?.enabled) return false;
 
@@ -2358,17 +2380,20 @@ function getLastUserMessage() {
         if (Number.isFinite(swipedIndex) && swipedIndex !== chat.indexOf(aiMsgObj)) return false;
 
         const swipeId = swipeIdOf(aiMsgObj);
-        if (!textIsFinal(aiMsgObj, swipeId)) {
-            // New variant still generating ('...'): remember the turn and wait
-            // for GENERATION_ENDED. A further swipe replaces this pending target.
+        if (!variantIsSettled(aiMsgObj, swipeId)) {
+            // Brand-new variant still generating (empty / '...'): remember the
+            // turn and wait for the real text. A further swipe replaces this
+            // pending target.
             pendingSwipe = { userIdx, swipeId };
             console.log('[MBTI] Swipe to new variant pending: waiting for generation to finish (turn ' + userIdx + ', swipe ' + swipeId + ')');
             return false;
         }
 
-        // The user navigated away from any in-flight overswipe (the pending
-        // variant is no longer the active one) — the deferred analysis, if any,
-        // must not fire for it later.
+        // Settled variant — but a deferred swipe from an earlier moment may
+        // still be in flight in this same tail turn (captured above while busy);
+        // handle the instant path only when an analysis isn't running. Any
+        // pending state is likewise stale now: the active variant holds content.
+        if (isProcessing) return false;
         pendingSwipe = null;
 
         const cached = lookupSwipeCacheEntry(userIdx, aiMsgObj);
@@ -2392,11 +2417,14 @@ function getLastUserMessage() {
         return reAnalyzeLastTurn({ force: true });
     }
 
-    // GENERATION_ENDED: a deferred swipe variant finished generating — run the
-    // analysis onMessageSwiped postponed. Consumed only when the pending turn is
-    // still the current tail (a new user message invalidates it), the active
-    // swipe is still the pending one (swiping away aborts it), and the variant
-    // text is real content (aborted/errored generations yield none).
+    // Run the analysis onMessageSwiped postponed for a finishing variant. Drained
+    // by MESSAGE_RECEIVED (primary — ST fires it with the real text after a
+    // swipe generation, and may skip other signals) and GENERATION_ENDED
+    // (backup), plus a retry after any in-flight analysis releases the busy
+    // flag. Consumed only when the pending turn is still the current tail (a
+    // new user message invalidates it), the active swipe is still the pending
+    // one (swiping away aborts it), and the variant holds real content (empty
+    // or aborted generations yield none).
     async function settlePendingSwipe() {
         if (!pendingSwipe) return false;
         if (isProcessing) return false;
@@ -2415,10 +2443,11 @@ function getLastUserMessage() {
             pendingSwipe = null;
             return false;
         }
-        const text = swipeVariantText(aiMsgObj, swipeId);
-        if (text === '...' || text.trim() === '') {
-            // Generation didn't produce usable text — keep the pending marker so
-            // a subsequent overswipe completes it later, or a mismatch clears it.
+        if (!variantIsSettled(aiMsgObj, swipeId)) {
+            // The variant still holds placeholder/empty text — generation hasn't
+            // produced usable content yet. Keep the pending marker so a later
+            // MESSAGE_RECEIVED / GENERATION_ENDED (or a retry after an in-flight
+            // analysis ends) drains it, or a mismatch clears it.
             return false;
         }
         pendingSwipe = null;
@@ -4434,6 +4463,18 @@ function getLastUserMessage() {
 
         context.eventSource.on(context.event_types.MESSAGE_RECEIVED, async (data) => {
             console.log('[MBTI] MESSAGE_RECEIVED event fired, data:', data);
+            // v3.7.4: a deferred swipe's variant text is now in place — drain it
+            // BEFORE the auto-trigger. ST can emit MESSAGE_RECEIVED twice for a
+            // swipe (empty placeholder first, real text second) and may raise
+            // GENERATION_ENDED unreliably, so this is the primary completion
+            // signal. settlePendingSwipe is a no-op while the text isn't real
+            // content and no-op when there's nothing pending, so normal turns
+            // (and the placeholder emit) fall through to the auto-trigger.
+            const drained = await settlePendingSwipe();
+            if (drained) {
+                console.log('[MBTI] Deferred swipe analysis drained by MESSAGE_RECEIVED:', drained);
+                return;
+            }
             const analyzed = await reAnalyzeLastTurn();
             console.log('[MBTI] reAnalyzeLastTurn analyzed:', analyzed);
         });
@@ -4460,9 +4501,11 @@ function getLastUserMessage() {
             });
         }
 
-        // v3.7.3: a swipe to a brand-new overswipe was deferred (its text was
-        // ST's '...' placeholder at MESSAGE_SWIPED time). GENERATION_ENDED
-        // fires after the finished text is in place — analyze it now.
+        // v3.7.3/v3.7.4: a swipe to a brand-new overswipe was deferred (its variant
+        // had no final content at MESSAGE_SWIPED time). GENERATION_ENDED fires
+        // after generation settles — drain the pending analysis now. It is a
+        // backup to the MESSAGE_RECEIVED drain above (idempotent: pending is
+        // cleared on a successful drain).
         if (context.event_types.GENERATION_ENDED) {
             context.eventSource.on(context.event_types.GENERATION_ENDED, async () => {
                 const handled = await settlePendingSwipe();
@@ -4630,7 +4673,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.7.3 loaded');
+        console.log('MBTI Widget v3.7.4 loaded');
     }
 
     function showTestResult(message, type) {
