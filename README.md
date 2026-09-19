@@ -21,7 +21,7 @@ A SillyTavern extension that analyzes user chat messages, to build and visualize
 - **Trail history** — see how your profile evolved over time and what drove each change
 - **Re-scan history** — rebuild the trail by re-analyzing past messages
 - **Analysis + Commenter** — a short reasoning for each turn plus a personality commentary (default: the opinionated penguin Dr. Mike Flapjack), both independently toggleable and with optional per-turn saving to the chat file
-- **Swipe-aware** — swiping to a new AI reply re-analyzes it automatically; swiping back to an already-analyzed variant restores its ratings instantly from the chat metadata (no extra API call)
+- **Swipe-aware** — swiping to a new AI reply re-analyzes it automatically once the variant finishes generating; swiping back to an already-analyzed variant restores its ratings instantly from the chat metadata (no extra API call)
 - **Editable prompts** — tune the analysis wording and the commenter's name and prompt
 
 ## Installation

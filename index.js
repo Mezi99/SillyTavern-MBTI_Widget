@@ -26,6 +26,13 @@
     // instead of burning another LLM call. Shaped {[userIdx]: {[swipeCur]: {...}}}.
     let swipeCache = {};
 
+    // Swipe waiting for its variant to finish generating (v3.7.3). A swipe to
+    // a *new* overswipe shows ST's '...' placeholder until generation ends, so
+    // the analysis must wait until the real text exists (GENERATION_ENDED). The
+    // userIdx is captured so a stale entry is dropped if a new user message
+    // arrives before the generation completes. Null when idle.
+    let pendingSwipe = null;
+
     const MAX_SCORE = 18;
 
     // The 8 locked tag strings — the only tags the parsing layer will accept,
@@ -1555,15 +1562,15 @@ function getLastUserMessage() {
         let aiMsgObj = null;
         
         for (let i = len - 1; i >= 0; i--) {
-            if (!userMessage && chat[i].is_user && !chat[i].is_system) {
+            if (!userMsgObj && chat[i].is_user && !chat[i].is_system) {
                 userMessage = chat[i].mes;
                 userMsgObj = chat[i];
                 userIdx = i;
-            } else if (!aiResponse && !chat[i].is_user && !chat[i].is_system) {
+            } else if (!aiMsgObj && !chat[i].is_user && !chat[i].is_system) {
                 aiResponse = chat[i].mes;
                 aiMsgObj = chat[i];
             }
-            if (userMessage && aiResponse) break;
+            if (userMsgObj && aiMsgObj) break;
         }
         
         return { userMessage, aiResponse, userIdx, userMsgObj, aiMsgObj };
@@ -2217,14 +2224,27 @@ function getLastUserMessage() {
         return Number.isFinite(id) && id >= 0 ? id : 0;
     }
 
+    // The exact text of a swipe variant: swipes[swipeIdx] when present (that's
+    // the canonical per-variant storage), otherwise the message's active text.
+    function swipeVariantText(msg, swipeIdx) {
+        if (msg && Array.isArray(msg.swipes) && typeof msg.swipes[swipeIdx] === 'string') return msg.swipes[swipeIdx];
+        return (msg && typeof msg.mes === 'string') ? msg.mes : '';
+    }
+
+    // True when the target swipe variant is settled — it has text that is not
+    // ST's in-progress '...' marker. Used at swipe-trigger time to split the
+    // instant path (switch to an existing variant, cached restore or analyze
+    // now) from the deferred path (a brand-new overswipe still generating).
+    function textIsFinal(msg, swipeIdx) {
+        return swipeVariantText(msg, swipeIdx) !== '...';
+    }
+
     // Text fingerprint of a swipe variant, used to invalidate the cache when
     // swipes are deleted (their indices shift): a cached entry is only valid
     // for the exact variant text it was produced from. djb2 — stable across
     // reloads, no crypto dependency, collisions effectively impossible here.
     function swipeVariantFingerprint(msg, swipeIdx) {
-        const text = (msg && Array.isArray(msg.swipes) && typeof msg.swipes[swipeIdx] === 'string')
-            ? msg.swipes[swipeIdx]
-            : (msg && typeof msg.mes === 'string' ? msg.mes : '');
+        const text = swipeVariantText(msg, swipeIdx);
         let hash = 5381;
         for (let i = 0; i < text.length; i++) hash = ((hash << 5) + hash + text.charCodeAt(i)) >>> 0;
         return 'x' + hash.toString(36);
@@ -2313,28 +2333,47 @@ function getLastUserMessage() {
         return changed;
     }
 
-    // React to the user swiping the tail AI reply. If the newly shown variant
-    // was analyzed before, restore its cached analysis without an LLM call;
-    // otherwise fire the auto-trigger analysis for it (force:true bypasses the
-    // "no new user message" guard — the user message index hasn't changed).
+    // React to the user swiping the tail AI reply. The prompt assembly is the
+    // same as the auto-trigger (history + last user msg + last AI msg): a swipe
+    // only changes which AI variant is the "last" one. If the newly shown
+    // variant was analyzed before, restore its cached analysis without an LLM
+    // call; otherwise fire the auto-trigger analysis for it (force:true bypasses
+    // the "no new user message" guard — the user message index hasn't changed).
+    // A swipe to a brand-new overswipe shows ST's '...' placeholder until the
+    // generation ends: defer the analysis to settlePendingSwipe on
+    // GENERATION_ENDED so the query sees the finished text.
     async function onMessageSwiped(messageIndex) {
-        if (isProcessing) return;
+        if (isProcessing) return false;
         const settings = extension_settings?.mbti_widget;
-        if (!settings?.enabled) return;
+        if (!settings?.enabled) return false;
 
         const context = SillyTavern.getContext();
         const chat = context?.chat || [];
         const { userIdx, aiMsgObj } = getLastUserMessage();
-        if (!aiMsgObj || userIdx < 0) return;
+        if (!aiMsgObj || userIdx < 0) return false;
         // Only react to swipes on the tail AI reply — the turn the widget tracks.
         // The payload is the swiped message's chat index; when it's a valid number,
         // insist it matches the last turn's AI reply (older ST versions may omit it).
         const swipedIndex = Number(messageIndex);
-        if (Number.isFinite(swipedIndex) && swipedIndex !== chat.indexOf(aiMsgObj)) return;
+        if (Number.isFinite(swipedIndex) && swipedIndex !== chat.indexOf(aiMsgObj)) return false;
+
+        const swipeId = swipeIdOf(aiMsgObj);
+        if (!textIsFinal(aiMsgObj, swipeId)) {
+            // New variant still generating ('...'): remember the turn and wait
+            // for GENERATION_ENDED. A further swipe replaces this pending target.
+            pendingSwipe = { userIdx, swipeId };
+            console.log('[MBTI] Swipe to new variant pending: waiting for generation to finish (turn ' + userIdx + ', swipe ' + swipeId + ')');
+            return false;
+        }
+
+        // The user navigated away from any in-flight overswipe (the pending
+        // variant is no longer the active one) — the deferred analysis, if any,
+        // must not fire for it later.
+        pendingSwipe = null;
 
         const cached = lookupSwipeCacheEntry(userIdx, aiMsgObj);
         if (cached) {
-            console.log('[MBTI] Swipe restored cached analysis for turn', userIdx, 'swipe', swipeIdOf(aiMsgObj));
+            console.log('[MBTI] Swipe restored cached analysis for turn', userIdx, 'swipe', swipeId);
             upsertTrailEntry(userIdx, {
                 tags: cached.tags || [],
                 reasoning: cached.reasoning || '',
@@ -2349,7 +2388,41 @@ function getLastUserMessage() {
             return true;
         }
 
-        console.log('[MBTI] Swipe to new variant: analyzing turn', userIdx, 'swipe', swipeIdOf(aiMsgObj));
+        console.log('[MBTI] Swipe to new variant: analyzing turn', userIdx, 'swipe', swipeId);
+        return reAnalyzeLastTurn({ force: true });
+    }
+
+    // GENERATION_ENDED: a deferred swipe variant finished generating — run the
+    // analysis onMessageSwiped postponed. Consumed only when the pending turn is
+    // still the current tail (a new user message invalidates it), the active
+    // swipe is still the pending one (swiping away aborts it), and the variant
+    // text is real content (aborted/errored generations yield none).
+    async function settlePendingSwipe() {
+        if (!pendingSwipe) return false;
+        if (isProcessing) return false;
+        const settings = extension_settings?.mbti_widget;
+        if (!settings?.enabled) { pendingSwipe = null; return false; }
+
+        const context = SillyTavern.getContext();
+        const { userIdx, aiMsgObj } = getLastUserMessage();
+        const pending = pendingSwipe;
+        if (!aiMsgObj || userIdx !== pending.userIdx) {
+            pendingSwipe = null;
+            return false;
+        }
+        const swipeId = swipeIdOf(aiMsgObj);
+        if (swipeId !== pending.swipeId) {
+            pendingSwipe = null;
+            return false;
+        }
+        const text = swipeVariantText(aiMsgObj, swipeId);
+        if (text === '...' || text.trim() === '') {
+            // Generation didn't produce usable text — keep the pending marker so
+            // a subsequent overswipe completes it later, or a mismatch clears it.
+            return false;
+        }
+        pendingSwipe = null;
+        console.log('[MBTI] Deferred swipe analysis: variant finished (turn ' + userIdx + ', swipe ' + swipeId + ')');
         return reAnalyzeLastTurn({ force: true });
     }
 
@@ -4387,6 +4460,27 @@ function getLastUserMessage() {
             });
         }
 
+        // v3.7.3: a swipe to a brand-new overswipe was deferred (its text was
+        // ST's '...' placeholder at MESSAGE_SWIPED time). GENERATION_ENDED
+        // fires after the finished text is in place — analyze it now.
+        if (context.event_types.GENERATION_ENDED) {
+            context.eventSource.on(context.event_types.GENERATION_ENDED, async () => {
+                const handled = await settlePendingSwipe();
+                if (handled) console.log('[MBTI] settlePendingSwipe analyzed:', handled);
+            });
+        }
+
+        // Belt-and-braces: a user-stopped swipe generation will not produce a
+        // final variant, so its deferred analysis must be forgotten.
+        if (context.event_types.GENERATION_STOPPED) {
+            context.eventSource.on(context.event_types.GENERATION_STOPPED, async () => {
+                if (pendingSwipe) {
+                    pendingSwipe = null;
+                    console.log('[MBTI] Generation stopped; cleared pending swipe analysis');
+                }
+            });
+        }
+
         extension_settings.mbti_widget = extension_settings.mbti_widget || {};
         // Enabled by default on first install. Guard on `=== undefined` so a
         // user who deliberately disabled the extension (enabled: false) is
@@ -4536,7 +4630,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.7.2 loaded');
+        console.log('MBTI Widget v3.7.3 loaded');
     }
 
     function showTestResult(message, type) {
