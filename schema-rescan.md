@@ -45,7 +45,7 @@ Respond strictly ONLY with valid JSON:
   "analyses": [
     {
       "messageIndex": 0,
-      "tags": ["tag1", "tag2"],
+      "tags": [ { "tag": "tag1", "intensity": "clear" } ],
       "reasoning": "Brief 1-2 sentence explanation"
     }
   ]
@@ -58,6 +58,12 @@ Pair 3 - Information focus: clue vs pattern
 Pair 4 - Approach to uncertainty: anchor vs drift
 
 If a message is genuinely neutral on an axis, omit both tags from that pair.
+
+Intensity guide (choose one per tag):
+- "subtle": the trait is only faintly implied by this turn
+- "clear": a normal, ordinary-strength signal (default)
+- "strong": the turn is clearly and directly driven by this trait
+- "defining": this turn is centrally, unmistakably about this trait
 ```
 
 ---
@@ -69,12 +75,12 @@ If a message is genuinely neutral on an axis, omit both tags from that pair.
   "analyses": [
     {
       "messageIndex": 0,
-      "tags": ["reason", "anchor"],
+      "tags": [ { "tag": "reason", "intensity": "clear" }, { "tag": "anchor", "intensity": "strong" } ],
       "reasoning": "User proposed a structured analytical approach."
     },
     {
       "messageIndex": 2,
-      "tags": ["clue", "drift"],
+      "tags": [ { "tag": "clue", "intensity": "subtle" }, { "tag": "drift", "intensity": "clear" } ],
       "reasoning": "User focused on concrete details and kept options open."
     }
   ]
@@ -87,10 +93,12 @@ If a message is genuinely neutral on an axis, omit both tags from that pair.
 |-------|------|----------|-------------|
 | `analyses` | array | Yes | Array of per-message analysis objects |
 | `analyses[].messageIndex` | number | Yes | Global chat message index (as numbered by the `[index]` markers in the provided history) — matches the auto-analysis records so re-scan overwrites them |
-| `analyses[].tags` | string[] | Yes | 1-4 tags from the allowed set |
-| `analyses[].reasoning` | string | Yes | Brief explanation of tag choices |
+| `analyses[].tags` | array | Yes | 1-4 tag objects from the allowed set |
+| `analyses[].tags[].tag` | string | Yes | One of the 8 allowed tags |
+| `analyses[].tags[].intensity` | string | No | One of `subtle` / `clear` / `strong` / `defining`. Missing or unknown → `clear` (weight 1.0) |
+| `analyses[].reasoning` | string | When Analysis Active | Brief explanation of tag choices. Omitted (not requested) when the **Analysis** prompt's Active toggle is off — the re-scan records then carry no reasoning text. |
 
-### Valid Tags
+### Valid Tags & Intensity Weights
 
 | Tag | Axis | Direction | Meaning |
 |-----|------|-----------|---------|
@@ -103,12 +111,23 @@ If a message is genuinely neutral on an axis, omit both tags from that pair.
 | `anchor` | J/P | J (negative) | Committed to a position or plan |
 | `drift` | J/P | P (positive) | Kept options open, adapted, stayed flexible |
 
+| Intensity | Delta weight | Meaning |
+|-----------|--------------|---------|
+| `subtle` | 0.5 | Trait only faintly implied |
+| `clear` | 1.0 | Normal-strength signal (default) |
+| `strong` | 1.5 | Turn clearly driven by the trait |
+| `defining` | 2.0 | Turn centrally about the trait |
+
+The **Weighted scoring** toggle (`extension_settings.mbti_widget.weightedScoring`) scales every delta by this weight; off = fixed ±1 like pre-v3.7. `MAX_SCORE` (18) clamps each axis via `Math.max/min`, so fractional weights saturate exactly at ±MAX_SCORE.
+
 ### Validation Rules
 
-- Each analysis must have `messageIndex`, `tags`, and `reasoning`
+- Each analysis must have `messageIndex` and `tags` (1-4 per message); `reasoning` is required only while the Analysis prompt is Active
 - Tags: minimum 1, maximum 4 per message
 - One tag per axis pair at most
-- Tags must be from the allowed set (case-insensitive, trimmed)
+- Tags must be from the allowed set (case-insensitive, trimmed); unknown tags are dropped; an analysis whose tags all normalize to invalid is dropped with it
+- `intensity` must be one of the four labels (case-insensitive); unknown/missing → `clear`
+- Bare strings (`"shadow"`) are also accepted for backward compatibility — they normalize to `clear` (weight 1.0)
 - Only user messages (marked `[user]`) should have analyses
 - Markdown fences (` ```json ... ``` `) are stripped before parsing
 
@@ -121,7 +140,10 @@ If a message is genuinely neutral on an axis, omit both tags from that pair.
   analyses: [
     {
       messageIndex: 0,
-      tags: ["reason", "anchor"],
+      tags: [
+        { tag: "reason", intensity: "clear", weight: 1.0 },
+        { tag: "anchor", intensity: "strong", weight: 1.5 }
+      ],
       reasoning: "User proposed a structured analytical approach."
     },
     // ... one entry per user message
@@ -133,13 +155,13 @@ If a message is genuinely neutral on an axis, omit both tags from that pair.
 
 ## Score Application
 
-Tags are applied sequentially (message 0 → message 1 → message 2...), building scores incrementally. Each entry produces a trail snapshot.
+Tag objects are applied sequentially (message 0 → message 1 → message 2...), building scores incrementally. Each tag moves its axis by `weight` (scaled by the `weightedScoring` toggle) toward ±MAX_SCORE via clamping. Each entry produces a trail snapshot, including the normalized `appliedTags` that produced it.
 
 ```javascript
 // After processing all analyses:
 trail = [
-  { scores: { ie: -1, tf: -2, sn: 0, jp: -1 }, reasoning: "..." },
-  { scores: { ie: -1, tf: -2, sn: 1, jp: -2 }, reasoning: "..." },
+  { scores: { ie: -1, tf: -2, sn: 0, jp: -1 }, previousScores: { ie: 0, tf: 0, sn: 0, jp: 0 }, appliedTags: [{ tag: "reason", intensity: "clear" }, { tag: "anchor", intensity: "strong" }], reasoning: "..." },
+  { scores: { ie: -1, tf: -2, sn: 1, jp: -2 }, previousScores: { ie: -1, tf: -2, sn: 0, jp: -1 }, appliedTags: [{ tag: "pattern", intensity: "clear" }, { tag: "drift", intensity: "clear" }], reasoning: "..." },
   // ... one trail entry per analyzed message
 ]
 ```

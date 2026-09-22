@@ -20,7 +20,7 @@ A SillyTavern extension that analyzes user chat messages, to build and visualize
 - **Per-chat profiles** — each chat gets its own personality story
 - **Trail history** — see how your profile evolved over time and what drove each change
 - **Re-scan history** — rebuild the trail by re-analyzing past messages
-- **Latest Analysis + Commenter** — a short reasoning for each turn plus a personality commentary (default: the opinionated penguin Dr. Mike Flapjack)
+- **Analysis + Commenter** — a short reasoning for each turn plus a personality commentary (default: the opinionated penguin Dr. Mike Flapjack), both independently toggleable and with optional per-turn saving to the chat file
 - **Editable prompts** — tune the analysis wording and the commenter's name and prompt
 
 ## Installation
