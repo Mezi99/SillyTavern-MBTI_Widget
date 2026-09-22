@@ -2942,21 +2942,13 @@ function getLastUserMessage() {
     // parseRescanResponse validates the raw LLM reply and returns a
     // { analyses, error, rawSnippet } summary. Chunking lives upstream in
     // reScanHistory / fitChunks, this stays format-only. Every failure path
-    // logs the FULL raw reply to the console (plus a hex head of the first 16
-    // bytes) so a bad model response is diagnosable instead of just
-    // "invalid JSON"; the popup gets a short snippet.
+    // logs a one-line reason to the console and returns the first 240 chars
+    // of the raw reply for the error popup.
     function parseRescanResponse(response) {
         const rawType = typeof response;
         const logRawForDebug = (reason) => {
             const str = rawType === 'string' ? response : '';
             console.warn(`[MBTI] Re-scan parse failed: ${reason}`);
-            if (str.length > 0) {
-                console.warn(`[MBTI] Re-scan full raw response (typeof ${rawType}, length ${str.length}):\n${str}`);
-                const hex = Array.from(str.slice(0, 16)).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
-                console.warn(`[MBTI] Re-scan raw response first 16 bytes (hex): ${hex}`);
-            } else {
-                console.warn(`[MBTI] Re-scan raw response (typeof ${rawType}, length 0)`);
-            }
             return str.slice(0, 240);
         };
 
@@ -3076,14 +3068,6 @@ function getLastUserMessage() {
                 chunks = await fitChunks(messages, budget);
             }
 
-            console.info(`[MBTI] Re-scan plan: ${chunks.length} chunk(s) for ${messages.length} messages, budget ${budget}.`);
-            chunks.forEach((c, i) => {
-                const f = chat.indexOf(c.messages[0]);
-                const l = chat.indexOf(c.messages[c.messages.length - 1]);
-                const u = c.messages.filter(m => m.is_user).length;
-                console.info(`[MBTI]   chunk ${i + 1}/${chunks.length}: messages ${f}–${l}, ${c.messages.length} messages, ${u} user, ~${(c.inputTokens || 0).toLocaleString()} tokens input`);
-            });
-
             // Scan each chunk oldest → newest, merging every resolved analysis
             // into one global map. The trail is rebuilt only once, at the end,
             // so a mid-scan failure or Stop never leaves partial data behind.
@@ -3108,9 +3092,6 @@ function getLastUserMessage() {
                 const est = chunks[ci].inputTokens || await countRescanTokens(chunkMsgs);
                 const outputBudget = getRescanOutputBudget(userCount, est, budget);
 
-                console.info(`[MBTI] Chunk ${ci + 1}/${chunks.length} system prompt:\n${buildRescanPrompt()}`);
-                console.info(`[MBTI] Chunk ${ci + 1}/${chunks.length} user prompt (${chunkMsgs.length} messages, ${userCount} user, est ${est} tokens input, ${outputBudget} output):\n${chatText}`);
-
                 const response = await scanChunkWithRetry(chatText, outputBudget);
 
                 // User pressed Stop while the backend settled this chunk:
@@ -3130,8 +3111,8 @@ function getLastUserMessage() {
                     else if (parsed.error === 'truncated') what = 'a response that was cut off before the JSON completed (the model hit its output limit)';
                     else if (parsed.error === 'non-json') what = 'a non-JSON reply';
                     const snippet = parsed.rawSnippet
-                        ? ` Raw response begins: "${parsed.rawSnippet}" See the console for the full prompt and response.`
-                        : ' See the console for the full prompt and response.';
+                        ? ` Raw response begins: "${parsed.rawSnippet}"`
+                        : '';
                     showErrorPopup(
                         `The re-scan chunk ${ci + 1}/${chunks.length} (messages ${firstIdx}–${lastIdx}) returned ${what}. Re-send to try again.${snippet}`,
                         {},
@@ -3139,7 +3120,6 @@ function getLastUserMessage() {
                     return;
                 }
                 totalAnalyses += parsed.analyses.length;
-                console.log(`[MBTI] Chunk ${ci + 1}/${chunks.length}: parsed ${parsed.analyses.length} analyses`);
 
                 // Resolve this chunk's messageIndexes against the actual user
                 // messages in it: accept exact hits, snap ±1 for off-by-one /

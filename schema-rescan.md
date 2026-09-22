@@ -132,7 +132,7 @@ The **Weighted scoring** toggle (`extension_settings.mbti_widget.weightedScoring
 - Bare strings (`"shadow"`) are also accepted for backward compatibility — they normalize to `clear` (weight 1.0)
 - Only user messages (marked `[user]`) should have analyses
 - Markdown fences (` ```json ... ``` `) are stripped before parsing
-- Prose wrapped around the JSON block ("Here you go: {...}") is tolerated — the outermost balanced JSON block is extracted and parsed before the reply is deemed invalid; a BOM prefix is also stripped. A reply that still fails **and** looks cut off (unclosed markdown fence, or unbalanced braces) is classified as truncation — the model hit its output limit (`finish_reason: length`, logged as a console warning) mid-JSON. On failure the **full** raw reply and the chunk's full system + user prompts are logged to the console (the popup keeps a 240-char snippet for context).
+- Prose wrapped around the JSON block ("Here you go: {...}") is tolerated — the outermost balanced JSON block is extracted and parsed before the reply is deemed invalid; a BOM prefix is also stripped. A reply that still fails **and** looks cut off (unclosed markdown fence, or unbalanced braces) is classified as truncation — the model hit its output limit (`finish_reason: length`, logged as a console warning) mid-JSON. On failure the console logs a one-line reason and the error popup quotes the first 240 chars of the raw response for context.
 
 ---
 
