@@ -834,6 +834,13 @@
     color: rgba(251, 191, 36, 0.9);
 }
 
+/* Chunk plan: informative (full history covered) instead of warning (truncation). */
+.rescan-warning.is-chunked {
+    background: rgba(134, 239, 172, 0.08);
+    border-color: rgba(134, 239, 172, 0.3);
+    color: rgba(134, 239, 172, 0.9);
+}
+
 .rescan-go-btn {
     width: 100%;
     padding: 8px 12px;

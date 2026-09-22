@@ -19,7 +19,7 @@ A SillyTavern extension that analyzes user chat messages, to build and visualize
 - **Radar chart** — your personality visualized as an octagon across 8 dimensions
 - **Per-chat profiles** — each chat gets its own personality story
 - **Trail history** — see how your profile evolved over time and what drove each change
-- **Re-scan history** — rebuild the trail by re-analyzing past messages
+- **Re-scan history** — rebuild the trail by re-analyzing past messages; long histories are scanned in chunks so nothing is ever left out, whatever your model's context size
 - **Analysis + Commenter** — a short reasoning for each turn plus a personality commentary (default: the opinionated penguin Dr. Mike Flapjack), both independently toggleable and with optional per-turn saving to the chat file
 - **Editable prompts** — tune the analysis wording and the commenter's name and prompt
 
