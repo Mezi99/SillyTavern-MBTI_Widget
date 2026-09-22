@@ -2588,6 +2588,38 @@ function getLastUserMessage() {
         return cleaned;
     }
 
+    // Locate the outermost balanced JSON block inside arbitrary text, so a
+    // reply that wraps the JSON in prose ("Here you go: {...}") is still parsed.
+    // Returns { block, hadPrefix } or null. Only used when strict parse fails;
+    // a mis-extraction degrades to the normal format-error path + diagnostics.
+    function extractJsonBlock(text) {
+        const str = String(text || '').replace(/^\uFEFF/, '').trim();
+        if (!str) return null;
+        let startIdx = Infinity;
+        let open = null;
+        for (const ch of ['{', '[']) {
+            const i = str.indexOf(ch);
+            if (i !== -1 && i < startIdx) {
+                startIdx = i;
+                open = ch;
+            }
+        }
+        if (startIdx === Infinity) return null;
+        const close = open === '{' ? '}' : ']';
+        let depth = 0;
+        for (let i = startIdx; i < str.length; i++) {
+            const c = str[i];
+            if (c === open) depth++;
+            else if (c === close) {
+                depth--;
+                if (depth === 0) {
+                    return { block: str.slice(startIdx, i + 1), hadPrefix: startIdx > 0 };
+                }
+            }
+        }
+        return null;
+    }
+
     function estimateTokens(messageCount) {
         const context = SillyTavern.getContext();
         const chat = context.chat;
@@ -2868,13 +2900,56 @@ function getLastUserMessage() {
     }
 
     // parseRescanResponse validates the raw LLM reply and returns a
-    // { analyses, empty, error } summary. Chunking lives upstream in
-    // reScanHistory / fitChunks, this stays format-only.
+    // { analyses, error, rawSnippet } summary. Chunking lives upstream in
+    // reScanHistory / fitChunks, this stays format-only. Every failure path
+    // logs the raw reply (quoted + hex head) so a bad model response is
+    // diagnosable instead of just "invalid JSON".
     function parseRescanResponse(response) {
-        try {
-            const parsed = JSON.parse(stripMarkdownFences(response));
+        const rawType = typeof response;
+        const logRawForDebug = (reason) => {
+            const str = rawType === 'string' ? response : '';
+            const snippet = str.length > 80 ? `${str.slice(0, 80)}… (${str.length} chars total)` : str;
+            const hex = Array.from(str.slice(0, 16)).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
+            console.warn(`[MBTI] Re-scan parse failed: ${reason}`);
+            console.warn(`[MBTI] Re-scan raw response (typeof ${rawType}, length ${str.length}): ${JSON.stringify(snippet)}`);
+            if (str.length > 0) {
+                console.warn(`[MBTI] Re-scan raw response first 16 bytes (hex): ${hex}`);
+            }
+            return str.slice(0, 240);
+        };
 
-            if (parsed.analyses && Array.isArray(parsed.analyses)) {
+        try {
+            if (rawType !== 'string') {
+                return { analyses: [], error: 'non-string', rawSnippet: logRawForDebug(`non-string response (${rawType})`) };
+            }
+            let str = response.trim();
+            if (str && str.charCodeAt(0) === 0xFEFF) {
+                str = str.slice(1).trim();
+            }
+            if (!str) {
+                return { analyses: [], error: 'empty', rawSnippet: logRawForDebug('empty response') };
+            }
+
+            let parsed = null;
+            try {
+                parsed = JSON.parse(stripMarkdownFences(str));
+            } catch (parseError) {
+                const salvage = extractJsonBlock(stripMarkdownFences(str));
+                if (salvage) {
+                    try {
+                        parsed = JSON.parse(salvage.block);
+                        console.warn(`[MBTI] Re-scan JSON salvaged from surrounding text${salvage.hadPrefix ? ' (prefix stripped)' : ''}.`);
+                    } catch (e2) {
+                        parsed = null;
+                    }
+                }
+                if (!parsed) {
+                    const snippet = logRawForDebug('not valid JSON');
+                    return { analyses: [], error: 'non-json', rawSnippet: snippet };
+                }
+            }
+
+            if (parsed && parsed.analyses && Array.isArray(parsed.analyses)) {
                 const validAnalyses = parsed.analyses
                     .filter(a =>
                         a.messageIndex !== undefined &&
@@ -2893,11 +2968,14 @@ function getLastUserMessage() {
 
                 return { analyses: validAnalyses, error: false };
             }
+
+            const snippet = logRawForDebug('valid JSON but missing the analyses array');
+            return { analyses: [], error: 'wrong-shape', rawSnippet: snippet };
         } catch (e) {
             console.error('MBTI Widget: Invalid re-scan JSON', e);
         }
 
-        return { analyses: [], error: true };
+        return { analyses: [], error: 'non-json' };
     }
 
     // Compute output token budget for re-scan so the analysis isn't truncated.
@@ -2953,6 +3031,14 @@ function getLastUserMessage() {
                 chunks = await fitChunks(messages, budget);
             }
 
+            console.info(`[MBTI] Re-scan plan: ${chunks.length} chunk(s) for ${messages.length} messages, budget ${budget}.`);
+            chunks.forEach((c, i) => {
+                const f = chat.indexOf(c.messages[0]);
+                const l = chat.indexOf(c.messages[c.messages.length - 1]);
+                const u = c.messages.filter(m => m.is_user).length;
+                console.info(`[MBTI]   chunk ${i + 1}/${chunks.length}: messages ${f}–${l}, ${c.messages.length} messages, ${u} user, ~${(c.inputTokens || 0).toLocaleString()} tokens input`);
+            });
+
             // Scan each chunk oldest → newest, merging every resolved analysis
             // into one global map. The trail is rebuilt only once, at the end,
             // so a mid-scan failure or Stop never leaves partial data behind.
@@ -2987,7 +3073,20 @@ function getLastUserMessage() {
                 if (parsed.error) {
                     setStatus('error', 'Re-scan format error');
                     errorResendHandler = () => reScanHistory(lastScanCount);
-                    showErrorPopup(`The re-scan chunk ${ci + 1}/${chunks.length} returned an invalid response format. Re-send to try again.`);
+                    const firstIdx = chat.indexOf(chunkMsgs[0]);
+                    const lastIdx = chat.indexOf(chunkMsgs[chunkMsgs.length - 1]);
+                    let what = 'invalid response format';
+                    if (parsed.error === 'empty') what = 'an empty response';
+                    else if (parsed.error === 'non-string') what = `a non-string response (typeof ${typeof response})`;
+                    else if (parsed.error === 'wrong-shape') what = 'valid JSON but no analyses array';
+                    else if (parsed.error === 'non-json') what = 'a non-JSON reply';
+                    const snippet = parsed.rawSnippet
+                        ? ` Raw response begins: "${parsed.rawSnippet}"`
+                        : '';
+                    showErrorPopup(
+                        `The re-scan chunk ${ci + 1}/${chunks.length} (messages ${firstIdx}–${lastIdx}) returned ${what}. Re-send to try again.${snippet}`,
+                        {},
+                    );
                     return;
                 }
                 totalAnalyses += parsed.analyses.length;

@@ -130,6 +130,7 @@ The **Weighted scoring** toggle (`extension_settings.mbti_widget.weightedScoring
 - Bare strings (`"shadow"`) are also accepted for backward compatibility — they normalize to `clear` (weight 1.0)
 - Only user messages (marked `[user]`) should have analyses
 - Markdown fences (` ```json ... ``` `) are stripped before parsing
+- Prose wrapped around the JSON block ("Here you go: {...}") is tolerated — the outermost balanced JSON block is extracted and parsed before the reply is deemed invalid; a BOM prefix is also stripped. On failure the raw reply is logged to the console (quoted sample + hex head) and quoted in the error popup for debugging.
 
 ---
 
