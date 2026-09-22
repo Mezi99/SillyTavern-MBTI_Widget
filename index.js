@@ -1415,7 +1415,11 @@ Intensity guide (choose one per tag):
     function buildRescanPrompt() {
         const p = getPromptsSettings();
         const analysis = sanitizePromptText(p.analysis) || DEFAULT_ANALYSIS_PROMPT;
-        const analysisLine = analysisEnabled() ? `,\n      "reasoning": "${analysis}"` : '';
+        // Re-scan requests reasoning text only when the Analysis prompt is
+        // Active AND its per-turn text is saved to the trail. When saving is
+        // off the reasoning would be discarded outright, so omitting it from
+        // the schema saves output tokens (a re-scan is about the ratings).
+        const analysisLine = analysisEnabled() && analysisSaved() ? `,\n      "reasoning": "${analysis}"` : '';
         return `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
 
 Message numbering rules (CRITICAL):
@@ -1768,6 +1772,11 @@ function getLastUserMessage() {
 
             const data = await response.json();
             const content = extractOpenAIContent(data);
+            if (data?.choices?.[0]?.finish_reason === 'length') {
+                // Output token cap hit: for the re-scan this means the chunk's
+                // analyses did not fit and the JSON is truncated mid-way.
+                console.warn('[MBTI] LLM response truncated by output token limit (finish_reason: length).');
+            }
             if (!content || !content.trim()) {
                 const finishReason = data?.choices?.[0]?.finish_reason || 'unknown';
                 const hasReasoning = !!(data?.choices?.[0]?.message?.reasoning);
@@ -2176,8 +2185,9 @@ function getLastUserMessage() {
             base = next;
         });
         // Re-scan produces no comments; the analysis last state is the final
-        // scanned record's reasoning (when enabled).
-        lastAnalysis = analysisEnabled()
+        // scanned record's reasoning — but only when reasoning was requested
+        // and saved (save-off re-scans are ratings-only and carry no text).
+        lastAnalysis = analysisEnabled() && analysisSaved()
             ? (analyses.length > 0 ? (analyses[analyses.length - 1].reasoning || '') : '')
             : '';
         lastCommenter = '';
@@ -2668,6 +2678,20 @@ function getLastUserMessage() {
     // shared endpoints are not hammered by one long scan.
     const CHUNK_BREATHE_MS = 250;
 
+    // Output tokens reserved per user message when packing re-scan chunks. A
+    // chunk packed tightly against the budget only leaves ~1k tokens for output,
+    // so the model hits finish_reason="length" and truncates mid-JSON. Closing
+    // chunks earlier (giving each ~userCount × 160 output room) makes the
+    // analyses — tags + reasoning when saved — actually fit. Matches the
+    // per-analysis allowance v3.7.1 already used when the window was unknown.
+    const RESCAN_OUTPUT_PER_USER = 160;
+
+    // The output room getRescanOutputBudget must hand a chunk for userCount
+    // analyses: floor 1024, cap 32768.
+    function requiredRescanOutput(userCount) {
+        return Math.min(32768, Math.max(1024, userCount * RESCAN_OUTPUT_PER_USER));
+    }
+
     // Build the text representation of messages for the re-scan payload/sizing.
     // Message content runs through the regex engine (cleanMessageText) so the
     // model sees the clean story and the estimate matches the sent payload.
@@ -2729,8 +2753,11 @@ function getLastUserMessage() {
             const isUser = m.is_user;
             const candidateTokens = promptTokenCount + running + t + (current.length + 1);
             const candidateUsers = runningUsers + (isUser ? 1 : 0);
-            const outBudget = getRescanOutputBudget(candidateUsers, candidateTokens, budget);
-            if (current.length > 0 && candidateTokens + outBudget > budget) {
+            // Reserve real output for the candidate's analyses; a chunk packed
+            // against the budget would leave the model ~1k output tokens and
+            // truncate mid-JSON.
+            const neededOut = requiredRescanOutput(candidateUsers);
+            if (current.length > 0 && candidateTokens + neededOut > budget) {
                 chunks.push({ messages: current, inputTokens: promptTokenCount + running + current.length });
                 current = [];
                 running = 0;
@@ -2899,21 +2926,36 @@ function getLastUserMessage() {
         }
     }
 
+    // A reply that failed strict + salvage parsing may still be a clean start of
+    // an answer the model ran out of tokens for (finish_reason "length"):
+    // an unclosed markdown fence or more opening than closing braces signals
+    // truncation rather than a model that wrote prose.
+    function looksTruncated(text) {
+        const str = String(text || '');
+        const fences = (str.match(/```/g) || []).length;
+        if (fences % 2 === 1) return true;
+        const openBraces = (str.match(/\{/g) || []).length;
+        const closeBraces = (str.match(/\}/g) || []).length;
+        return openBraces > closeBraces;
+    }
+
     // parseRescanResponse validates the raw LLM reply and returns a
     // { analyses, error, rawSnippet } summary. Chunking lives upstream in
     // reScanHistory / fitChunks, this stays format-only. Every failure path
-    // logs the raw reply (quoted + hex head) so a bad model response is
-    // diagnosable instead of just "invalid JSON".
+    // logs the FULL raw reply to the console (plus a hex head of the first 16
+    // bytes) so a bad model response is diagnosable instead of just
+    // "invalid JSON"; the popup gets a short snippet.
     function parseRescanResponse(response) {
         const rawType = typeof response;
         const logRawForDebug = (reason) => {
             const str = rawType === 'string' ? response : '';
-            const snippet = str.length > 80 ? `${str.slice(0, 80)}… (${str.length} chars total)` : str;
-            const hex = Array.from(str.slice(0, 16)).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
             console.warn(`[MBTI] Re-scan parse failed: ${reason}`);
-            console.warn(`[MBTI] Re-scan raw response (typeof ${rawType}, length ${str.length}): ${JSON.stringify(snippet)}`);
             if (str.length > 0) {
+                console.warn(`[MBTI] Re-scan full raw response (typeof ${rawType}, length ${str.length}):\n${str}`);
+                const hex = Array.from(str.slice(0, 16)).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
                 console.warn(`[MBTI] Re-scan raw response first 16 bytes (hex): ${hex}`);
+            } else {
+                console.warn(`[MBTI] Re-scan raw response (typeof ${rawType}, length 0)`);
             }
             return str.slice(0, 240);
         };
@@ -2945,6 +2987,9 @@ function getLastUserMessage() {
                 }
                 if (!parsed) {
                     const snippet = logRawForDebug('not valid JSON');
+                    if (looksTruncated(stripMarkdownFences(str))) {
+                        return { analyses: [], error: 'truncated', rawSnippet: snippet };
+                    }
                     return { analyses: [], error: 'non-json', rawSnippet: snippet };
                 }
             }
@@ -3025,7 +3070,7 @@ function getLastUserMessage() {
             const totalUserCount = messages.filter(m => m.is_user).length;
             const wholeEstimate = await countRescanTokens(messages);
             let chunks;
-            if (!(budget > 0) || wholeEstimate + getRescanOutputBudget(totalUserCount, wholeEstimate, budget) <= budget) {
+            if (!(budget > 0) || wholeEstimate + requiredRescanOutput(totalUserCount) <= budget) {
                 chunks = [{ messages, inputTokens: wholeEstimate }];
             } else {
                 chunks = await fitChunks(messages, budget);
@@ -3063,6 +3108,9 @@ function getLastUserMessage() {
                 const est = chunks[ci].inputTokens || await countRescanTokens(chunkMsgs);
                 const outputBudget = getRescanOutputBudget(userCount, est, budget);
 
+                console.info(`[MBTI] Chunk ${ci + 1}/${chunks.length} system prompt:\n${buildRescanPrompt()}`);
+                console.info(`[MBTI] Chunk ${ci + 1}/${chunks.length} user prompt (${chunkMsgs.length} messages, ${userCount} user, est ${est} tokens input, ${outputBudget} output):\n${chatText}`);
+
                 const response = await scanChunkWithRetry(chatText, outputBudget);
 
                 // User pressed Stop while the backend settled this chunk:
@@ -3079,10 +3127,11 @@ function getLastUserMessage() {
                     if (parsed.error === 'empty') what = 'an empty response';
                     else if (parsed.error === 'non-string') what = `a non-string response (typeof ${typeof response})`;
                     else if (parsed.error === 'wrong-shape') what = 'valid JSON but no analyses array';
+                    else if (parsed.error === 'truncated') what = 'a response that was cut off before the JSON completed (the model hit its output limit)';
                     else if (parsed.error === 'non-json') what = 'a non-JSON reply';
                     const snippet = parsed.rawSnippet
-                        ? ` Raw response begins: "${parsed.rawSnippet}"`
-                        : '';
+                        ? ` Raw response begins: "${parsed.rawSnippet}" See the console for the full prompt and response.`
+                        : ' See the console for the full prompt and response.';
                     showErrorPopup(
                         `The re-scan chunk ${ci + 1}/${chunks.length} (messages ${firstIdx}–${lastIdx}) returned ${what}. Re-send to try again.${snippet}`,
                         {},

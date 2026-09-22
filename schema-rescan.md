@@ -87,6 +87,8 @@ Intensity guide (choose one per tag):
 }
 ```
 
+**Re-scan summary:** The per-message record ordering and the "one analysis per `[user]` message, always at least one" rule are identical to the auto-trigger — models wrapped in `[...][...]` fences render as `[ai]` lines, and only user messages get analyses. `reasoning` (the Analysis prompt text) is **omitted from this schema** unless Analysis is Active **and** saved — a save-off re-scan is ratings-only and the model is never asked for text that would be discarded.
+
 ### Fields
 
 | Field | Type | Required | Description |
@@ -96,7 +98,7 @@ Intensity guide (choose one per tag):
 | `analyses[].tags` | array | Yes | 1-4 tag objects from the allowed set |
 | `analyses[].tags[].tag` | string | Yes | One of the 8 allowed tags |
 | `analyses[].tags[].intensity` | string | No | One of `subtle` / `clear` / `strong` / `defining`. Missing or unknown → `clear` (weight 1.0) |
-| `analyses[].reasoning` | string | When Analysis Active | Brief explanation of tag choices. Omitted (not requested) when the **Analysis** prompt's Active toggle is off — the re-scan records then carry no reasoning text. |
+| `analyses[].reasoning` | string | When Analysis Active AND Save on | Brief explanation of tag choices. Omitted (not requested) when the **Analysis** prompt is inactive or its **Save history to chat file** toggle is off — a save-off re-scan is ratings-only (the reasoning text would be discarded), so the records carry nothing but tags. |
 
 ### Valid Tags & Intensity Weights
 
@@ -122,7 +124,7 @@ The **Weighted scoring** toggle (`extension_settings.mbti_widget.weightedScoring
 
 ### Validation Rules
 
-- Each analysis must have `messageIndex` and `tags` (1-4 per message); `reasoning` is required only while the Analysis prompt is Active
+- Each analysis must have `messageIndex` and `tags` (1-4 per message); `reasoning` is required only while the Analysis prompt is Active and saved (save-off re-scans are ratings-only)
 - Tags: minimum 1, maximum 4 per message
 - One tag per axis pair at most
 - Tags must be from the allowed set (case-insensitive, trimmed); unknown tags are dropped; an analysis whose tags all normalize to invalid is dropped with it
@@ -130,7 +132,7 @@ The **Weighted scoring** toggle (`extension_settings.mbti_widget.weightedScoring
 - Bare strings (`"shadow"`) are also accepted for backward compatibility — they normalize to `clear` (weight 1.0)
 - Only user messages (marked `[user]`) should have analyses
 - Markdown fences (` ```json ... ``` `) are stripped before parsing
-- Prose wrapped around the JSON block ("Here you go: {...}") is tolerated — the outermost balanced JSON block is extracted and parsed before the reply is deemed invalid; a BOM prefix is also stripped. On failure the raw reply is logged to the console (quoted sample + hex head) and quoted in the error popup for debugging.
+- Prose wrapped around the JSON block ("Here you go: {...}") is tolerated — the outermost balanced JSON block is extracted and parsed before the reply is deemed invalid; a BOM prefix is also stripped. A reply that still fails **and** looks cut off (unclosed markdown fence, or unbalanced braces) is classified as truncation — the model hit its output limit (`finish_reason: length`, logged as a console warning) mid-JSON. On failure the **full** raw reply and the chunk's full system + user prompts are logged to the console (the popup keeps a 240-char snippet for context).
 
 ---
 
@@ -183,7 +185,7 @@ The number of messages included in the re-scan is set via the slider in the re-s
 When `input + output > budget` for the full requested window, `reScanHistory()` builds the request differently:
 
 1. `countRescanTokens(messages)` estimates the whole window (prompt + cleaned chat text via SillyTavern's tokenizer, `chars/4` fallback).
-2. `fitChunks(messages, budget)` walks the messages **oldest → newest**, accumulating each message's estimated tokens (per-line count cached, prompt counted once). A chunk closes (and a new one opens) when adding the next message would push `input + its own output allowance` past the budget. A single message that alone exceeds the budget is forced into its own oversized chunk.
+2. `fitChunks(messages, budget)` walks the messages **oldest → newest**, accumulating each message's estimated tokens (per-line count cached, prompt counted once). A chunk closes (and a new one opens) when adding the next message would push `input + reserved output` past the budget, where the reservation is **per user message**: `requiredRescanOutput(users) = min(32768, max(1024, users × 160))`. Reserving real output room (rather than packing to the remaining context, which collapses to a ~1k-token floor and truncates the analyses) is what lets every chunk finish its JSON. The same reservation gates the single-request path, so the whole window only scans in one request when it plus the reservation fits. A single message that alone exceeds the budget is forced into its own oversized chunk.
 3. Chunks are processed sequentially. Each chunk request includes the full system prompt + context guard + the per-chunk `[index] [role] Name:` lines; `messageIndex` values remain the global chat indexes, so records keep colliding with (and overwriting) auto-analysis records across chunks.
 4. Each chunk's analyses are resolved against that chunk's user-message indexes (exact / ±1 snap / drop, last-wins), merged across chunks, then the trail is rebuilt **once** in message order.
 
