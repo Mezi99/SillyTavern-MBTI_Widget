@@ -1415,7 +1415,11 @@ Intensity guide (choose one per tag):
     function buildRescanPrompt() {
         const p = getPromptsSettings();
         const analysis = sanitizePromptText(p.analysis) || DEFAULT_ANALYSIS_PROMPT;
-        const analysisLine = analysisEnabled() ? `,\n      "reasoning": "${analysis}"` : '';
+        // Re-scan requests reasoning text only when the Analysis prompt is
+        // Active AND its per-turn text is saved to the trail. When saving is
+        // off the reasoning would be discarded outright, so omitting it from
+        // the schema saves output tokens (a re-scan is about the ratings).
+        const analysisLine = analysisEnabled() && analysisSaved() ? `,\n      "reasoning": "${analysis}"` : '';
         return `Analyze the following chat history. For EACH user message (marked with [user]), determine which MBTI tags apply based on the user's behavior in that specific message.
 
 Message numbering rules (CRITICAL):
@@ -1760,11 +1764,19 @@ function getLastUserMessage() {
                     }
                 }
                 learnContextLimitFromError(errorText, normalizedBaseUrl);
-                throw new Error(errorMessage);
+                const apiError = new Error(errorMessage);
+                apiError.status = response.status;
+                apiError.isRetryable = response.status === 429 || (response.status >= 500 && response.status <= 599);
+                throw apiError;
             }
 
             const data = await response.json();
             const content = extractOpenAIContent(data);
+            if (data?.choices?.[0]?.finish_reason === 'length') {
+                // Output token cap hit: for the re-scan this means the chunk's
+                // analyses did not fit and the JSON is truncated mid-way.
+                console.warn('[MBTI] LLM response truncated by output token limit (finish_reason: length).');
+            }
             if (!content || !content.trim()) {
                 const finishReason = data?.choices?.[0]?.finish_reason || 'unknown';
                 const hasReasoning = !!(data?.choices?.[0]?.message?.reasoning);
@@ -1781,7 +1793,9 @@ function getLastUserMessage() {
             return content;
         } catch (error) {
             if (error.name === 'TypeError' && (String(error.message).includes('fetch') || String(error.message).includes('Failed to fetch') || String(error.message).includes('NetworkError'))) {
-                throw new Error(`CORS Access Blocked: This API endpoint (${normalizedBaseUrl}) does not allow direct access from the browser. This is a browser security restriction (CORS). Use an endpoint that supports CORS (like OpenRouter or a proxy) or switch back to "Use SillyTavern current API".`);
+                const corsError = new Error(`CORS Access Blocked: This API endpoint (${normalizedBaseUrl}) does not allow direct access from the browser. This is a browser security restriction (CORS). Use an endpoint that supports CORS (like OpenRouter or a proxy) or switch back to "Use SillyTavern current API".`);
+                corsError.isRetryable = false;
+                throw corsError;
             }
             throw error;
         }
@@ -2171,8 +2185,9 @@ function getLastUserMessage() {
             base = next;
         });
         // Re-scan produces no comments; the analysis last state is the final
-        // scanned record's reasoning (when enabled).
-        lastAnalysis = analysisEnabled()
+        // scanned record's reasoning — but only when reasoning was requested
+        // and saved (save-off re-scans are ratings-only and carry no text).
+        lastAnalysis = analysisEnabled() && analysisSaved()
             ? (analyses.length > 0 ? (analyses[analyses.length - 1].reasoning || '') : '')
             : '';
         lastCommenter = '';
@@ -2583,6 +2598,38 @@ function getLastUserMessage() {
         return cleaned;
     }
 
+    // Locate the outermost balanced JSON block inside arbitrary text, so a
+    // reply that wraps the JSON in prose ("Here you go: {...}") is still parsed.
+    // Returns { block, hadPrefix } or null. Only used when strict parse fails;
+    // a mis-extraction degrades to the normal format-error path + diagnostics.
+    function extractJsonBlock(text) {
+        const str = String(text || '').replace(/^\uFEFF/, '').trim();
+        if (!str) return null;
+        let startIdx = Infinity;
+        let open = null;
+        for (const ch of ['{', '[']) {
+            const i = str.indexOf(ch);
+            if (i !== -1 && i < startIdx) {
+                startIdx = i;
+                open = ch;
+            }
+        }
+        if (startIdx === Infinity) return null;
+        const close = open === '{' ? '}' : ']';
+        let depth = 0;
+        for (let i = startIdx; i < str.length; i++) {
+            const c = str[i];
+            if (c === open) depth++;
+            else if (c === close) {
+                depth--;
+                if (depth === 0) {
+                    return { block: str.slice(startIdx, i + 1), hadPrefix: startIdx > 0 };
+                }
+            }
+        }
+        return null;
+    }
+
     function estimateTokens(messageCount) {
         const context = SillyTavern.getContext();
         const chat = context.chat;
@@ -2599,22 +2646,158 @@ function getLastUserMessage() {
         return Math.round(totalChars / 4);
     }
 
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Transient LLM failure detector for the re-scan chunk loop: rate limits,
+    // server hiccups, timeouts and network drops are worth a retry; config
+    // errors (4xx, CORS) and user aborts are never retried.
+    function isTransientError(err) {
+        if (!err) return false;
+        if (err.name === 'AbortError') return false;
+        if (isStopped) return false;
+        if (err.isRetryable === false) return false;
+        const status = err.status || err.statusCode;
+        if (status) {
+            return status === 429 || (status >= 500 && status <= 599);
+        }
+        const msg = String(err.message || '');
+        return /rate\s*limit|too\s*many\s*requests|server\s*error|service\s*unavailable|temporarily\s*unavailable|overloaded|capacity|econnreset|econnrefused|time\s*out|timed?\s*out/i.test(msg);
+    }
+
+    const SCAN_RETRY = {
+        maxRetries: 2,        // retries after the initial attempt (3 attempts total)
+        baseDelayMs: 1500,
+        maxDelayMs: 8000,
+        multiplier: 2,
+        jitterMs: 300,
+    };
+
+    // Breathing room between consecutive chunk requests so local models /
+    // shared endpoints are not hammered by one long scan.
+    const CHUNK_BREATHE_MS = 250;
+
+    // Output tokens reserved per user message when packing re-scan chunks. A
+    // chunk packed tightly against the budget only leaves ~1k tokens for output,
+    // so the model hits finish_reason="length" and truncates mid-JSON. Closing
+    // chunks earlier (giving each ~userCount × 160 output room) makes the
+    // analyses — tags + reasoning when saved — actually fit. Matches the
+    // per-analysis allowance v3.7.1 already used when the window was unknown.
+    const RESCAN_OUTPUT_PER_USER = 160;
+
+    // The output room getRescanOutputBudget must hand a chunk for userCount
+    // analyses: floor 1024, cap 32768.
+    function requiredRescanOutput(userCount) {
+        return Math.min(32768, Math.max(1024, userCount * RESCAN_OUTPUT_PER_USER));
+    }
+
     // Build the text representation of messages for the re-scan payload/sizing.
     // Message content runs through the regex engine (cleanMessageText) so the
     // model sees the clean story and the estimate matches the sent payload.
-    async function buildRescanChatText(messages) {
+    async function buildRescanLine(m) {
         // Number messages with their global chat index so the LLM's returned
         // messageIndex matches the auto-analysis records (which use the chat
         // array position), keeping one record per reply across both paths.
         const context = SillyTavern.getContext();
         const chat = context ? context.chat : null;
+        const idx = chat ? chat.indexOf(m) : -1;
+        const text = await cleanMessageText(m);
+        return `[${idx}] ${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${text}`;
+    }
+
+    async function buildRescanChatText(messages) {
         const parts = [];
         for (const m of messages) {
-            const idx = chat ? chat.indexOf(m) : -1;
-            const text = await cleanMessageText(m);
-            parts.push(`[${idx}] ${m.is_user ? '[user]' : '[ai]'} ${m.name}: ${text}`);
+            parts.push(await buildRescanLine(m));
         }
         return parts.join('\n');
+    }
+
+    // Token-count arbitrary text via SillyTavern's tokenizer; chars/4 fallback.
+    async function countTokens(text) {
+        const str = text || '';
+        try {
+            const context = SillyTavern.getContext();
+            if (context && typeof context.getTokenCountAsync === 'function') {
+                return (await context.getTokenCountAsync(str)) || 0;
+            }
+        } catch (e) {
+            console.warn('MBTI Widget: getTokenCountAsync failed, using heuristic', e);
+        }
+        return Math.round(str.length / 4);
+    }
+
+    // Split the scanned messages into contiguous, gap-free chunks that each fit
+    // the context budget (input + output ≤ budget), oldest first, never
+    // dropping a message. A single out-of-budget message is forced into its own
+    // chunk so the loop always terminates. Returns [{ messages, inputTokens }].
+    async function fitChunks(messages, budget) {
+        if (!(budget > 0)) return [{ messages, inputTokens: 0 }];
+        const promptTokenCount = await countTokens(buildRescanPrompt());
+        const lineTokensCache = new Map();
+        const lineTokensOf = async (m) => {
+            const cached = lineTokensCache.get(m);
+            if (cached && cached.src === m.mes) return cached.tokens;
+            const tokens = await countTokens(await buildRescanLine(m));
+            lineTokensCache.set(m, { src: m.mes, tokens });
+            return tokens;
+        };
+
+        const chunks = [];
+        let current = [];
+        let running = 0;        // token sum of the current chunk's lines (prompt excluded)
+        let runningUsers = 0;
+        for (const m of messages) {
+            const t = await lineTokensOf(m);
+            const isUser = m.is_user;
+            const candidateTokens = promptTokenCount + running + t + (current.length + 1);
+            const candidateUsers = runningUsers + (isUser ? 1 : 0);
+            // Reserve real output for the candidate's analyses; a chunk packed
+            // against the budget would leave the model ~1k output tokens and
+            // truncate mid-JSON.
+            const neededOut = requiredRescanOutput(candidateUsers);
+            if (current.length > 0 && candidateTokens + neededOut > budget) {
+                chunks.push({ messages: current, inputTokens: promptTokenCount + running + current.length });
+                current = [];
+                running = 0;
+                runningUsers = 0;
+            }
+            current.push(m);
+            running += t;
+            runningUsers += (isUser ? 1 : 0);
+        }
+        if (current.length > 0) {
+            chunks.push({ messages: current, inputTokens: promptTokenCount + running + current.length });
+        }
+        return chunks;
+    }
+
+    // Run one chunk request through generateMBTI, retrying transient failures
+    // (429 / 5xx / network) with capped exponential backoff. Aborts and
+    // permanent errors propagate to the caller.
+    async function scanChunkWithRetry(chatText, outputBudget) {
+        let attempt = 0;
+        while (true) {
+            try {
+                return await generateMBTI({
+                    prompt: chatText,
+                    systemPrompt: buildRescanPrompt(),
+                    maxTokensOverride: outputBudget,
+                });
+            } catch (error) {
+                if (!isTransientError(error) || attempt >= SCAN_RETRY.maxRetries) {
+                    throw error;
+                }
+                attempt++;
+                const delay = Math.min(
+                    SCAN_RETRY.baseDelayMs * Math.pow(SCAN_RETRY.multiplier, attempt - 1) + Math.random() * SCAN_RETRY.jitterMs,
+                    SCAN_RETRY.maxDelayMs,
+                );
+                console.warn(`[MBTI] Re-scan chunk request failed (attempt ${attempt}), retrying in ${Math.round(delay)}ms:`, error);
+                await sleep(delay);
+            }
+        }
     }
 
     // Count tokens of the full re-scan prompt (rescan prompt + clean chat text)
@@ -2718,10 +2901,20 @@ function getLastUserMessage() {
             }
             if (warnEl) {
                 if (over) {
-                    const fit = await countFittingMessages(chat, messageCount, budget);
-                    warnEl.style.display = 'block';
-                    warnEl.textContent = `Exceeds the context window (~${budget.toLocaleString()} tokens incl. output room) — the scan will analyze the newest ${fit} message(s).`;
+                    const chunks = await fitChunks(chat.slice(-messageCount).filter(m => !m.is_system), budget);
+                    if (chunks.length > 1) {
+                        warnEl.classList.add('is-chunked');
+                        warnEl.classList.remove('is-over-warn');
+                        warnEl.style.display = 'block';
+                        warnEl.textContent = `Chat exceeds one context window (~${budget.toLocaleString()} tokens) — the scan will analyze all ${userCount} user messages in ${chunks.length} contiguous chunks, oldest first. No messages omitted.`;
+                    } else {
+                        warnEl.classList.remove('is-chunked');
+                        warnEl.classList.add('is-over-warn');
+                        warnEl.style.display = 'block';
+                        warnEl.textContent = `A message here exceeds the context window alone — it will be scanned as one oversized request.`;
+                    }
                 } else {
+                    warnEl.classList.remove('is-chunked', 'is-over-warn');
                     warnEl.style.display = 'none';
                 }
             }
@@ -2733,30 +2926,67 @@ function getLastUserMessage() {
         }
     }
 
-    // How many newest non-system messages fit (input + output) inside the budget.
-    // Mirrors the truncation logic in reScanHistory so the popup preview and the
-    // actual scan agree.
-    async function countFittingMessages(chat, wantedCount, budget) {
-        if (!chat || typeof wantedCount !== 'number') return 0;
-        const messages = chat.slice(-wantedCount).filter(m => !m.is_system);
-        let included = [];
-        for (const m of [...messages].reverse()) {
-            const candidate = [m, ...included];
-            const est = await countRescanTokens(candidate);
-            const userCount = candidate.filter(mm => mm.is_user).length;
-            if (budget > 0 && est + getRescanOutputBudget(userCount, est, budget) > budget) {
-                break;
-            }
-            included = candidate;
-        }
-        return included.length;
+    // A reply that failed strict + salvage parsing may still be a clean start of
+    // an answer the model ran out of tokens for (finish_reason "length"):
+    // an unclosed markdown fence or more opening than closing braces signals
+    // truncation rather than a model that wrote prose.
+    function looksTruncated(text) {
+        const str = String(text || '');
+        const fences = (str.match(/```/g) || []).length;
+        if (fences % 2 === 1) return true;
+        const openBraces = (str.match(/\{/g) || []).length;
+        const closeBraces = (str.match(/\}/g) || []).length;
+        return openBraces > closeBraces;
     }
 
+    // parseRescanResponse validates the raw LLM reply and returns a
+    // { analyses, error, rawSnippet } summary. Chunking lives upstream in
+    // reScanHistory / fitChunks, this stays format-only. Every failure path
+    // logs a one-line reason to the console and returns the first 240 chars
+    // of the raw reply for the error popup.
     function parseRescanResponse(response) {
-        try {
-            const parsed = JSON.parse(stripMarkdownFences(response));
+        const rawType = typeof response;
+        const logRawForDebug = (reason) => {
+            const str = rawType === 'string' ? response : '';
+            console.warn(`[MBTI] Re-scan parse failed: ${reason}`);
+            return str.slice(0, 240);
+        };
 
-            if (parsed.analyses && Array.isArray(parsed.analyses)) {
+        try {
+            if (rawType !== 'string') {
+                return { analyses: [], error: 'non-string', rawSnippet: logRawForDebug(`non-string response (${rawType})`) };
+            }
+            let str = response.trim();
+            if (str && str.charCodeAt(0) === 0xFEFF) {
+                str = str.slice(1).trim();
+            }
+            if (!str) {
+                return { analyses: [], error: 'empty', rawSnippet: logRawForDebug('empty response') };
+            }
+
+            let parsed = null;
+            try {
+                parsed = JSON.parse(stripMarkdownFences(str));
+            } catch (parseError) {
+                const salvage = extractJsonBlock(stripMarkdownFences(str));
+                if (salvage) {
+                    try {
+                        parsed = JSON.parse(salvage.block);
+                        console.warn(`[MBTI] Re-scan JSON salvaged from surrounding text${salvage.hadPrefix ? ' (prefix stripped)' : ''}.`);
+                    } catch (e2) {
+                        parsed = null;
+                    }
+                }
+                if (!parsed) {
+                    const snippet = logRawForDebug('not valid JSON');
+                    if (looksTruncated(stripMarkdownFences(str))) {
+                        return { analyses: [], error: 'truncated', rawSnippet: snippet };
+                    }
+                    return { analyses: [], error: 'non-json', rawSnippet: snippet };
+                }
+            }
+
+            if (parsed && parsed.analyses && Array.isArray(parsed.analyses)) {
                 const validAnalyses = parsed.analyses
                     .filter(a =>
                         a.messageIndex !== undefined &&
@@ -2775,11 +3005,14 @@ function getLastUserMessage() {
 
                 return { analyses: validAnalyses, error: false };
             }
+
+            const snippet = logRawForDebug('valid JSON but missing the analyses array');
+            return { analyses: [], error: 'wrong-shape', rawSnippet: snippet };
         } catch (e) {
             console.error('MBTI Widget: Invalid re-scan JSON', e);
         }
 
-        return { analyses: [], error: true };
+        return { analyses: [], error: 'non-json' };
     }
 
     // Compute output token budget for re-scan so the analysis isn't truncated.
@@ -2818,113 +3051,116 @@ function getLastUserMessage() {
 
         isProcessing = true;
         showRescanProgress(true);
-        setStatus('busy', `Re-scanning last ${messageCount} messages...`);
+        setStatus('busy', `Preparing re-scan of last ${messageCount} messages...`);
 
         const budget = await getContextBudget();
-        let overflowing = false;
 
         try {
-            // Greedily include messages newest-first until input plus the output
-            // we'd request for them would overflow the context budget.
-            let includedMsgs = [];
-            for (const m of [...messages].reverse()) {
-                const candidateAll = [m, ...includedMsgs];
-                const est = await countRescanTokens(candidateAll);
-                const userCount = candidateAll.filter(mm => mm.is_user).length;
-                if (budget > 0 && est + getRescanOutputBudget(userCount, est, budget) > budget) {
-                    overflowing = true;
-                    break;
+            // Decide between a single request (the whole window fits — v3.7
+            // behavior, untouched) and a chunked scan (v3.8: full coverage of
+            // long histories regardless of context size, no message omitted).
+            const totalUserCount = messages.filter(m => m.is_user).length;
+            const wholeEstimate = await countRescanTokens(messages);
+            let chunks;
+            if (!(budget > 0) || wholeEstimate + requiredRescanOutput(totalUserCount) <= budget) {
+                chunks = [{ messages, inputTokens: wholeEstimate }];
+            } else {
+                chunks = await fitChunks(messages, budget);
+            }
+
+            // Scan each chunk oldest → newest, merging every resolved analysis
+            // into one global map. The trail is rebuilt only once, at the end,
+            // so a mid-scan failure or Stop never leaves partial data behind.
+            const resolved = {};
+            let corrected = 0;
+            let dropped = 0;
+            let totalAnalyses = 0;
+            for (let ci = 0; ci < chunks.length; ci++) {
+                const chunkMsgs = chunks[ci].messages;
+
+                if (isStopped) break;
+
+                if (chunks.length > 1) {
+                    const firstIdx = chat.indexOf(chunkMsgs[0]);
+                    const lastIdx = chat.indexOf(chunkMsgs[chunkMsgs.length - 1]);
+                    setStatus('busy', `Re-scan chunk ${ci + 1}/${chunks.length} (messages ${firstIdx}–${lastIdx})...`);
+                    if (ci > 0) await sleep(CHUNK_BREATHE_MS);
                 }
-                includedMsgs = candidateAll;
-            }
-            // includedMsgs is newest-first; keep it chronological for the prompt.
-            includedMsgs = includedMsgs.reverse();
 
-            let chatText = await buildRescanChatText(includedMsgs);
-            if (overflowing && includedMsgs.length < messages.length) {
-                const omitted = messages.length - includedMsgs.length;
-                chatText = `[NOTE: ${omitted} earlier message(s) omitted to fit the model context window.]\n${chatText}`;
-                console.warn(`[MBTI] Re-scan truncated: omitted ${omitted} earlier messages (budget ${budget} tokens).`);
-            }
+                const chatText = await buildRescanChatText(chunkMsgs);
+                const userCount = chunkMsgs.filter(m => m.is_user).length;
+                const est = chunks[ci].inputTokens || await countRescanTokens(chunkMsgs);
+                const outputBudget = getRescanOutputBudget(userCount, est, budget);
 
-            const warnEl = document.getElementById('rescan-warning');
-            if (warnEl) {
-                warnEl.style.display = overflowing ? 'block' : 'none';
-                if (overflowing) {
-                    const omittedTotal = messages.length - includedMsgs.length;
-                    warnEl.textContent = `Chat exceeds the model context (~${budget.toLocaleString()} tokens incl. output room) — analyzing the newest ${includedMsgs.length} messages. ${omittedTotal} earlier message(s) omitted.`;
+                const response = await scanChunkWithRetry(chatText, outputBudget);
+
+                // User pressed Stop while the backend settled this chunk:
+                // discard the result and record nothing.
+                if (isStopped) break;
+
+                const parsed = parseRescanResponse(response);
+                if (parsed.error) {
+                    setStatus('error', 'Re-scan format error');
+                    errorResendHandler = () => reScanHistory(lastScanCount);
+                    const firstIdx = chat.indexOf(chunkMsgs[0]);
+                    const lastIdx = chat.indexOf(chunkMsgs[chunkMsgs.length - 1]);
+                    let what = 'invalid response format';
+                    if (parsed.error === 'empty') what = 'an empty response';
+                    else if (parsed.error === 'non-string') what = `a non-string response (typeof ${typeof response})`;
+                    else if (parsed.error === 'wrong-shape') what = 'valid JSON but no analyses array';
+                    else if (parsed.error === 'truncated') what = 'a response that was cut off before the JSON completed (the model hit its output limit)';
+                    else if (parsed.error === 'non-json') what = 'a non-JSON reply';
+                    const snippet = parsed.rawSnippet
+                        ? ` Raw response begins: "${parsed.rawSnippet}"`
+                        : '';
+                    showErrorPopup(
+                        `The re-scan chunk ${ci + 1}/${chunks.length} (messages ${firstIdx}–${lastIdx}) returned ${what}. Re-send to try again.${snippet}`,
+                        {},
+                    );
+                    return;
+                }
+                totalAnalyses += parsed.analyses.length;
+
+                // Resolve this chunk's messageIndexes against the actual user
+                // messages in it: accept exact hits, snap ±1 for off-by-one /
+                // shifted mis-numbering, drop anything unresolvable (last-wins).
+                const userIndexSet = new Set();
+                for (const m of chunkMsgs) {
+                    if (m.is_user) userIndexSet.add(chat.indexOf(m));
+                }
+                for (const a of parsed.analyses) {
+                    let idx = a.messageIndex;
+                    if (userIndexSet.has(idx)) {
+                        // exact match
+                    } else if (userIndexSet.has(idx - 1)) {
+                        idx = idx - 1;
+                        corrected++;
+                    } else if (userIndexSet.has(idx + 1)) {
+                        idx = idx + 1;
+                        corrected++;
+                    } else {
+                        dropped++;
+                        continue;
+                    }
+                    resolved[idx] = a;
                 }
             }
 
-            // Re-scan output grows with user messages (one analysis entry each).
-            // Request the largest output the remaining context allows so the
-            // analysis (incl. reasoning-model thinking) is never truncated.
-            const includedUserCount = includedMsgs.filter(m => m.is_user).length;
-            const outputBudget = getRescanOutputBudget(
-                includedUserCount,
-                await countRescanTokens(includedMsgs),
-                budget,
-            );
-
-            const response = await generateMBTI({
-                prompt: chatText,
-                systemPrompt: buildRescanPrompt(),
-                maxTokensOverride: outputBudget,
-            });
-
-            // User pressed Stop while the ST backend settled the promise:
-            // discard the response and record nothing.
             if (isStopped) {
                 setStatus('idle', 'Re-scan aborted');
                 showErrorPopup('The re-scan was aborted', { resend: false, title: 'Re-scan Stopped' });
                 return;
             }
 
-            const parsed = parseRescanResponse(response);
-            console.log('[MBTI] Parsed analyses:', parsed.analyses.length);
-
-            if (parsed.error) {
-                setStatus('error', 'Re-scan format error');
-                errorResendHandler = () => reScanHistory(lastScanCount);
-                showErrorPopup('The re-scan returned an invalid response format. Re-send to try again.');
-                return;
-            }
-
-            // Resolve each returned messageIndex against the actual user messages
-            // in the scanned window: accept exact hits, snap ±1 for off-by-one /
-            // shifted mis-numbering, drop anything unresolvable (last-wins dedupe).
-            const userIndexSet = new Set();
-            for (const m of includedMsgs) {
-                if (m.is_user) userIndexSet.add(chat.indexOf(m));
-            }
-            let corrected = 0;
-            let dropped = 0;
-            const resolved = {};
-            for (const a of parsed.analyses) {
-                let idx = a.messageIndex;
-                if (userIndexSet.has(idx)) {
-                    // exact match
-                } else if (userIndexSet.has(idx - 1)) {
-                    idx = idx - 1;
-                    corrected++;
-                } else if (userIndexSet.has(idx + 1)) {
-                    idx = idx + 1;
-                    corrected++;
-                } else {
-                    dropped++;
-                    continue;
-                }
-                resolved[idx] = a;
-            }
             const resolvedList = Object.keys(resolved)
                 .map(Number)
                 .sort((x, y) => x - y)
                 .map(idx => ({ ...resolved[idx], messageIndex: idx }));
 
-            if (parsed.analyses.length === 0 && response.trim()) {
-                console.warn('[MBTI] Re-scan: response parsed but contained no valid analyses.');
+            if (totalAnalyses === 0 && resolvedList.length === 0) {
+                console.warn('[MBTI] Re-scan: responses parsed but contained no valid analyses.');
             }
-            if (parsed.analyses.length > 0 && resolvedList.length === 0) {
+            if (totalAnalyses > 0 && resolvedList.length === 0) {
                 // Every analysis was unresolvable — don't wipe the existing
                 // trail on a bad result; surface it so it can be re-sent.
                 console.error('[MBTI] Re-scan: no analyzed message index maps to a user message in this chat.');
@@ -2934,19 +3170,31 @@ function getLastUserMessage() {
                 return;
             }
             if (corrected > 0 || dropped > 0) {
-                console.warn(`[MBTI] Re-scan index fix: corrected ${corrected}, dropped ${dropped} of ${parsed.analyses.length} analyses.`);
+                console.warn(`[MBTI] Re-scan index fix: corrected ${corrected}, dropped ${dropped} of ${totalAnalyses} analyses.`);
+            }
+            if (totalUserCount > 0 && resolvedList.length < totalUserCount) {
+                console.warn(`[MBTI] Re-scan coverage: ${resolvedList.length} of ${totalUserCount} user messages analyzed (missing ones scored neutral or were dropped).`);
             }
 
             // Re-scan is authoritative: wipe the trail and rebuild it fresh
-            // from the resolved analyses (chronological, one record per reply),
-            // eliminating stale/duplicate records from older scans.
+            // from ALL resolved analyses (chronological, one record per reply),
+            // eliminating stale/duplicate records from older scans. Single
+            // write at the end, so the trail is never partially updated.
             rebuildTrailFromAnalyses(resolvedList);
 
             await saveToChatMetadata();
             updatePanel();
-            setStatus('done', corrected > 0 || dropped > 0
+
+            let doneMsg = corrected > 0 || dropped > 0
                 ? `Re-scan complete (${corrected} corrected${dropped > 0 ? `, ${dropped} dropped` : ''})`
-                : 'Re-scan complete');
+                : 'Re-scan complete';
+            if (chunks.length > 1) {
+                doneMsg = `Re-scan complete (${chunks.length} chunks · ${resolvedList.length}/${totalUserCount} user messages)`;
+                if (corrected > 0 || dropped > 0) {
+                    doneMsg += ` (${corrected} corrected${dropped > 0 ? `, ${dropped} dropped` : ''})`;
+                }
+            }
+            setStatus('done', doneMsg);
 
             console.log('[MBTI] Re-scan complete. Final scores:', scores);
 
@@ -4326,7 +4574,7 @@ function getLastUserMessage() {
         loadFromChatMetadata();
         updatePanel();
 
-        console.log('MBTI Widget v3.7.1 loaded');
+        console.log('MBTI Widget v3.8.0 loaded');
     }
 
     function showTestResult(message, type) {
